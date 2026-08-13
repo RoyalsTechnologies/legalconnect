@@ -23,8 +23,9 @@ priorities, MVP scope, effort estimate, chosen stack.
 **Gate B — before a feature is complete:** acceptance criteria, working implementation,
 validation and error handling, relevant tests.
 
-**Gate C — before deployment:** core Must requirements working, critical tests passing,
-critical security issues addressed, production configuration prepared.
+**Gate C — before deployment:** core Must requirements working, critical tests passing on
+GitHub Actions (`.github/workflows/ci.yml`), critical security issues addressed,
+production configuration prepared.
 
 **Gate D — before submission:** live app verified, repository verified, documentation
 complete, technical debt plan complete, credentials verified, all links verified.

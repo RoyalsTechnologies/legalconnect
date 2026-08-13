@@ -239,6 +239,30 @@ describe('Lawyer matching (FR-011)', () => {
     expect(first.body.recommendations).toEqual(second.body.recommendations);
   });
 
+  it('breaks remaining ties on profile id so the order stays total', async () => {
+    const token = await userToken();
+    await seedLawyer({
+      email: 'one@example.com',
+      displayName: 'Same Name',
+      categoryIds: [employmentId],
+      yearsExperience: 5,
+    });
+    await seedLawyer({
+      email: 'two@example.com',
+      displayName: 'Same Name',
+      categoryIds: [employmentId],
+      yearsExperience: 5,
+    });
+
+    const first = await recommendations(token, await seedIntake(token));
+    const second = await recommendations(token, await seedIntake(token));
+
+    expect(first.body.recommendations.map((r: { lawyer: { id: string } }) => r.lawyer.id)).toEqual(
+      second.body.recommendations.map((r: { lawyer: { id: string } }) => r.lawyer.id),
+    );
+    expect(first.body.recommendations).toHaveLength(2);
+  });
+
   it('MT-006: every recommendation carries a reason naming the matched criteria (NFR-007)', async () => {
     const token = await userToken();
     await seedLawyer({
@@ -254,6 +278,40 @@ describe('Lawyer matching (FR-011)', () => {
     expect(reason).toContain('Akua Owusu');
     expect(reason).toContain('Employment & Labour');
     expect(reason).toContain('Accra');
+  });
+
+  it('names the region when the city does not match', async () => {
+    const token = await userToken();
+    await seedLawyer({
+      email: 'regional@example.com',
+      displayName: 'Regional Lawyer',
+      categoryIds: [employmentId],
+      city: 'Tema',
+      region: 'Greater Accra',
+    });
+
+    const res = await recommendations(token, await seedIntake(token));
+    expect(res.body.recommendations[0].reason).toContain('Greater Accra');
+    expect(res.body.recommendations[0].reason).not.toContain('Tema');
+  });
+
+  it('ranks more experienced lawyers above less experienced ones when scores tie', async () => {
+    const token = await userToken();
+    await seedLawyer({
+      email: 'junior@example.com',
+      displayName: 'Junior Lawyer',
+      categoryIds: [employmentId],
+      yearsExperience: 2,
+    });
+    await seedLawyer({
+      email: 'senior@example.com',
+      displayName: 'Senior Lawyer',
+      categoryIds: [employmentId],
+      yearsExperience: 20,
+    });
+
+    const res = await recommendations(token, await seedIntake(token));
+    expect(res.body.recommendations[0].lawyer.displayName).toBe('Senior Lawyer');
   });
 
   it('MT-007: a reason never claims an outcome or ranks a lawyer as best (CON-003)', async () => {
@@ -331,5 +389,31 @@ describe('Lawyer matching (FR-011)', () => {
     );
 
     expect(res.status).toBe(401);
+  });
+
+  it('lets an admin read recommendations for any intake', async () => {
+    const owner = await userToken();
+    await seedLawyer({
+      email: 'akua@example.com',
+      displayName: 'Akua Owusu',
+      categoryIds: [employmentId],
+    });
+    await prisma.user.create({
+      data: {
+        email: 'admin@example.com',
+        passwordHash: await bcrypt.hash('admin-password-123', 4),
+        fullName: 'Platform Administrator',
+        role: Role.ADMIN,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'admin@example.com', password: 'admin-password-123' });
+
+    const res = await recommendations(login.body.token as string, await seedIntake(owner));
+
+    expect(res.status).toBe(200);
+    expect(res.body.recommendations.length).toBeGreaterThan(0);
   });
 });

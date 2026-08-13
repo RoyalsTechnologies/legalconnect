@@ -86,6 +86,11 @@ function createHttpAiClient(apiKey: string): AiClient {
 
 let cached: AiClient | null | undefined;
 
+/** Clears the cached client so tests can change the configured key. */
+export function resetAiClientCache(): void {
+  cached = undefined;
+}
+
 // Returns null when no key is configured. Null is a supported state, not an error:
 // callers treat it exactly like an unreachable provider.
 export function getAiClient(): AiClient | null {

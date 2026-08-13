@@ -1,8 +1,8 @@
 # Technical debt register
 
-Status: initial debt identified at design time (2026-08-12). Items TD-001 to TD-008 are
-**accepted design trade-offs, not yet incurred in code** — each is dated and its status
-updated when the corresponding code lands. Add new entries as real shortcuts are taken.
+Status: initial debt identified at design time (2026-08-12). Items TD-001 to TD-007 are
+**accepted design trade-offs** unless a later status says otherwise. TD-008 is partially
+mitigated on the server; the frontend is still untested.
 
 Technical debt is worth 6 of 48 marks. Record actual trade-offs; never invent debt to fill
 the document and never hide it.
@@ -94,12 +94,14 @@ privacy notice, and evaluate a self-hosted or in-region model.
 ### TD-008 — Targeted rather than broad test coverage
 
 **Cause:** E-13 budgets 4.5 hours; broad coverage was estimated near 12.
-**Impact:** Coverage concentrates on auth, authorization, AI validation and fallback, and
-matching. CRUD paths, most of the frontend, and edge cases are untested, so regressions
-there would not be caught.
-**Priority:** Medium · **Category:** testing · **Status:** Acceptable temporarily
-**Resolution:** Extend to remaining service methods and add frontend component tests.
-**Target:** v1.1 · **Related:** All, `server/tests/`
+**Impact:** Server `src/` is now measured at **96.3% statements / 97.48% lines / 99.61%
+functions / 89.42% branches** (`npm run test:coverage`, 2026-08-13, 358 tests). Remaining
+server gaps are env-gated mail paths and defensive catches. **The React client still has
+no component tests**, so UI regressions would not be caught.
+**Priority:** Medium · **Category:** testing · **Status:** Partially mitigated
+**Resolution:** Add frontend component tests. Remaining server branch gaps are listed in
+`docs/04-testing.md`.
+**Target:** v1.1 · **Related:** All, `server/tests/`, `client/src/`
 
 ### TD-009 — Tests share one database schema and run sequentially
 
@@ -371,7 +373,7 @@ clients may fail until the merchant contract is confirmed. Do not add a second P
 | TD-005 | No lawyer self-onboarding | Low (MVP) | architecture | Partially mitigated |
 | TD-006 | Single AI provider | Low | dependency | Accepted |
 | TD-007 | Intake data leaves boundary | High | data | Accepted, needs disclosure |
-| TD-008 | Targeted test coverage | Medium | testing | Accepted |
+| TD-008 | Targeted test coverage | Medium | testing | Partially mitigated |
 | TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | Accepted |
 | TD-010 | Password reset and email verification | Medium | security | **Resolved** |
 | TD-011 | Confidence threshold not calibrated | Medium | AI quality | Accepted |

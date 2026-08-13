@@ -64,6 +64,35 @@ describe('Administration (FR-015)', () => {
     expect(res.body[0].role).toBe(Role.USER);
   });
 
+  it('filters the user list by search text and status', async () => {
+    const admin = await adminToken();
+    await userToken();
+
+    const byName = await request(app)
+      .get('/api/v1/admin/users?q=Kofi')
+      .set('Authorization', `Bearer ${admin}`);
+    const byStatus = await request(app)
+      .get('/api/v1/admin/users?status=ACTIVE')
+      .set('Authorization', `Bearer ${admin}`);
+
+    expect(byName.status).toBe(200);
+    expect(byName.body).toHaveLength(1);
+    expect(byName.body[0].fullName).toBe('Kofi Boateng');
+    expect(byStatus.status).toBe(200);
+    expect(byStatus.body.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns 404 when changing the status of a missing user', async () => {
+    const admin = await adminToken();
+
+    const res = await request(app)
+      .patch('/api/v1/admin/users/missing-user/status')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ status: UserStatus.SUSPENDED });
+
+    expect(res.status).toBe(404);
+  });
+
   it('IT-042: an admin suspends an account and the holder loses access immediately', async () => {
     const admin = await adminToken();
     const citizen = await userToken();

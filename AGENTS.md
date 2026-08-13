@@ -92,11 +92,14 @@ not run.
 | Dev — frontend | `npm run dev` in `client/` (port 5173) |
 | Migrate | `npm run prisma:migrate` in `server/` |
 | Seed | `npm run prisma:seed` in `server/` |
-| Test | `npm test` in `server/` |
+| Test | `npm test` in `server/` (unit then integration) |
+| Unit tests | `npm run test:unit` |
+| Integration tests | `npm run test:integration` |
 | Typecheck | `npm run typecheck` |
 | Build | `npm run build` |
 | Lint + format | `npm run check:fix` (repo root, Biome) |
 | Full quality gate | `npm run verify` (repo root) |
+| CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit tests, integration tests) |
 
 Run `npm run verify` from the root before considering a phase complete — it runs Biome,
 both typechecks, the tests, and the dependency audit.

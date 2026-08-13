@@ -1,6 +1,6 @@
 # Testing
 
-Status: strategy defined, no tests executed yet.
+Status: automated suite in place; coverage measured 2026-08-13.
 
 **Do not record a test as executed or passing unless it actually ran.** Paste real output.
 
@@ -20,7 +20,19 @@ Runner: Vitest (unit), Supertest (API integration). Postman may be used for manu
 integration evidence. The AI provider is mocked in automated tests — never call the live
 provider from a test suite.
 
-*Environment details to be recorded once the project is scaffolded.*
+Local: Node.js 22 and PostgreSQL 16 (`docker compose up -d postgres`). `npm test` in
+`server/` applies committed migrations to a dedicated `test` schema
+(`tests/global-setup.ts`) so development data is not truncated.
+
+CI: GitHub Actions workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+runs three jobs on every push and pull request:
+
+- **lint, types, audit, build** — `npm run check`, both typechecks, `npm run audit`, production builds
+- **unit tests** — `npm run test:unit` (no database)
+- **integration tests** — `npm run test:integration` against a Postgres 16 service
+- **coverage** — `npm run test:coverage` against Postgres; fails the job if server `src/` drops below the Vitest thresholds (95% statements/lines/functions, 88% branches)
+
+First Actions run: not yet completed.
 
 ## ID scheme
 
@@ -641,3 +653,27 @@ failures against 0 for either run alone. The symptoms are misleading, surfacing 
 authorization and validation failures rather than as the data race they are. The
 ownership queries were re-read afterwards and are unconditionally scoped by `clientId`
 for non-admin callers, and all 131 tests pass on every isolated run. Recorded as TD-009.
+
+## Server coverage (2026-08-13)
+
+`npm run test:coverage` in `server/` — **31 files, 358 tests, all passing**, then v8
+report for `server/src` (excludes `src/server.ts`, the process entrypoint). Coverage
+runs unit files that mock `env.js` in a separate Vitest project from the integration
+suite so `isTest` cannot leak.
+
+```
+ Test Files  31 passed (31)
+      Tests  358 passed (358)
+ Duration  129.50s
+
+Statements   : 96.3% ( 1224/1271 )
+Branches     : 89.42% ( 837/936 )
+Functions    : 99.61% ( 256/257 )
+Lines        : 97.48% ( 1123/1152 )
+```
+
+Thresholds enforced in `server/vitest.coverage.config.ts` and the CI **coverage** job:
+95% statements, lines, and functions; 88% branches. Branches sit below 95% because
+several remaining paths are environment-gated (email send outside `NODE_ENV=test`,
+`env.ts` parse failure at process start) or defensive catches (non-P2002 rethrows,
+concurrent update races). Frontend component tests still do not exist (TD-008).

@@ -85,6 +85,9 @@ describe('NaloPay helpers', () => {
 
   it('treats COMPLETED as paid', () => {
     expect(isPaidStatus('COMPLETED')).toBe(true);
+    expect(isPaidStatus('success')).toBe(true);
+    expect(isPaidStatus('PAID')).toBe(true);
     expect(isPaidStatus('FAILED')).toBe(false);
+    expect(isPaidStatus(undefined)).toBe(false);
   });
 });
