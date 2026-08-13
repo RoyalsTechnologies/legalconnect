@@ -1,0 +1,144 @@
+# Process playbook
+
+Working principles, gates, and workflows for the 48 hours.
+
+## Working principles
+
+Requirements before implementation. Architecture before uncontrolled coding. Acceptance
+criteria before marking a feature complete. Tests before claiming correctness. Evidence
+before claiming completion. Scope discipline over feature quantity. Simple architecture
+over unnecessary complexity. Security by default. Traceability from requirement to
+implementation to test.
+
+Explicitly record shortcuts caused by the time constraint; never hide technical debt.
+Never over-engineer. Never introduce a technology that does not solve a real project need.
+Never rewrite a large working area without a clear requirement or defect. Prefer
+incremental reversible changes, and preserve deployability throughout.
+
+## Quality gates
+
+**Gate A — before implementation:** problem statement, stakeholders, requirements,
+priorities, MVP scope, effort estimate, chosen stack.
+
+**Gate B — before a feature is complete:** acceptance criteria, working implementation,
+validation and error handling, relevant tests.
+
+**Gate C — before deployment:** core Must requirements working, critical tests passing,
+critical security issues addressed, production configuration prepared.
+
+**Gate D — before submission:** live app verified, repository verified, documentation
+complete, technical debt plan complete, credentials verified, all links verified.
+
+## Definition of done
+
+A requirement is done only when the implementation is complete, the code builds and runs,
+acceptance criteria are met, validation exists, failure cases are handled, relevant tests
+have been executed, technical debt is documented, documentation is updated, and the
+feature works in the deployed environment where deployment affects it.
+
+**"Code generated" is not "done".**
+
+### AI intake — specific definition of done
+
+Original text submitted and stored · backend validation passes · the AI call happens
+server-side · provider output is schema-validated · the category is restricted to allowed
+values · the summary is stored and displayed · fallback works when the provider fails ·
+representative AI test cases have actually been executed · no API key is exposed
+client-side · relevant technical debt is recorded · deployment behaviour is verified.
+
+## New feature workflow
+
+For a substantial feature, work through requirement, priority, acceptance criteria, effort
+estimate, dependencies, design impact, data and API changes, security considerations,
+implementation, tests, technical debt, and documentation impact. Cover these briefly and
+in proportion — a small change does not need a twelve-part analysis, it needs doing.
+
+If the feature is too large, propose a smaller version and state what is deferred. Do not
+dump large amounts of code without analysing impact first.
+
+## Bug fix workflow
+
+Reproduce or understand the failing condition → identify the related requirement →
+identify the root cause → apply the smallest safe fix → add or update a test → rerun
+related tests → check for regressions → update the defect log if significant → update the
+debt register if the fix is temporary.
+
+Never mask an error simply to make tests pass.
+
+## Refactoring workflow
+
+Refactor only when code blocks further progress, duplication is significant,
+maintainability risk is high, correctness or security requires it, and tests give enough
+confidence. Preserve behaviour, ensure critical-path tests exist first, rerun tests
+afterwards, and do not smuggle in unrelated features.
+
+## Change management
+
+When requirements change: identify the changed requirement, update its record, assess
+effort impact, assess architecture and data impact, assess test impact, assess technical
+debt, reprioritise scope, and only then implement.
+
+| Change ID | Date/time | Reason | Affected requirement | Impact | Decision |
+| --- | --- | --- | --- | --- | --- |
+| CH-018 | 2026-08-13 | Product owner: lawyers subscribe monthly; each package is a cap on legal areas of interest | FR-018 (Should) | Schema, matching/directory eligibility, lawyer and admin UI | Smallest version: prepaid month + area cap; recurring billing deferred as TD-026 |
+| CH-019 | 2026-08-13 | Product owner: lawyer can pay monthly or a yearly equivalent | FR-018 (Should) | Payment interval on `SubscriptionPayment`; lawyer and admin UI | Year = 365 days at 12 × current monthly fee; no separate yearly price field |
+
+## Scope safety rule
+
+When uncertain, choose the smallest system that demonstrates meaningful requirements
+engineering, a real use case, persistent data, business logic, validation, authentication
+and authorization, testing, deployment, debt awareness, and maintenance planning.
+
+## Status report format
+
+```
+## Current Phase
+Planning / Design / Implementation / Testing / Deployment / Documentation
+
+## Completed
+## In Progress
+## Blockers
+## Remaining Must Requirements
+## Test Status
+## Technical Debt
+## Deployment Status
+## Time/Scope Risk        Low / Medium / High
+## Next Highest-Priority Action
+```
+
+## Feature status format
+
+```
+Feature:
+Requirement ID:
+Priority:
+Estimate:
+Status:
+Acceptance Criteria:
+Implementation:
+Tests:
+Known Defects:
+Technical Debt:
+Documentation:
+Deployment Verified:  Yes / No
+```
+
+## Repository practice
+
+Commit continuously using `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:` with a
+scope — `feat(auth): add admin login`, `test(auth): cover invalid password case`,
+`fix(users): reject duplicate email`, `docs(srs): add requirement traceability`.
+
+Never generate fake commit history and never rewrite history to make work appear older or
+more extensive.
+
+The root `README.md` should carry the project title, problem summary, features, technology
+stack, setup, environment configuration, run commands, test commands, deployment link,
+demo credentials if safe and intended, and repository structure.
+
+## Success criteria
+
+The project succeeds when it demonstrates disciplined software engineering under a
+realistic time constraint — not by feature count. It needs credible evidence of
+requirements engineering, estimation, analysis, design, implementation, quality assurance,
+debt management, deployment, documentation, maintenance thinking, and evolution planning.

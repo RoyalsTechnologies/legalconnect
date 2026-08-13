@@ -1,0 +1,63 @@
+# Local development stack. Production deployment is decided in Phase 10
+# (see docs/06-deployment.md) and does not use this file.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: legalconnect-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: legalconnect
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: legalconnect
+    ports:
+      - "5433:5432"
+    volumes:
+      - legalconnect-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legalconnect -d legalconnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+    container_name: legalconnect-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./server/.env
+    environment:
+      # Overrides .env: inside the compose network the database is reachable by
+      # service name on its internal port, not via the host's mapped 5433.
+      DATABASE_URL: postgresql://legalconnect:localdev@postgres:5432/legalconnect?schema=public
+      CLIENT_ORIGIN: http://localhost:5173
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./server:/app
+      # Anonymous volume keeps the image's node_modules from being shadowed by
+      # the bind mount above, which would otherwise hide the installed packages.
+      - /app/node_modules
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+
+  client:
+    build:
+      context: ./client
+    container_name: legalconnect-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      VITE_API_PROXY_TARGET: http://server:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  legalconnect-data:

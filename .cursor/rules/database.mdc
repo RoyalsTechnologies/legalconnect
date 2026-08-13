@@ -1,0 +1,57 @@
+---
+description: Prisma schema, migration, and data modelling rules
+globs: server/prisma/**,server/src/modules/**/*.repository.ts
+alwaysApply: false
+---
+
+# Database rules
+
+Design the schema before generating widespread CRUD. Use stable primary keys, foreign keys
+where relationships exist, and constraints for essential integrity. Add indexes only where
+justified — avoid premature optimisation. Use Prisma migrations; never edit applied
+migrations by hand.
+
+Seed only non-sensitive demo data. Never commit production credentials or a real database
+URL. Use transactions where a multi-step change must be atomic.
+
+## Core entities
+
+Only add entities that an implemented requirement needs.
+
+**User** — id, name, email, passwordHash, role, status, createdAt, updatedAt
+
+**LawyerProfile** — id, userId, displayName, firmName?, bio, city/region?, isAvailable,
+approvalStatus, consultationFeePesewas, subscriptionPackageId?, subscriptionPeriodEnd?,
+createdAt, updatedAt
+
+**SubscriptionPackage** — id, name, slug, description, monthlyFeePesewas, maxPracticeAreas,
+isActive
+
+**SubscriptionPayment** — id, lawyerProfileId, packageId, feePesewas, periodDays,
+status, paymentReference?, createdAt
+
+**LegalCategory** — id, name, description, active
+
+**LawyerPracticeArea** — lawyerId, legalCategoryId (join)
+
+**LegalIntake** — id, userId, originalDescription, suggestedCategoryId, aiSummary, urgency,
+confidence, needsHumanReview, createdAt
+
+**ConsultationRequest** — id, intakeId, clientUserId, lawyerId, status, message?,
+createdAt, updatedAt
+
+`originalDescription` is never overwritten by AI output.
+
+## Legal categories
+
+The taxonomy is configurable data, not hard-coded enums, and these are product categories
+rather than statements about a case's legal merits. Initial set: Employment/Labour,
+Property/Tenancy, Family, Business/Commercial, Contract, Criminal, Immigration, Consumer,
+Other/Needs Review. Do not expand the list during implementation.
+
+## Data minimisation
+
+Legal concerns carry sensitive personal information. Do not collect national ID numbers,
+financial, medical, or family details unless a requirement explicitly justifies them.
+Document each entity's purpose, key fields, relationships, and constraints in
+`docs/03-architecture.md`.

@@ -1,0 +1,68 @@
+---
+description: Express API design, validation, authentication, and authorization rules
+globs: server/src/modules/**,server/src/middleware/**,server/src/config/**
+alwaysApply: false
+---
+
+# API, auth, and authorization rules
+
+## API design
+
+Consistent resource naming, correct HTTP methods, meaningful status codes, Zod-validated
+request payloads, and a single consistent error structure. Version the API only if a real
+need appears.
+
+`200` success · `201` created · `204` no content · `400` malformed · `401` unauthenticated
+· `403` unauthorized · `404` not found · `409` conflict · `422` validation failure ·
+`500` unexpected
+
+Never return internal database errors, stack traces, or sensitive internals to clients.
+Log actionable diagnostic context server-side, without secrets.
+
+## Validation
+
+Backend validation is authoritative; frontend validation is UX only. Validate at the
+trusted boundary: required fields, types, ranges, formats, enum values, identifiers, and
+ownership. Never rely on a client-side check alone.
+
+## Authentication
+
+Hash passwords with bcrypt — never store plaintext. Protect authenticated routes, manage
+session and token expiry securely, implement logout, and use secure defaults.
+
+## Authorization
+
+Enforce roles server-side on every route. Never trust a client-side role check.
+
+**Citizen** — manage own account, create own intake, view own intakes and consultation
+requests, browse permitted lawyer profiles, request a consultation.
+
+**Lawyer** — manage own permitted profile fields, view consultation requests sent to them,
+view the associated intake only when authorised, update consultation status.
+
+**Admin** — manage users and categories, approve or suspend lawyer profiles, view
+administrative records required for platform management.
+
+Every object-level route checks ownership as well as role. Predictable IDs must not expose
+another user's intake (see `SEC-LG-001`, `SEC-LG-002`, `SEC-LG-008` in
+`docs/04-testing.md`).
+
+## Consultation workflow
+
+Statuses: `PENDING`, `ACCEPTED`, `DECLINED`, `COMPLETED`, `CANCELLED`. Only implement the
+ones an actual workflow uses. No appointment scheduling unless deliberately prioritised.
+
+## Matching
+
+Filtering and ranking are deterministic application logic, not AI output, so they can be
+tested and explained (NFR-007). Practice-area match carries the highest weight, location
+and availability are secondary, and active/approved status is a mandatory eligibility
+condition. Every recommendation carries a human-readable reason, e.g. "Recommended because
+this lawyer lists Employment Law as a practice area and is available in your region."
+Never claim a lawyer is "the best".
+
+## Privacy
+
+Legal intake text is sensitive. Collect only what the MVP needs, avoid logging full intake
+text, never log passwords or tokens, and restrict lawyer and admin access to what the
+workflow actually requires.

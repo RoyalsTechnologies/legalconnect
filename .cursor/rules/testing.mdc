@@ -1,0 +1,45 @@
+---
+description: Test authoring rules for Vitest unit tests and Supertest API tests
+globs: **/*.test.ts,**/*.test.tsx,**/*.spec.ts,server/tests/**
+alwaysApply: false
+---
+
+# Testing rules
+
+Never record a test as executed or passing unless it actually ran. Paste real output into
+`docs/04-testing.md`, not expected output.
+
+Prioritise high-defect-risk logic: authentication, authorization, business rules,
+validation, matching, AI schema validation and fallback, and critical API paths. Do not
+spend examination time testing trivial framework behaviour.
+
+Name tests with the ID scheme so they trace back to requirements: `UT-`, `IT-`, `FT-`,
+`ST-`, `UAT-`, `SEC-`, `PERF-`, `AI-TC-`. Reference the requirement ID the test covers in
+the test description.
+
+## Required coverage
+
+**Auth** — valid login, invalid login, unauthorized access, protected resource access,
+logout/session invalidation, role restriction.
+
+**Authorization** (see `SEC-LG-*` in `docs/04-testing.md`) — a citizen cannot read another
+citizen's intake; a lawyer cannot read an unassigned consultation; a citizen cannot call
+admin endpoints; direct object IDs do not bypass ownership checks.
+
+**AI** (see `AI-TC-*`) — clear employment issue, clear tenancy issue, ambiguous issue,
+empty input rejected before the provider is called, provider failure falls back without
+losing the submission, malformed provider output rejected by schema validation,
+out-of-list category mapped to human review.
+
+**Matching** — inactive or unapproved lawyers never appear; every recommendation reason
+traces to configured criteria.
+
+## Practice
+
+Mock the AI provider in tests — never call the live provider from a test suite. Test the
+fallback path as carefully as the happy path.
+
+When fixing a defect: reproduce it, add or update a test, apply the smallest safe fix,
+rerun related tests, check for regressions, and log it in `docs/04-testing.md` if it
+matters to the report. Never mask an error to make a test pass, and never weaken an
+assertion to get green.

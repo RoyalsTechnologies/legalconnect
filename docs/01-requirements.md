@@ -1,0 +1,219 @@
+# Requirements
+
+Status: **confirmed for MVP** (2026-08-12). Derived from the approved 13-item MVP scope.
+Supersedes the earlier provisional baseline — IDs were renumbered during confirmation, so
+do not cite pre-confirmation IDs.
+
+## Problem statement
+
+The project does not assume Ghana lacks lawyers or law firms. The software problem is the
+fragmented and often difficult process an ordinary person faces when trying to identify
+the appropriate type of legal professional, understand where to start, describe their
+issue clearly, and connect with a suitable provider.
+
+The system reduces **access friction** between individuals seeking legal assistance and
+lawyers or law firms offering relevant services. It is an access, triage, matching, and
+coordination platform. It is not a replacement for a lawyer and must not present itself as
+providing professional legal advice.
+
+## Aim
+
+To build and deploy a functional web application that lets ordinary Ghanaians describe a
+legal problem in everyday language, uses AI to classify and summarise that problem, and
+connects them with suitable legal professionals by practice area, location, and
+availability.
+
+## Objectives
+
+1. Capture a legal concern in free text without requiring legal vocabulary.
+2. Classify and summarise that concern into structured intake data using a validated AI
+   service.
+3. Recommend eligible legal professionals through explainable, deterministic matching.
+4. Support a consultation request workflow between client and lawyer.
+5. Demonstrate the full engineering lifecycle within 48 hours.
+
+## Stakeholders
+
+| Stakeholder | Interest |
+| --- | --- |
+| Citizen / client | Wants to reach the right legal professional without knowing legal terminology |
+| Lawyer / law firm | Wants relevant, well-structured enquiries rather than vague ones |
+| Platform administrator | Maintains category taxonomy, approves lawyers, manages users |
+| Examiner | Assesses engineering discipline across the lifecycle |
+| Ghana Bar Association / regulators | Indirect: the platform must not practise law or give legal advice |
+
+## Actors and roles
+
+Three roles. **Decision (2026-08-12):** the brief proposed User and Admin initially with a
+Lawyer role "if required". It is required — MVP items 9–12 depend on lawyers holding
+profiles with specialisations and reviewing consultation requests addressed to them. Two
+roles cannot express that.
+
+**USER** — registers and logs in, maintains a profile, submits a legal concern, receives
+AI-assisted categorisation and a summary, views recommended and browsable lawyers, submits
+consultation requests, tracks their status.
+
+**LAWYER** — applies with a professional profile that an admin must approve before it is
+public; maintains practice areas, location, and availability; views consultation requests
+sent to them with the structured intake; accepts or declines.
+
+**ADMIN** — manages users, lawyer profiles and their approval, and legal categories.
+
+## Functional requirements
+
+| ID | Title | Requirement | Priority |
+| --- | --- | --- | --- |
+| FR-001 | User registration | The system shall allow a visitor to create a USER account with name, email, and password, rejecting duplicate emails. | Must |
+| FR-002 | Authentication | The system shall authenticate registered users by email and password, establish an authorised session, and support logout. | Must |
+| FR-003 | User profile | The system shall allow an authenticated user to view and update their own profile. | Must |
+| FR-004 | Lawyer profile management | The system shall maintain lawyer profiles including display name, firm, bio, practice areas, city/region, and availability, editable by the owning lawyer and by an admin. | Must |
+| FR-005 | Legal category management | The system shall maintain a configurable list of legal practice categories usable for classification, lawyer specialisation, and filtering. | Must |
+| FR-006 | Legal issue submission | The system shall allow an authenticated client to submit a free-text description of a legal concern with optional location. | Must |
+| FR-007 | AI classification | The system shall analyse a submitted concern and return one category from the configured list, an urgency level, and relevant keywords, or flag the issue for review where confidence is insufficient. | Must |
+| FR-008 | AI structured summary | The system shall generate a concise neutral summary derived only from the submitted concern. | Must |
+| FR-009 | AI output validation | The system shall validate every AI response against a schema — checking JSON validity, required fields, category membership, urgency enum, and confidence range — before storing or using it. | Must |
+| FR-010 | AI failure fallback | The system shall preserve the user's original submitted text and provide a recoverable, reviewable workflow whenever the AI service is unavailable or returns invalid output. | Must |
+| FR-011 | Lawyer recommendation | The system shall recommend eligible lawyers ranked by legal category against practice area, then location, then availability, and shall display the reason for each recommendation. | Must |
+| FR-012 | Lawyer discovery | The system shall allow users to browse, search, and filter eligible lawyer profiles and view profile detail. | Must |
+| FR-013 | Consultation request | The system shall allow a client to submit a consultation request to a selected eligible lawyer, linked to their intake. | Must |
+| FR-014 | Consultation management | The system shall allow a lawyer to view consultation requests addressed to them with the associated structured intake, and to accept or decline; and shall allow a client to view the status of their own requests. | Must |
+| FR-015 | Administration | The system shall allow an administrator to manage users, lawyer profiles including approval status, and legal categories. | Must |
+| FR-016 | Lawyer self-registration | The system shall allow a visitor to create a LAWYER account with a professional profile that stays hidden until an administrator approves it. The applicant cannot set their own approval status. | Should |
+| FR-017 | Paid consultation booking | The system shall let each lawyer set a consultation fee and shall require the client to pay that fee before the lawyer is notified of, or can act on, the request. | Should |
+| FR-018 | Lawyer subscription plans | The system shall offer subscription packages billed monthly or as a yearly equivalent (twelve times the monthly fee), with monthly fees configurable by an administrator, that cap how many legal practice areas a lawyer may list, and shall hide lawyers without a live plan from the directory, matching, and new consultation requests. | Should |
+
+All fifteen Must items are the approved MVP. FR-016, FR-017, and FR-018 were added during
+implementation at the product owner's request.
+
+## Non-functional requirements
+
+| ID | Area | Requirement | Verification |
+| --- | --- | --- | --- |
+| NFR-001 | Security | Passwords shall be stored only as bcrypt hashes and every role- or ownership-restricted operation shall be enforced server-side. | SEC-LG-003, SEC-LG-005 |
+| NFR-002 | Privacy | The system shall collect only data the MVP requires, shall not log full intake text, and shall not expose one user's intake to any unauthorised user. | SEC-LG-001, SEC-LG-002, SEC-LG-008 |
+| NFR-003 | Reliability | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005 |
+| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT |
+| NFR-005 | Maintainability | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
+| NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | Measured, not yet recorded |
+| NFR-007 | Explainability | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
+| NFR-008 | Availability | The deployed application shall be reachable for grading, subject to host limitations. | Live verification |
+
+## Constraints
+
+| ID | Constraint |
+| --- | --- |
+| CON-001 | 48-hour examination duration, individual work. |
+| CON-002 | The application must be deployed and publicly accessible, with source in a repository. |
+| CON-003 | The platform must not practise law or present AI output as legal advice. |
+| CON-004 | One external LLM provider only; cost and rate limits are those of a free or low tier. |
+| CON-005 | Third-party libraries, APIs, and datasets must be acknowledged. |
+
+## Out of scope
+
+Explicitly excluded from this version and recorded as future evolution: AI-generated legal
+advice, video calls, a full chat system, advanced document analysis,
+multilingual support, voice intake, ML-based recommendation, microservices, Redis, queues,
+Kubernetes, and advanced analytics. Card/mobile-money collection for consultation fees
+(FR-017) was added during the build; splitting those funds to lawyers, refunds, and
+invoices remain out of scope. Lawyer plans (FR-018) collect one month or a yearly
+equivalent (12 × the current monthly fee) at a time; automatic recurring billing, proration,
+and dunning are deferred (TD-026).
+
+Deferred but plausible next (Should/Could, not built now): lawyer response notes, saved or
+bookmarked lawyers, post-consultation ratings, dashboard analytics. Lawyer self-registration
+with admin approval (FR-016) was added during the build; automated licence verification and
+document upload remain out of scope.
+
+## Acceptance criteria
+
+**FR-001** — Given valid registration details, a USER account is created with a bcrypt
+hash and never a plaintext password; a duplicate email returns `409`; a weak or malformed
+input returns `422` with field-level messages.
+
+**FR-002** — Valid credentials return a session token and the user's role. Invalid
+credentials return `401` with an identical message for unknown email and wrong password.
+Protected routes without a valid token return `401`.
+
+**FR-004** — A lawyer can edit only their own profile. An admin can edit any. A lawyer
+cannot set their own `approvalStatus`. Attempting either returns `403`.
+
+**FR-016** — Public registration with `accountType=lawyer` creates a `LAWYER` user and a
+`PENDING` profile. The profile is absent from the directory and from matching until an
+admin sets `APPROVED`. A payload that tries to self-approve is ignored. `role` still
+cannot create an `ADMIN`.
+
+**FR-017** — Each lawyer profile has a consultation fee. Creating a request snapshots that
+fee and leaves the request `AWAITING_PAYMENT`. The lawyer cannot see it and is not notified
+until payment is confirmed. A later fee change does not alter an existing booking.
+
+**FR-018** — Seeded plans (Starter 1 area, Practice 3, Chambers 8) cap `practiceAreaIds`.
+Monthly fees are stored in pesewas and are editable by an administrator; a change applies
+to the next payment only. A lawyer may pay one month (30 days) or a yearly equivalent
+(365 days at 12 × the current monthly fee). The collected amount and duration are stored
+on `SubscriptionPayment`. A lawyer without `subscriptionPeriodEnd` in the future is absent
+from the public directory, matching, and new bookings, even if approved. Paying or an
+admin grant activates the paid or granted number of days. Listing more areas than
+the live plan allows returns `422`.
+
+**FR-006** — A non-empty description within length bounds is persisted with its author
+before any AI call occurs. Empty or over-length input returns `422` and no AI call is
+made.
+
+**FR-007 / FR-009** — Given a valid concern, when the AI returns a category present in the
+configured list, the system stores category, summary, urgency, keywords, and confidence
+against the intake and preserves `originalDescription` unchanged. A category outside the
+configured list is rejected and the intake is marked `needsHumanReview`.
+
+**FR-010** — Given an AI timeout, network error, or schema-invalid response, the intake
+remains stored with its original text, `aiStatus` is `FAILED_FALLBACK`,
+`needsHumanReview` is true, the user sees a controlled message rather than an error page,
+and the user can still browse and contact lawyers.
+
+**FR-011** — Only lawyers who are `APPROVED`, whose account is active, and whose
+subscription has not expired are returned. At
+least one practice area must match the intake category. Each result carries a reason
+string naming the matched criteria. Ranking is deterministic and identical for identical
+inputs.
+
+**FR-012** — The directory and an individual approved profile are readable without an
+account, so a member of the public can judge whether the platform serves their problem
+before registering. An anonymous caller sees exactly what a citizen sees: unapproved and
+suspended lawyers stay hidden, and a session that is absent, expired, or revoked narrows
+the view to the public one rather than failing the request. Reads are open; every write
+still requires a session.
+
+**FR-013 / FR-014** — A client may only create a request against their own intake. A
+lawyer sees only requests addressed to them, and only then the associated intake. A client
+sees only their own requests. Any other combination returns `403` or `404`, never another
+user's data.
+
+**FR-015** — Admin-only endpoints reject USER and LAWYER callers with `403`.
+
+## Traceability
+
+Populated as each phase completes. `Status` values: Not started, In progress, Implemented,
+Tested, Done.
+
+| Requirement | Design element | Implementation | Test cases | Status |
+| --- | --- | --- | --- | --- |
+| FR-001 | Auth module | `modules/auth/*` | UT-001…006, SEC-LG-005 | Tested |
+| FR-002 | Auth module | `modules/auth/*`, `lib/jwt.ts` | UT-007…010, SEC-LG-009 | Tested |
+| FR-003 | Users module | `modules/users/*`; `AccountPage` at `/app/account` | IT-001…007, SEC-LG-010 | Tested |
+| FR-004 | Lawyers module | `modules/lawyers/*` | IT-020…029, SEC-LG-015…020 | Tested |
+| FR-005 | Legal categories module | `modules/legal-categories/*` | IT-016…019, SEC-LG-003, SEC-LG-014 | Tested |
+| FR-006 | Legal intake module | `modules/legal-intake/*` | IT-011…015, AI-TC-004, AI-TC-014 | Tested |
+| FR-007 | AI triage service | `ai/legal-triage.service.ts`, `ai/prompts.ts` | AI-TC-001, 003, 008, 011 | Tested |
+| FR-008 | AI triage service | `ai/prompts.ts`, `ai/legal-triage.service.ts` | AI-TC-001, 007 | Tested |
+| FR-009 | AI schemas | `ai/schemas.ts` | AI-TC-006, 012, SEC-LG-013 | Tested |
+| FR-010 | AI triage service | `ai/legal-triage.service.ts`, `modules/legal-intake/*` | AI-TC-005, 015, 016 | Tested |
+| FR-011 | Matching service | `modules/matching/*` | MT-001…008, SEC-LG-021, SEC-LG-022 | Tested |
+| FR-012 | Lawyers module | `modules/lawyers/*` — filters, search, pagination; `middleware/auth.ts` — `optionalAuth` | IT-028, IT-046…050, IT-052…054, SEC-LG-007, SEC-LG-019, SEC-LG-033…036 | Tested |
+| FR-013 | Consultations module | `modules/consultations/*` | IT-030, IT-031, SEC-LG-023…025 | Tested |
+| FR-014 | Consultations module | `modules/consultations/*` | IT-032…039, SEC-LG-026…030 | Tested |
+| FR-015 | Admin module | `modules/admin/*`, `modules/lawyers/*` | IT-040…045, SEC-LG-031, SEC-LG-032 | Tested |
+| FR-016 | Auth + lawyers | `POST /auth/register` `accountType=lawyer`; admin `PATCH /lawyers/:id` | lawyer self-registration tests in `lawyers.test.ts` | Tested |
+| FR-017 | Consultations + payments | `consultationFeePesewas`; `POST /consultations/:id/pay`; NaloPay adapter + `POST /payments/callback` | payment tests in `consultations.test.ts`, `nalopay.test.ts` | Tested |
+| FR-018 | Subscriptions module | `SubscriptionPackage`; `PATCH /packages/:id` fee; `POST /lawyers/me/subscription` (`interval` month or year); admin grant | `tests/subscriptions.test.ts`, IT-055, IT-063…066, MT-010 | Tested |
+
+A requirement is Done only when it is implemented, acceptance criteria are satisfied, test
+evidence exists, debt is recorded, and it works in the deployed environment.

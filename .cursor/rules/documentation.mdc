@@ -1,0 +1,30 @@
+---
+description: Rules for writing lifecycle documentation and examination evidence
+globs: docs/**
+alwaysApply: false
+---
+
+# Documentation rules
+
+Every statement must derive from actual repository evidence: real requirement IDs, real
+routes, modules, and entities, real test output, real deployment URLs, real technical
+debt. Where something does not exist yet, write "not yet completed" rather than
+describing an intention as an accomplishment.
+
+Never fabricate PASS results, performance numbers, user feedback, UAT participants, dates,
+deployment success, repository links, screenshots, or references. A small transparent
+evaluation beats an unsupported claim of high accuracy. Screenshots must be real.
+
+Design artefacts must describe the system as built. If the implementation diverged from
+the original design, document the deviation rather than quietly updating the diagram to
+match, and never document an architecture that does not exist.
+
+Do not paste large volumes of source code into documentation — use short excerpts only
+where they explain an important decision.
+
+Do not create empty files, placeholder sections, or extra diagrams to imitate
+completeness. Do not invent technical debt to fill the register, and do not omit real debt
+to look better.
+
+Keep documents synchronised with the code as it changes. When a requirement, entity, or
+endpoint changes, update the affected document in the same piece of work.

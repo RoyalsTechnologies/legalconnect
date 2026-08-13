@@ -1,0 +1,51 @@
+---
+description: React frontend structure, UX copy, and legal-safety presentation rules
+globs: client/**
+alwaysApply: false
+---
+
+# Frontend and UX rules
+
+## Plain language
+
+Users are ordinary people, not lawyers. The interface must never assume legal vocabulary.
+
+Write "Tell us what happened", not "Select the applicable jurisprudential cause of
+action". Give every category a plain-language description. Avoid intimidating forms —
+start with a few fields and request more only when needed.
+
+The intake screen makes three things clear: users can describe the issue in their own
+words, AI will help organise the request, and a legal professional remains responsible for
+professional advice.
+
+## Legal-safety boundary
+
+AI-assisted results are presented as organisational help, never as legal advice, a
+verdict, or a prediction. Keep the disclaimer clear but unobtrusive:
+
+> AI-assisted results are provided to help organise your request and connect you with an
+> appropriate legal professional. They are not a substitute for professional legal advice.
+
+Show matching explanations to the user — recommendations are transparent, never "the best
+lawyer for you".
+
+## Screens
+
+Only build screens a requirement or workflow calls for.
+
+**Public** — landing, lawyer directory and profile, login/register
+**Citizen** — dashboard, describe legal issue, triage result/confirm category, recommended
+lawyers, consultation request, my requests, account (name and phone)
+**Lawyer** — dashboard, profile, incoming requests, request detail with intake summary,
+account
+**Admin** — dashboard, users, lawyer profiles, subscription plans, legal categories, account
+
+## Code
+
+Keep business rules out of components — call the API and render. Frontend validation
+mirrors backend rules for UX but is never the authority. Never call the AI provider
+directly or hold a provider key in client code; all AI goes through the backend.
+
+Handle loading, empty, and error states for every async view, especially the AI triage
+step, which can fall back or take time. An AI fallback shows a controlled message, never a
+raw error.

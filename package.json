@@ -1,0 +1,19 @@
+{
+  "name": "legalconnect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tooling shared across client/ and server/. Neither app depends on this package.",
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server test",
+    "audit": "npm --prefix server audit --audit-level=high && npm --prefix client audit --audit-level=high",
+    "verify": "npm run check && npm run typecheck && npm run test && npm run audit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0"
+  }
+}

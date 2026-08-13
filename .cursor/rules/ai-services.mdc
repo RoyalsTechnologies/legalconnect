@@ -1,0 +1,79 @@
+---
+description: Rules for the AI provider adapter, prompts, schemas, and legal triage service
+globs: server/src/ai/**,server/src/modules/legal-intake/**
+alwaysApply: false
+---
+
+# AI service rules
+
+AI is isolated behind a service boundary. The flow is:
+
+```
+React UI → Express API → Legal Intake Service → AI Provider Adapter
+         → schema validation → PostgreSQL → Matching Service → API response
+```
+
+Never call the AI provider from frontend code. Never put prompts in route handlers.
+Never expose the provider API key to the client.
+
+## Triage output contract
+
+The model returns structured JSON, validated with Zod before any application logic
+touches it:
+
+```ts
+{
+  category: string,        // must be a member of the configured category list
+  summary: string,         // neutral, derived only from user-supplied text
+  urgency: "NORMAL" | "IMPORTANT" | "URGENT",
+  keywords: string[],
+  confidence: number,      // 0..1
+  needsHumanReview: boolean
+}
+```
+
+Categories come from the application's configured legal-category list and are passed into
+the prompt. A category the model invents outside that list is rejected and mapped to
+human review. Validate JSON syntax, required fields, category membership, the urgency
+enum, the confidence range, and array and string lengths.
+
+## Summarisation constraints
+
+The summary preserves the user's meaning in neutral language and separates stated facts
+from assumptions. It must not determine liability, declare that a law was violated,
+predict an outcome, or invent dates, evidence, people, documents, or events.
+
+Store `originalDescription` alongside the AI summary, always. Never overwrite a user's own
+words with only a generated summary — the lawyer needs to compare the two.
+
+## Prompts
+
+Every triage prompt defines the model's limited task, supplies the allowed category list,
+prohibits legal conclusions and fabrication, requests structured output, and instructs the
+model to flag ambiguity and use only user-supplied information for factual claims.
+
+## Failure handling
+
+AI must degrade gracefully and must never be a single point of failure for storing a
+user's request (FR-010, NFR-003). On validation failure or provider error: retry only if
+retry is deliberately implemented, otherwise fall back to
+
+```
+category = "Other / Needs Review"
+summary  = safely truncated original user text
+needsHumanReview = true
+```
+
+The submission is always preserved and the workflow stays recoverable. Never let an AI
+failure produce a 500 on the consultation flow.
+
+Design and test for: provider unavailable, timeout, invalid JSON, unsupported category,
+low confidence, empty description, extremely long input, prompt-injection-like text,
+network error, rate limit, and duplicate submission.
+
+Low confidence means saying so — flag for user confirmation and offer plausible
+alternatives rather than presenting false certainty.
+
+Debt to record honestly as it arises: general-purpose LLM rather than a domain classifier,
+small evaluation set, hard-coded taxonomy, provider dependency, no failover, limited
+prompt-injection defenses, limited AI observability. Only log items that actually apply.

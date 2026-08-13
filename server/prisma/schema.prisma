@@ -1,0 +1,243 @@
+// LegalConnect Ghana — data model
+// Design and rationale: docs/03-architecture.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  LAWYER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Urgency {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+enum AiStatus {
+  PENDING
+  COMPLETED
+  FAILED_FALLBACK
+}
+
+enum ConsultationStatus {
+  AWAITING_PAYMENT
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+  CANCELLED
+}
+
+enum EmailTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  PAID
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  role            Role       @default(USER)
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  lawyerProfile        LawyerProfile?
+  intakes              LegalIntake[]
+  consultationRequests ConsultationRequest[]
+  emailTokens          EmailToken[]
+
+  @@map("users")
+}
+
+model EmailToken {
+  id        String         @id @default(cuid())
+  userId    String
+  type      EmailTokenType
+  tokenHash String         @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("email_tokens")
+}
+
+model LawyerProfile {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  displayName     String
+  firmName        String?
+  bio             String
+  licenseNumber   String?
+  city            String
+  region          String
+  isAvailable     Boolean        @default(true)
+  approvalStatus  ApprovalStatus @default(PENDING)
+  yearsExperience Int?
+  consultationFeePesewas Int            @default(20000)
+  subscriptionPackageId  String?
+  subscriptionPeriodEnd  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  practiceAreas         LawyerPracticeArea[]
+  consultationRequests  ConsultationRequest[]
+  subscriptionPackage   SubscriptionPackage?   @relation(fields: [subscriptionPackageId], references: [id], onDelete: SetNull)
+  subscriptionPayments  SubscriptionPayment[]
+
+  @@index([approvalStatus, isAvailable])
+  @@index([region])
+  @@index([subscriptionPackageId, subscriptionPeriodEnd])
+  @@map("lawyer_profiles")
+}
+
+// Monthly plans cap how many legal categories a lawyer may list (FR-018).
+// Retired with isActive rather than deleted, so past payments keep their package.
+model SubscriptionPackage {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  slug              String   @unique
+  description       String
+  monthlyFeePesewas Int
+  maxPracticeAreas  Int
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  lawyerProfiles LawyerProfile[]
+  payments       SubscriptionPayment[]
+
+  @@map("subscription_packages")
+}
+
+model SubscriptionPayment {
+  id               String                     @id @default(cuid())
+  lawyerProfileId  String
+  packageId        String
+  feePesewas       Int
+  periodDays       Int                        @default(30)
+  status           SubscriptionPaymentStatus  @default(PENDING)
+  paymentReference String?                    @unique
+  paymentOrderId   String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  lawyerProfile LawyerProfile       @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+  package       SubscriptionPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+
+  @@index([lawyerProfileId, status])
+  @@map("subscription_payments")
+}
+
+model LegalCategory {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String
+  isActive    Boolean @default(true)
+
+  practiceAreas LawyerPracticeArea[]
+  intakes       LegalIntake[]
+
+  @@map("legal_categories")
+}
+
+model LawyerPracticeArea {
+  lawyerProfileId String
+  legalCategoryId String
+
+  lawyerProfile LawyerProfile @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+  legalCategory LegalCategory @relation(fields: [legalCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([lawyerProfileId, legalCategoryId])
+  @@index([legalCategoryId])
+  @@map("lawyer_practice_areas")
+}
+
+// The user's own words are written before any AI call and never overwritten (FR-010).
+// categoryId stays nullable so the AI-failure path remains a valid persisted state.
+model LegalIntake {
+  id                  String   @id @default(cuid())
+  clientId            String
+  originalDescription String
+  city                String?
+  region              String?
+
+  categoryId       String?
+  aiSummary        String?
+  urgency          Urgency?
+  keywords         String[] @default([])
+  confidence       Float?
+  needsHumanReview Boolean  @default(true)
+  aiStatus         AiStatus @default(PENDING)
+  aiError          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client               User                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category             LegalCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  consultationRequests ConsultationRequest[]
+
+  @@index([clientId])
+  @@index([aiStatus])
+  @@map("legal_intakes")
+}
+
+// matchReason is stored rather than recomputed so the lawyer sees the reason the
+// client actually saw at request time (NFR-007).
+model ConsultationRequest {
+  id              String             @id @default(cuid())
+  intakeId        String
+  clientId        String
+  lawyerProfileId String
+  status          ConsultationStatus @default(AWAITING_PAYMENT)
+  clientMessage   String?
+  matchReason     String
+  feePesewas      Int
+  paymentReference String?           @unique
+  paymentOrderId   String?           @unique
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  intake        LegalIntake   @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  client        User          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lawyerProfile LawyerProfile @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([intakeId, lawyerProfileId])
+  @@index([lawyerProfileId, status])
+  @@index([clientId])
+  @@map("consultation_requests")
+}

@@ -1,0 +1,2816 @@
+# .cursorrules
+# CSCD602 Advanced Software Engineering — 48-Hour Individual Project Examination
+# Purpose: Guide Cursor/AI-assisted development toward disciplined software engineering practice,
+# not merely rapid feature generation.
+#
+# IMPORTANT:
+# - This project is an INDIVIDUAL examination.
+# - The student must understand, verify, and be able to explain all generated code and decisions.
+# - Do not fabricate requirements, test results, screenshots, deployment evidence, credentials,
+#   repository history, references, metrics, or implementation status.
+# - Prefer a small, complete, deployable system over a large unfinished system.
+
+###############################################################################
+# 1. PRIMARY PROJECT OBJECTIVE
+###############################################################################
+
+You are assisting with a 48-hour Advanced Software Engineering capstone project.
+
+Your goal is to help produce a FUNCTIONAL, DEPLOYABLE software application while explicitly
+demonstrating the complete lifecycle:
+
+Requirements
+→ Effort Estimation
+→ Analysis
+→ Design
+→ Implementation
+→ Testing
+→ Technical Debt Management
+→ Deployment
+→ Documentation
+→ Maintenance
+→ Future Evolution
+
+Never optimize only for "working code".
+Optimize for:
+1. correctness,
+2. traceability,
+3. limited scope,
+4. testability,
+5. deployability,
+6. maintainability,
+7. demonstrable software-engineering discipline,
+8. viva/demo readiness.
+
+###############################################################################
+# 2. EXAM CONSTRAINTS
+###############################################################################
+
+Hard constraints:
+
+- Examination duration: 48 hours.
+- Work is individual.
+- Project must be realistically completable within the available time.
+- Application must be functional, not merely:
+  - a proposal,
+  - requirements document,
+  - UI mock-up,
+  - static website,
+  - non-functional prototype.
+- Major prioritised requirements must be implemented.
+- Application must be deployed and accessible online.
+- Source code must be maintained in a repository.
+- External libraries, frameworks, APIs, datasets, and third-party components must be acknowledged.
+- The student must be able to explain:
+  - requirements,
+  - effort estimation,
+  - architecture,
+  - implementation decisions,
+  - testing strategy,
+  - technical debt.
+
+When a requested feature threatens the 48-hour scope:
+1. flag the scope risk,
+2. classify the feature as Must/Should/Could/Won't,
+3. recommend the smallest acceptable implementation,
+4. record deferred work under Future Evolution or Technical Debt,
+5. never silently expand scope.
+
+###############################################################################
+# 3. WORKING PRINCIPLES
+###############################################################################
+
+Always follow these principles:
+
+- Requirements before implementation.
+- Architecture before uncontrolled coding.
+- Acceptance criteria before marking a feature complete.
+- Tests before claiming correctness.
+- Evidence before claiming completion.
+- Scope discipline over feature quantity.
+- Simple architecture over unnecessary complexity.
+- Security by default.
+- Traceability from requirement → implementation → test.
+- Explicitly record shortcuts caused by the 48-hour constraint.
+- Never hide technical debt.
+- Never over-engineer.
+- Never introduce technologies unless they solve a real project need.
+- Never rewrite large working areas without a clear requirement or defect.
+- Prefer incremental, reversible changes.
+- Preserve deployability throughout development.
+
+###############################################################################
+# 4. REQUIRED PROJECT PHASES
+###############################################################################
+
+Organise work into these phases.
+
+## Phase 1 — Planning & Requirements
+Target: Hours 1–6
+
+Expected outputs:
+- project title,
+- problem statement,
+- intended users,
+- stakeholders,
+- aim,
+- objectives,
+- functional requirements,
+- non-functional requirements,
+- requirement priorities,
+- acceptance criteria,
+- software effort estimate,
+- assumptions,
+- constraints,
+- in-scope features,
+- out-of-scope features,
+- 48-hour MVP definition.
+
+Do NOT begin major implementation until these are sufficiently defined.
+
+## Phase 2 — Analysis & Design
+Target: Hours 7–12
+
+Expected outputs:
+- system context,
+- major use cases,
+- system architecture,
+- data model/database design,
+- API/interface design where applicable,
+- selected UML/design diagrams,
+- technology stack with justification,
+- security considerations,
+- initial technical debt register,
+- implementation plan.
+
+## Phase 3 — Implementation
+Target: Hours 13–32
+
+Expected outputs:
+- core prioritised features,
+- database,
+- backend,
+- frontend where applicable,
+- authentication/authorization where required,
+- validation,
+- error handling,
+- integrations,
+- continuous tests,
+- implementation notes.
+
+## Phase 4 — Testing & Refinement
+Target: Hours 33–38
+
+Expected outputs:
+- executed test cases,
+- defects,
+- corrections,
+- unit/integration/system tests where applicable,
+- UAT evidence,
+- usability review,
+- security review,
+- updated technical debt,
+- targeted refactoring.
+
+## Phase 5 — Deployment
+Target: Hours 39–42
+
+Expected outputs:
+- deployed application,
+- live URL,
+- admin URL if applicable,
+- test credentials,
+- working production database/API connections,
+- repository URL,
+- deployment verification.
+
+## Phase 6 — Documentation & Submission
+Target: Hours 43–48
+
+Expected outputs:
+- complete project documentation,
+- SRS,
+- testing report,
+- technical debt plan,
+- user manual,
+- deployment/source links,
+- maintenance strategy,
+- future evolution plan,
+- limitations,
+- references,
+- verified submission package.
+
+These time ranges are guidance. If the project requires adaptation, preserve the sequence and
+ensure all lifecycle areas remain covered.
+
+###############################################################################
+# 5. REQUIREMENTS ENGINEERING RULES
+###############################################################################
+
+Before implementing a feature, define or identify its requirement.
+
+Use requirement IDs:
+
+Functional:
+- FR-001
+- FR-002
+- ...
+
+Non-functional:
+- NFR-001
+- NFR-002
+- ...
+
+Business/project constraints:
+- CON-001
+- CON-002
+- ...
+
+Each functional requirement should preferably include:
+
+ID:
+Title:
+Description:
+Actor:
+Preconditions:
+Trigger:
+Main flow:
+Alternative/error flow:
+Acceptance criteria:
+Priority:
+Dependencies:
+Estimated effort:
+Status:
+
+Use unambiguous language:
+- "The system shall..."
+- "The user shall be able to..."
+
+Avoid vague requirements such as:
+- "easy to use",
+- "fast",
+- "secure",
+unless measurable criteria are attached.
+
+Examples:
+BAD:
+"The system should be fast."
+
+BETTER:
+"NFR-003: For normal CRUD operations, the system should return an application response
+within 2 seconds under expected examination/demo load."
+
+###############################################################################
+# 6. REQUIREMENT PRIORITISATION
+###############################################################################
+
+Use MoSCoW unless the project explicitly adopts another method:
+
+MUST:
+Essential for the core problem and final demo.
+
+SHOULD:
+Important but project remains viable without it.
+
+COULD:
+Useful enhancement if time remains.
+
+WON'T FOR THIS VERSION:
+Explicitly deferred beyond the 48-hour scope.
+
+Implementation order:
+1. Must,
+2. Must-path tests,
+3. Should,
+4. Should-path tests,
+5. Could only if sufficient time remains.
+
+Never implement a Could feature while an important Must feature is broken.
+
+###############################################################################
+# 7. SCOPE MANAGEMENT
+###############################################################################
+
+Maintain explicit scope.
+
+## In Scope
+Only features committed for the examination version.
+
+## Out of Scope
+Features intentionally excluded from the 48-hour implementation.
+
+## Deferred
+Features moved to future evolution due to:
+- time,
+- dependencies,
+- complexity,
+- infrastructure,
+- testing cost,
+- security concerns.
+
+Before adding a new feature, ask internally:
+- Is it required?
+- Is it a Must?
+- What is its estimated effort?
+- What existing work may be displaced?
+- Will it increase deployment risk?
+- Will it create significant technical debt?
+
+If yes, document the decision.
+
+###############################################################################
+# 8. SOFTWARE EFFORT ESTIMATION
+###############################################################################
+
+Effort estimation is mandatory and must influence scope.
+
+Use ONE justified estimation approach unless the student deliberately compares techniques.
+
+Allowed approaches include:
+- Story Points,
+- Use Case Points,
+- Function Point Analysis,
+- COCOMO/COCOMO II,
+- Expert Estimation,
+- another justified method.
+
+For a small 48-hour application, default to a transparent technique that can be defended,
+such as Story Points + person-hour mapping or structured Expert Estimation, unless the project
+naturally suits another method.
+
+Maintain an estimation table with fields such as:
+
+ID | Feature/Task | Complexity | Estimate | Person-hours | Priority | Dependency | Notes
+
+Always document:
+- why the technique was selected,
+- assumptions,
+- estimated effort,
+- estimated person-hours,
+- estimated duration,
+- constraints,
+- scope impact.
+
+If using story points:
+- define the scale,
+- define what each point means,
+- explain how points map approximately to person-hours,
+- do not present story points as precise time measurements.
+
+Example scale:
+1 = trivial
+2 = small
+3 = moderate
+5 = complex
+8 = high-risk / likely too large for one 48-hour exam project feature
+
+When estimates exceed available capacity:
+- reduce scope,
+- simplify implementation,
+- defer low-priority requirements.
+
+Never manipulate estimates simply to make the plan appear feasible.
+
+###############################################################################
+# 9. TRACEABILITY
+###############################################################################
+
+Maintain a lightweight requirements traceability matrix.
+
+Recommended fields:
+
+Requirement ID
+→ Design element
+→ Implementation module/file
+→ Test case ID
+→ Status
+
+Example:
+
+FR-003
+→ Authentication sequence
+→ src/modules/auth/*
+→ TC-FR-003-01, TC-FR-003-02
+→ PASS
+
+A feature is not "Done" unless:
+1. requirement is defined,
+2. implementation exists,
+3. acceptance criteria are satisfied,
+4. relevant test evidence exists,
+5. technical debt is recorded where applicable.
+
+###############################################################################
+# 10. SYSTEM ANALYSIS RULES
+###############################################################################
+
+Analyse the problem before selecting technology.
+
+For each major workflow, identify:
+- actor,
+- input,
+- validation,
+- business rules,
+- data changes,
+- output,
+- failure conditions,
+- permissions,
+- external dependencies.
+
+Where relevant, capture:
+- current/problem process,
+- proposed process,
+- use cases,
+- system boundary,
+- data flow,
+- risks,
+- constraints.
+
+Never choose architecture only because it is trendy.
+
+###############################################################################
+# 11. SYSTEM DESIGN RULES
+###############################################################################
+
+Select only diagrams that meaningfully communicate the project.
+
+Possible artefacts:
+- system architecture diagram,
+- use-case diagram,
+- class diagram,
+- sequence diagram,
+- activity diagram,
+- ER/database diagram,
+- component diagram,
+- UI wireframes,
+- data-flow diagram.
+
+Do NOT create every possible diagram.
+
+Recommended minimum for most web applications:
+1. system architecture,
+2. use-case diagram,
+3. ER/database diagram,
+4. one sequence/activity diagram for a critical workflow.
+
+Each design artefact must reflect the implemented system.
+Do not document a fictional architecture.
+
+###############################################################################
+# 12. ARCHITECTURE RULES
+###############################################################################
+
+Prefer a small architecture appropriate for 48 hours.
+
+Typical acceptable structure:
+
+Client/UI
+→ Application/API
+→ Database
+
+Optional only when justified:
+→ External service/API
+→ Object storage
+→ Queue
+→ Cache
+
+Avoid unnecessary:
+- microservices,
+- Kubernetes,
+- event-driven infrastructure,
+- multiple databases,
+- complex CQRS,
+- distributed systems,
+unless they are central to the problem itself.
+
+Architecture should optimise:
+- fast implementation,
+- low deployment risk,
+- clear separation of concerns,
+- testability,
+- security,
+- maintainability.
+
+Every major architectural decision should have a short rationale.
+
+Maintain an ADR-lite format where useful:
+
+Decision:
+Context:
+Options considered:
+Chosen option:
+Reason:
+Trade-offs:
+Technical debt introduced:
+
+###############################################################################
+# 13. TECHNOLOGY SELECTION
+###############################################################################
+
+Choose technologies based on:
+- student familiarity,
+- speed of implementation,
+- deployment simplicity,
+- library maturity,
+- security support,
+- testing support,
+- project requirements.
+
+Do not change frameworks mid-project without strong justification.
+
+For every significant dependency:
+- use a maintained package,
+- pin or record versions where practical,
+- avoid unnecessary dependencies,
+- acknowledge third-party usage in documentation.
+
+Never copy external source code without attribution where attribution is required.
+
+###############################################################################
+# 14. CODE ORGANISATION
+###############################################################################
+
+Keep code modular but simple.
+
+Typical separation:
+- routes/controllers,
+- services/use-cases,
+- repositories/data access,
+- models/entities,
+- validation/schemas,
+- middleware,
+- configuration,
+- tests,
+- utilities.
+
+Do not create abstractions with only one meaningless implementation merely to appear
+"architectural".
+
+Prefer:
+- meaningful names,
+- small functions,
+- single responsibility,
+- low duplication,
+- clear domain logic,
+- explicit errors.
+
+Avoid:
+- giant files,
+- giant functions,
+- magic constants,
+- hidden side effects,
+- duplicated validation,
+- deeply nested conditionals,
+- dead code,
+- commented-out obsolete code.
+
+###############################################################################
+# 15. CODING STANDARDS
+###############################################################################
+
+When generating or editing code:
+
+- Follow the project's established style.
+- Use descriptive identifiers.
+- Keep functions focused.
+- Add comments only where intent is not obvious.
+- Do not narrate obvious code.
+- Validate all untrusted input.
+- Handle expected failures explicitly.
+- Use environment variables for secrets/configuration.
+- Never hard-code passwords, API keys, tokens, or production secrets.
+- Never expose stack traces or sensitive internals to end users.
+- Avoid silent exception swallowing.
+- Log actionable errors without leaking secrets.
+- Prefer typed schemas/types where supported.
+- Keep business rules out of UI components where practical.
+- Use database transactions where multi-step data changes must be atomic.
+
+###############################################################################
+# 16. DATABASE RULES
+###############################################################################
+
+For database-backed systems:
+
+- design schema before widespread CRUD generation,
+- use stable primary keys,
+- define foreign keys where appropriate,
+- use constraints for essential integrity,
+- add indexes only where justified,
+- avoid duplicated source-of-truth data,
+- use migrations where supported,
+- seed only non-sensitive demo data,
+- never commit production credentials.
+
+For each main entity document:
+- purpose,
+- important fields,
+- relationships,
+- constraints.
+
+Avoid premature database optimisation.
+
+###############################################################################
+# 17. API DESIGN RULES
+###############################################################################
+
+For APIs:
+
+- use consistent resource naming,
+- use correct HTTP methods,
+- return meaningful status codes,
+- validate request payloads,
+- produce consistent error structures,
+- enforce authorization server-side,
+- never trust client-side role checks,
+- version APIs only if necessary.
+
+Typical status expectations:
+- 200 success,
+- 201 created,
+- 204 successful no-content operation,
+- 400 malformed/invalid request,
+- 401 unauthenticated,
+- 403 unauthorized,
+- 404 not found,
+- 409 conflict,
+- 422 validation failure where framework conventions use it,
+- 500 unexpected server failure.
+
+Do not expose internal database errors directly.
+
+###############################################################################
+# 18. AUTHENTICATION & AUTHORIZATION
+###############################################################################
+
+Where authentication is applicable:
+
+- store passwords using a strong password hashing mechanism,
+- never store plaintext passwords,
+- protect authenticated routes,
+- enforce roles/permissions server-side,
+- expire or securely manage sessions/tokens,
+- implement logout where relevant,
+- prevent privilege escalation,
+- use secure defaults.
+
+For examination scope, keep authorization simple:
+- e.g. User and Admin,
+unless additional roles are truly required.
+
+Test:
+- valid login,
+- invalid login,
+- unauthorized access,
+- protected resource access,
+- logout/session invalidation,
+- role restriction.
+
+###############################################################################
+# 19. SECURITY RULES
+###############################################################################
+
+At minimum review:
+
+- input validation,
+- authentication,
+- authorization,
+- password storage,
+- secret management,
+- SQL injection,
+- XSS,
+- CSRF where applicable,
+- insecure direct object references,
+- unsafe file uploads,
+- sensitive-data exposure,
+- dependency risks,
+- error-message leakage.
+
+Never introduce a known serious security weakness simply to save time.
+
+If a security shortcut is unavoidable:
+1. document it as technical debt,
+2. identify risk,
+3. classify severity,
+4. provide mitigation,
+5. decide whether deployment remains acceptable.
+
+Critical security debt should be fixed before final deployment whenever feasible.
+
+###############################################################################
+# 20. INPUT VALIDATION
+###############################################################################
+
+Validate input at the trusted boundary.
+
+Validate:
+- required fields,
+- types,
+- ranges,
+- formats,
+- enum values,
+- identifiers,
+- ownership/permission,
+- file size/type where uploads exist.
+
+Frontend validation improves UX.
+Backend validation is authoritative.
+
+Never rely only on client-side validation.
+
+###############################################################################
+# 21. ERROR HANDLING
+###############################################################################
+
+Every important workflow must define failure behaviour.
+
+Handle:
+- invalid input,
+- missing resource,
+- duplicate/conflict,
+- permission failure,
+- database failure,
+- external API failure,
+- timeout,
+- unexpected exception.
+
+User-facing errors should be:
+- understandable,
+- safe,
+- actionable where possible.
+
+Technical logs may contain diagnostic context but never secrets.
+
+###############################################################################
+# 22. TECHNICAL DEBT MANAGEMENT
+###############################################################################
+
+Technical debt is a required examination component.
+
+Maintain:
+docs/technical-debt-register.md
+or an equivalent section/file.
+
+Each significant debt item MUST use:
+
+Debt ID:
+Debt:
+Cause:
+Impact:
+Priority:
+Category:
+Status:
+Proposed Resolution:
+Target Version/Time:
+Related Requirement/Module:
+
+Required conceptual chain:
+Debt → Cause → Impact → Priority → Proposed Resolution
+
+Suggested categories:
+- architecture,
+- code quality,
+- testing,
+- security,
+- performance,
+- documentation,
+- dependency,
+- deployment,
+- UX,
+- data.
+
+Suggested priorities:
+- Critical,
+- High,
+- Medium,
+- Low.
+
+Status classes:
+- Acceptable temporarily,
+- Scheduled for future resolution,
+- Critical/immediate.
+
+Examples of legitimate exam-related debt:
+- simplified role model,
+- limited automated test coverage,
+- temporary local file storage,
+- missing rate limiting,
+- duplicated code,
+- incomplete refactoring,
+- limited observability,
+- minimal performance testing,
+- manual deployment step,
+- dependency upgrade deferred.
+
+Do not invent debt just to fill documentation.
+Record actual trade-offs.
+
+Whenever Cursor proposes a shortcut, it should ask internally:
+"Does this introduce technical debt?"
+If yes, add/update the debt register.
+
+###############################################################################
+# 23. TECHNICAL DEBT REPAYMENT PLAN
+###############################################################################
+
+For future versions, define:
+- debt item,
+- repayment action,
+- priority,
+- prerequisite,
+- target release,
+- estimated effort,
+- expected benefit.
+
+Critical debt should not be deferred without explicit justification.
+
+###############################################################################
+# 24. TESTING STRATEGY
+###############################################################################
+
+Testing is mandatory.
+
+At minimum provide relevant evidence for:
+- functional testing,
+- system testing,
+- user acceptance testing.
+
+Where applicable:
+- unit testing,
+- integration testing.
+
+Also consider:
+- security testing,
+- usability testing,
+- performance testing.
+
+Do not claim a test was executed unless it actually was.
+
+For each test case record:
+
+Test Case ID:
+Requirement ID:
+Test Type:
+Objective:
+Preconditions:
+Test Data:
+Steps:
+Expected Result:
+Actual Result:
+Status: PASS/FAIL
+Defect ID if failed:
+Corrective Action:
+Retest Result:
+
+Use test IDs:
+- UT-001
+- IT-001
+- FT-001
+- ST-001
+- UAT-001
+- SEC-001
+- PERF-001
+
+###############################################################################
+# 25. AUTOMATED TEST RULES
+###############################################################################
+
+Write automated tests for logic with high defect risk.
+
+Prioritise tests for:
+- authentication,
+- authorization,
+- business rules,
+- calculations,
+- validation,
+- service methods,
+- critical APIs,
+- important persistence logic.
+
+Avoid spending excessive examination time testing trivial framework behaviour.
+
+When fixing a defect:
+1. reproduce it,
+2. add/update a test where practical,
+3. fix the defect,
+4. rerun related tests,
+5. record the defect if relevant to the testing report.
+
+###############################################################################
+# 26. USER ACCEPTANCE TESTING
+###############################################################################
+
+UAT should be tied to real user goals.
+
+Example structure:
+
+UAT-001
+Actor: Admin
+Scenario: Create a new record
+Acceptance criterion: ...
+Expected outcome: ...
+Actual outcome: ...
+Status: PASS
+
+UAT should demonstrate that implemented Must requirements solve the intended problem.
+
+###############################################################################
+# 27. DEFECT MANAGEMENT
+###############################################################################
+
+Maintain a lightweight defect log.
+
+Fields:
+
+Defect ID
+Description
+Severity
+Related requirement
+Detected during
+Root cause
+Fix
+Status
+Retest result
+
+Severity:
+- Critical: blocks core use/deployment/security
+- High: major requirement broken
+- Medium: workaround exists
+- Low: cosmetic/minor
+
+Fix Critical and High defects before optional enhancements.
+
+###############################################################################
+# 28. DEFINITION OF DONE
+###############################################################################
+
+A requirement is DONE only if:
+
+- implementation is complete,
+- code builds/runs,
+- acceptance criteria are met,
+- validation exists,
+- failure cases are handled,
+- relevant tests have been executed,
+- technical debt is documented,
+- documentation is updated where needed,
+- feature works in the deployed environment if deployment affects it.
+
+"Code generated" is NOT equal to "Done".
+
+###############################################################################
+# 29. DEPLOYMENT RULES
+###############################################################################
+
+The final application must be accessible online.
+
+Potential platforms include:
+- Vercel,
+- Netlify,
+- Render,
+- suitable cloud platform,
+- another appropriate host.
+
+Choose the deployment approach that minimises examination risk.
+
+Before finalising deployment verify:
+- production build succeeds,
+- environment variables are configured,
+- database connection works,
+- migrations are applied,
+- API endpoints work,
+- authentication works,
+- static assets load,
+- critical workflows work,
+- no secrets are exposed,
+- URLs are stable,
+- test credentials work.
+
+Never mark deployment complete based only on a successful build.
+Test the LIVE application.
+
+###############################################################################
+# 30. DEPLOYMENT CONFIGURATION
+###############################################################################
+
+Keep production configuration separate from development.
+
+Use:
+- environment variables,
+- .env.example,
+- documented variable names.
+
+Never commit:
+- .env,
+- API secrets,
+- database passwords,
+- private keys,
+- admin passwords.
+
+Provide `.env.example` with placeholders only.
+
+###############################################################################
+# 31. LOGGING & OBSERVABILITY
+###############################################################################
+
+Use enough logging to diagnose critical failures.
+
+Log:
+- startup errors,
+- database connection errors,
+- failed external calls,
+- unexpected exceptions,
+- critical state changes where useful.
+
+Do not log:
+- passwords,
+- access tokens,
+- secret keys,
+- full sensitive records.
+
+Avoid building complex monitoring infrastructure unless required.
+
+###############################################################################
+# 32. DOCUMENTATION REQUIREMENTS
+###############################################################################
+
+Prepare consolidated project documentation covering:
+
+1. Project Title
+2. Problem Statement
+3. Aim and Objectives
+4. Stakeholders
+5. Requirements Analysis
+6. Software Requirements Specification (SRS)
+7. Software Effort Estimation
+8. System Analysis
+9. System Design
+10. Implementation
+11. Testing
+12. Technical Debt
+13. Deployment
+14. User Manual
+15. Maintenance Strategy
+16. Future Evolution
+17. Limitations
+18. Conclusion
+19. References
+
+Do not fabricate content.
+Documentation must describe the actual project.
+
+###############################################################################
+# 33. SRS STRUCTURE
+###############################################################################
+
+Recommended SRS:
+
+1. Introduction
+   - purpose
+   - scope
+   - definitions
+   - references
+
+2. Overall Description
+   - product perspective
+   - user classes
+   - operating environment
+   - assumptions
+   - constraints
+
+3. Functional Requirements
+   - FR-001...
+   - acceptance criteria
+
+4. Non-Functional Requirements
+   - NFR-001...
+
+5. External Interface Requirements
+   - UI
+   - APIs
+   - external systems
+
+6. Data Requirements
+
+7. Security Requirements
+
+8. Requirement Priorities
+
+9. Traceability
+
+Ensure SRS requirements match implemented functionality.
+
+###############################################################################
+# 34. IMPLEMENTATION DOCUMENTATION
+###############################################################################
+
+Implementation documentation should explain:
+
+- implemented modules,
+- major workflows,
+- important algorithms,
+- database implementation,
+- API design,
+- authentication,
+- authorization,
+- validation,
+- error handling,
+- security controls,
+- key third-party dependencies,
+- deviations from original design.
+
+Do not paste large volumes of source code into documentation.
+Use concise excerpts only when they explain an important design or implementation choice.
+
+###############################################################################
+# 35. TESTING REPORT STRUCTURE
+###############################################################################
+
+Recommended:
+
+1. Test Strategy
+2. Test Environment
+3. Test Types
+4. Test Cases
+5. Test Results
+6. Defects Identified
+7. Corrective Actions
+8. Retesting
+9. Remaining Known Issues
+10. Testing Limitations
+11. Conclusion
+
+Include expected vs actual results.
+
+###############################################################################
+# 36. USER MANUAL
+###############################################################################
+
+User manual should explain actual implemented workflows.
+
+Include where applicable:
+- application URL,
+- supported roles,
+- login,
+- account creation,
+- main navigation,
+- key user tasks,
+- admin tasks,
+- logout,
+- common errors,
+- troubleshooting.
+
+Use screenshots only when they are real and useful.
+
+###############################################################################
+# 37. MAINTENANCE STRATEGY
+###############################################################################
+
+Cover:
+
+## Corrective Maintenance
+Fix production defects.
+
+## Adaptive Maintenance
+Adapt to changing OS, browser, API, library, infrastructure, or business environment.
+
+## Perfective Maintenance
+Improve UX, performance, maintainability, and feature quality.
+
+## Preventive Maintenance
+Refactoring, dependency updates, security improvements, test expansion.
+
+Also discuss:
+- security updates,
+- dependency updates,
+- backup/recovery where relevant,
+- performance improvements,
+- scalability,
+- monitoring,
+- user feedback,
+- technology changes.
+
+###############################################################################
+# 38. FUTURE EVOLUTION
+###############################################################################
+
+Future evolution must be realistic and directly connected to:
+- deferred requirements,
+- technical debt,
+- user feedback,
+- scalability needs,
+- new integrations,
+- performance,
+- security,
+- analytics,
+- automation,
+- mobile support,
+- richer roles/workflows,
+depending on project relevance.
+
+Do not list random fashionable technologies.
+
+For each future feature:
+- motivation,
+- value,
+- dependency,
+- estimated complexity,
+- relationship to current limitations/debt.
+
+###############################################################################
+# 39. LIMITATIONS
+###############################################################################
+
+Explicitly document limitations created by:
+- 48-hour duration,
+- test-data availability,
+- external service limits,
+- infrastructure,
+- simplified UX,
+- reduced feature scope,
+- performance-test limits,
+- security hardening not completed,
+where applicable.
+
+Do not disguise limitations.
+
+###############################################################################
+# 40. REFERENCES & ACKNOWLEDGEMENTS
+###############################################################################
+
+Record:
+- frameworks,
+- libraries,
+- APIs,
+- datasets,
+- tutorials/resources materially used,
+- documentation sources,
+- third-party services.
+
+Use a consistent citation/reference style selected by the student/institution.
+
+Never invent references.
+
+###############################################################################
+# 41. REPOSITORY RULES
+###############################################################################
+
+Use version control continuously.
+
+Recommended commit style:
+- feat:
+- fix:
+- test:
+- docs:
+- refactor:
+- chore:
+
+Examples:
+feat(auth): add admin login
+test(auth): cover invalid password case
+fix(users): reject duplicate email
+docs(srs): add requirement traceability
+
+Do not generate fake commit history.
+Do not rewrite history solely to make work appear older or more extensive.
+
+README should contain:
+- project title,
+- problem summary,
+- features,
+- technology stack,
+- setup,
+- environment configuration,
+- run commands,
+- test commands,
+- deployment link,
+- demo credentials if safe and intended,
+- repository structure.
+
+###############################################################################
+# 42. RECOMMENDED PROJECT FOLDER
+###############################################################################
+
+Prefer a structure similar to:
+
+/
+├── src/ or app/
+├── tests/
+├── docs/
+│   ├── requirements.md
+│   ├── effort-estimation.md
+│   ├── architecture.md
+│   ├── testing.md
+│   ├── technical-debt-register.md
+│   ├── maintenance.md
+│   └── future-evolution.md
+├── diagrams/
+├── .env.example
+├── README.md
+└── ...
+
+Adapt to the chosen stack.
+
+Do not create empty folders/documents just to imitate completeness.
+
+###############################################################################
+# 43. SUBMISSION PACKAGE
+###############################################################################
+
+Final ZIP structure should support:
+
+StudentID_ProjectName/
+│
+├── Project_Documentation.pdf
+├── SRS.pdf
+├── Testing_Report.pdf
+├── Technical_Debt_Plan.pdf
+├── User_Manual.pdf
+├── Deployment_and_Source_Links.txt
+└── Supporting_Files/
+
+The required PDFs may be combined into one comprehensive PDF if the submission approach
+allows it and all required sections are clearly identified.
+
+Cursor should help ensure the repository contains source material from which these final
+submission documents can be prepared.
+
+###############################################################################
+# 44. DEPLOYMENT_AND_SOURCE_LINKS TEMPLATE
+###############################################################################
+
+Maintain the following information for final submission:
+
+Student Name:
+Student ID:
+Project Title:
+Live Application:
+Admin URL:
+Test Username:
+Test Password:
+Admin Username:
+Admin Password:
+Source Code Repository:
+
+Never invent missing values.
+Use placeholders until real values exist.
+
+###############################################################################
+# 45. FINAL SUBMISSION CHECK
+###############################################################################
+
+Before considering the project complete, verify:
+
+- realistic problem defined,
+- stakeholders/users identified,
+- requirements analysis completed,
+- SRS completed,
+- effort estimated,
+- estimation technique justified,
+- system designed,
+- major prioritised requirements implemented,
+- functional application works,
+- tests executed,
+- test results documented,
+- technical debt identified,
+- debt resolution strategies documented,
+- application deployed,
+- live deployment tested,
+- user manual prepared,
+- maintenance strategy prepared,
+- future evolution plan prepared,
+- repository accessible,
+- URLs verified,
+- credentials verified,
+- name/student ID/project title included,
+- third-party resources acknowledged,
+- submission package complete.
+
+###############################################################################
+# 46. MARK-AWARE PRIORITISATION
+###############################################################################
+
+The assessment weighting is:
+
+- Requirements Engineering & SRS: 7
+- Software Effort Estimation: 5
+- System Analysis & Design: 6
+- Implementation & Functionality: 10
+- Testing & Quality Assurance: 5
+- Technical Debt Identification & Management: 6
+- Deployment & Accessibility: 3
+- Documentation & User Manual: 3
+- Maintenance & Future Evolution: 3
+
+Use this weighting to avoid spending all available time on implementation.
+
+Never sacrifice:
+- effort estimation,
+- testing,
+- technical debt,
+- deployment,
+- lifecycle documentation
+just to add another optional feature.
+
+###############################################################################
+# 47. CHANGE MANAGEMENT DURING THE 48 HOURS
+###############################################################################
+
+When requirements change:
+
+1. identify changed requirement,
+2. update requirement record,
+3. assess effort impact,
+4. assess architecture/data impact,
+5. assess test impact,
+6. assess technical debt,
+7. reprioritise scope,
+8. implement only after impact is understood.
+
+Keep a lightweight change log:
+
+Change ID:
+Date/time:
+Reason:
+Affected requirement:
+Impact:
+Decision:
+
+###############################################################################
+# 48. AI/CURSOR BEHAVIOUR FOR NEW FEATURE REQUESTS
+###############################################################################
+
+For every substantial feature request, respond/work in this internal order:
+
+1. Requirement
+2. Priority
+3. Acceptance criteria
+4. Effort estimate
+5. Dependencies
+6. Design impact
+7. Data/API changes
+8. Security considerations
+9. Implementation
+10. Tests
+11. Technical debt
+12. Documentation impact
+
+If the feature is too large:
+- propose a smaller version,
+- state what is deferred.
+
+Do not immediately dump large amounts of code without analysing impact.
+
+###############################################################################
+# 49. AI/CURSOR BEHAVIOUR FOR BUG FIXES
+###############################################################################
+
+For bugs:
+
+1. reproduce or understand the failing condition,
+2. identify related requirement,
+3. identify root cause,
+4. apply smallest safe fix,
+5. add/update test,
+6. rerun related tests,
+7. check regressions,
+8. update defect log if significant,
+9. update technical debt if the fix is temporary.
+
+Never mask errors simply to make tests pass.
+
+###############################################################################
+# 50. AI/CURSOR BEHAVIOUR FOR REFACTORING
+###############################################################################
+
+Refactor only when:
+- code blocks further progress,
+- duplication is significant,
+- maintainability risk is high,
+- security/correctness requires it,
+- tests provide enough confidence.
+
+Before refactoring:
+- preserve behaviour,
+- ensure tests exist for critical path.
+
+After refactoring:
+- rerun tests,
+- do not add unrelated features.
+
+###############################################################################
+# 51. AI/CURSOR BEHAVIOUR FOR DOCUMENT GENERATION
+###############################################################################
+
+When preparing project documentation:
+
+- derive statements from actual repository/project evidence,
+- use actual requirement IDs,
+- use actual routes/modules/entities,
+- use actual test results,
+- use actual deployment URLs,
+- use actual technical debt,
+- state "not yet completed" where evidence is missing.
+
+Never fabricate:
+- PASS results,
+- performance numbers,
+- user feedback,
+- UAT participants,
+- dates,
+- deployment success,
+- repository links,
+- screenshots.
+
+###############################################################################
+# 52. EVIDENCE-DRIVEN DEVELOPMENT
+###############################################################################
+
+Maintain enough evidence for examiner verification.
+
+Useful evidence:
+- commit history,
+- test output,
+- screenshots of actual app,
+- deployed URL,
+- database schema,
+- diagrams,
+- API examples,
+- defect records,
+- technical-debt register,
+- requirements traceability.
+
+Do not manufacture evidence.
+
+###############################################################################
+# 53. DEMO/VIVA READINESS
+###############################################################################
+
+Assume the examiner may ask:
+- Why this problem?
+- Who are the stakeholders?
+- Why is this requirement a Must?
+- Why this estimation technique?
+- How did estimation affect scope?
+- Why this architecture?
+- Why this technology stack?
+- How does authentication work?
+- How is authorization enforced?
+- What tests were executed?
+- What failed?
+- What technical debt exists?
+- Which debt is most critical?
+- What would you improve next?
+- How is the system deployed?
+- How would the system scale?
+- What maintenance will be needed?
+
+Therefore:
+- keep implementation understandable,
+- avoid unexplained copied code,
+- record key decisions,
+- prefer solutions the student can defend.
+
+###############################################################################
+# 54. QUALITY GATES
+###############################################################################
+
+## Gate A — Before Implementation
+Must have:
+- problem statement,
+- stakeholders,
+- requirements,
+- priorities,
+- MVP scope,
+- effort estimate,
+- chosen stack.
+
+## Gate B — Before Feature Complete
+Must have:
+- acceptance criteria,
+- working implementation,
+- validation/error handling,
+- relevant tests.
+
+## Gate C — Before Deployment
+Must have:
+- core Must requirements working,
+- critical tests passing,
+- critical security issues addressed,
+- production configuration prepared.
+
+## Gate D — Before Submission
+Must have:
+- live app verified,
+- repository verified,
+- documentation complete,
+- technical debt plan complete,
+- credentials verified,
+- all links verified.
+
+###############################################################################
+# 55. 48-HOUR SCOPE SAFETY RULE
+###############################################################################
+
+When uncertain, choose the smallest system that demonstrates:
+- meaningful requirements engineering,
+- a real use case,
+- persistent data where appropriate,
+- business logic,
+- validation,
+- authentication/authorization where appropriate,
+- testing,
+- deployment,
+- technical debt awareness,
+- maintenance/evolution planning.
+
+A polished 5-feature system is better than an unfinished 20-feature system.
+
+###############################################################################
+# 56. FORBIDDEN PROJECT BEHAVIOUR
+###############################################################################
+
+Do NOT:
+
+- skip requirements and start coding blindly,
+- build only static pages,
+- build only a mock-up,
+- present non-functional placeholders as implemented features,
+- fabricate tests,
+- fabricate UAT,
+- fabricate deployment,
+- fabricate technical debt,
+- fabricate references,
+- expose secrets,
+- ignore broken Must requirements,
+- introduce unjustified complexity,
+- expand scope without updating estimates,
+- use client-side authorization as the only protection,
+- claim production readiness without live verification,
+- hide major known defects,
+- claim copied/generated code is understood without review.
+
+###############################################################################
+# 57. PROJECT STATUS FORMAT
+###############################################################################
+
+When asked for project status, report:
+
+## Current Phase
+Planning / Design / Implementation / Testing / Deployment / Documentation
+
+## Completed
+- ...
+
+## In Progress
+- ...
+
+## Blockers
+- ...
+
+## Remaining Must Requirements
+- ...
+
+## Test Status
+- ...
+
+## Technical Debt
+- ...
+
+## Deployment Status
+- ...
+
+## Time/Scope Risk
+Low / Medium / High
+
+## Next Highest-Priority Action
+- ...
+
+###############################################################################
+# 58. FEATURE STATUS FORMAT
+###############################################################################
+
+For each feature use:
+
+Feature:
+Requirement ID:
+Priority:
+Estimate:
+Status:
+Acceptance Criteria:
+Implementation:
+Tests:
+Known Defects:
+Technical Debt:
+Documentation:
+Deployment Verified: Yes/No
+
+###############################################################################
+# 59. FINAL PROJECT SUCCESS CRITERIA
+###############################################################################
+
+The project is successful when it demonstrates disciplined software engineering under a
+realistic time constraint.
+
+Success is NOT defined only by the number of features.
+
+Success requires credible evidence of:
+- requirements engineering,
+- estimation,
+- analysis,
+- design,
+- implementation,
+- quality assurance,
+- debt management,
+- deployment,
+- documentation,
+- maintenance thinking,
+- future evolution planning.
+
+###############################################################################
+# 60. DEFAULT RESPONSE STYLE FOR CURSOR
+###############################################################################
+
+When assisting inside this repository:
+
+- be concise and implementation-focused,
+- explain important design decisions,
+- flag assumptions,
+- identify requirement IDs where possible,
+- mention tests to add/update,
+- mention debt introduced by shortcuts,
+- avoid unnecessary rewrites,
+- do not generate huge scaffolds without need,
+- preserve existing project conventions,
+- prefer working incremental changes.
+
+For complex work, structure recommendations as:
+1. Requirement impact
+2. Proposed change
+3. Files/modules affected
+4. Implementation
+5. Tests
+6. Technical debt/documentation impact
+
+###############################################################################
+# 61. PROJECT-SPECIFIC OVERRIDE — LEGALCONNECT GHANA
+###############################################################################
+
+Project working title:
+LegalConnect Ghana — An AI-Powered Platform for Improving Access to Legal Services
+
+Project domain:
+Legal-service access, legal-intake support, lawyer/law-firm discovery, consultation requests,
+and AI-assisted triage for users in Ghana.
+
+Core problem framing:
+The project does NOT assume that Ghana lacks lawyers or law firms. The software problem is the
+fragmented and sometimes difficult process ordinary users may face when trying to identify the
+appropriate type of legal professional, understand where to start, describe their issue clearly,
+and connect with a suitable legal service provider.
+
+The system should therefore reduce ACCESS FRICTION between:
+- individuals seeking legal assistance, and
+- lawyers/law firms offering relevant services.
+
+The application is an ACCESS, TRIAGE, MATCHING, and COORDINATION platform.
+It is NOT a replacement for a lawyer and must NOT present itself as providing professional legal
+advice.
+
+###############################################################################
+# 62. PROJECT VALUE PROPOSITION
+###############################################################################
+
+The platform should help a user move from:
+
+"I have a legal problem but I do not know where to start"
+
+into a structured flow:
+
+Describe legal concern
+→ AI-assisted triage
+→ legal category suggested
+→ structured case summary generated
+→ relevant professionals identified
+→ user reviews suitable lawyer/law-firm profiles
+→ consultation request submitted
+→ lawyer reviews intake and responds outside/inside the supported workflow
+
+The AI component exists to improve access and reduce intake friction.
+Do NOT add AI merely as a chatbot decoration.
+
+###############################################################################
+# 63. PRIMARY USERS / ACTORS
+###############################################################################
+
+Keep actor scope small for the 48-hour examination.
+
+Primary actors:
+
+1. CITIZEN / CLIENT
+   - registers/logs in,
+   - describes a legal concern,
+   - receives AI-assisted categorisation and summary,
+   - discovers/reviews legal professionals,
+   - requests a consultation,
+   - tracks submitted requests where implemented.
+
+2. LAWYER / LEGAL SERVICE PROVIDER
+   - has a professional profile,
+   - identifies areas of practice,
+   - reviews relevant consultation requests,
+   - sees AI-generated intake summaries,
+   - accepts/rejects/updates consultation status where in scope.
+
+3. ADMIN
+   - manages users,
+   - manages legal categories,
+   - manages/approves lawyer profiles if verification is implemented,
+   - reviews platform data required for administration,
+   - may suspend inappropriate accounts/content.
+
+Avoid adding more roles unless a requirement clearly justifies them.
+
+###############################################################################
+# 64. 48-HOUR MVP SCOPE FOR LEGALCONNECT GHANA
+###############################################################################
+
+The recommended MVP MUST prioritise:
+
+MUST HAVE:
+- user registration/login,
+- citizen/client account,
+- lawyer/law-firm profile records,
+- legal practice categories,
+- free-text legal issue submission,
+- AI-assisted legal issue classification,
+- AI-generated structured intake summary,
+- lawyer discovery/filtering by relevant practice area,
+- deterministic or explainable lawyer recommendation/matching,
+- consultation request workflow,
+- basic admin management,
+- validation/error handling,
+- tests for critical flows,
+- production deployment.
+
+SHOULD HAVE:
+- lawyer availability flag,
+- city/region/location field,
+- consultation request statuses,
+- dashboard summaries,
+- basic search/filtering,
+- AI confidence/fallback behaviour.
+
+COULD HAVE:
+- bookmarks/favourites,
+- notifications,
+- lawyer response notes,
+- simple analytics,
+- user feedback/rating after consultation.
+
+WON'T FOR EXAM VERSION unless core work is already complete:
+- full AI legal-advice chatbot,
+- autonomous legal decision-making,
+- court filing,
+- online legal representation,
+- legal-document generation for filing,
+- payments/escrow,
+- video consultation,
+- complex calendaring,
+- multilingual speech recognition,
+- native mobile apps,
+- nationwide professional-registry integration,
+- complex recommender ML training pipeline,
+- vector database unless a RAG feature is deliberately selected and time permits.
+
+###############################################################################
+# 65. PROJECT-SPECIFIC TECH STACK
+###############################################################################
+
+Default stack for this examination project:
+
+Frontend:
+- React
+- TypeScript
+- Vite
+- Tailwind CSS or lightweight CSS solution
+
+Backend:
+- Node.js
+- Express
+- TypeScript
+- Zod (or equivalent) for validation
+
+Database:
+- PostgreSQL
+- Prisma ORM
+
+Authentication:
+- password hashing using a proven library,
+- secure session/token handling,
+- server-side role checks.
+
+Testing:
+- Vitest or project-equivalent unit test runner,
+- Supertest or equivalent for API integration tests,
+- Postman may be used for manual/integration evidence.
+
+AI:
+- ONE external LLM provider accessed through a backend-only service adapter,
+- structured JSON output,
+- deterministic validation/fallbacks around AI responses,
+- no provider API key exposed to the frontend.
+
+Deployment:
+- one simple web deployment plus PostgreSQL where possible,
+- prefer a deployment arrangement with minimal moving parts.
+
+Do not add microservices, message brokers, Redis, Kubernetes, or multiple databases unless a
+specific implemented requirement proves they are necessary.
+
+###############################################################################
+# 66. AI ARCHITECTURE PRINCIPLE
+###############################################################################
+
+AI must be isolated behind a service boundary.
+
+Recommended flow:
+
+React UI
+→ Express API
+→ Legal Intake Service
+→ AI Provider Adapter
+→ validated structured result
+→ PostgreSQL
+→ Matching Service
+→ API response
+
+Recommended backend modules:
+
+src/
+  modules/
+    auth/
+    users/
+    lawyers/
+    legal-categories/
+    legal-intake/
+    matching/
+    consultations/
+    admin/
+  ai/
+    ai-client.ts
+    prompts.ts
+    schemas.ts
+    legal-triage.service.ts
+  middleware/
+  config/
+
+Do not place AI prompts directly in route handlers.
+Do not call the AI provider directly from frontend code.
+
+###############################################################################
+# 67. AI FEATURE 1 — LEGAL ISSUE TRIAGE
+###############################################################################
+
+Purpose:
+Help transform an unstructured user description into structured intake data.
+
+Input should include only data necessary for triage, for example:
+- user's free-text concern,
+- optional location,
+- optional urgency indicators explicitly provided by the user.
+
+Expected AI output MUST be structured and validated against a schema similar to:
+
+{
+  "category": "Employment Law",
+  "summary": "Concise neutral summary of the user's stated issue.",
+  "urgency": "NORMAL | IMPORTANT | URGENT",
+  "keywords": ["salary", "termination"],
+  "confidence": 0.82,
+  "needsHumanReview": false
+}
+
+The exact categories MUST come from the application's configured legal-category list.
+The model must not invent uncontrolled categories when a category list is supplied.
+
+If confidence is low or classification is ambiguous:
+- do not pretend certainty,
+- mark for human/user confirmation,
+- offer top plausible categories if the implementation supports it.
+
+###############################################################################
+# 68. AI FEATURE 2 — INTAKE SUMMARISATION
+###############################################################################
+
+The AI summary should:
+- preserve the user's meaning,
+- use neutral language,
+- separate facts stated by the user from assumptions,
+- avoid determining legal liability,
+- avoid declaring that a law was violated,
+- avoid predicting court outcomes,
+- avoid inventing dates, evidence, people, documents, or events.
+
+Recommended structured intake fields:
+
+- originalDescription
+- category
+- conciseSummary
+- keyFacts[]
+- requestedHelp (if inferable with reasonable confidence)
+- urgency
+- confidence
+- needsHumanReview
+
+The ORIGINAL user text should remain stored where project privacy rules allow so the lawyer can
+compare the AI summary with the user's own words.
+
+Never overwrite the original intake with only an AI-generated summary.
+
+###############################################################################
+# 69. AI FEATURE 3 — LAWYER MATCHING
+###############################################################################
+
+For the examination version, lawyer matching should remain SIMPLE, EXPLAINABLE, and TESTABLE.
+
+Recommended matching inputs:
+- classified legal category,
+- lawyer practice areas,
+- lawyer status/approval,
+- optional city/region,
+- optional availability,
+- optional language only if collected.
+
+Prefer deterministic ranking over opaque AI ranking.
+
+Example scoring concept:
+- practice-area exact match: highest weight,
+- location match: secondary weight,
+- availability: secondary weight,
+- verified/active status: mandatory eligibility condition.
+
+AI may help classify the issue, but the final lawyer filtering/ranking should normally be
+implemented in application logic so it can be tested and explained during the viva.
+
+Every recommendation shown to the user should be explainable, e.g.:
+"Recommended because this lawyer lists Employment Law as a practice area and is available in
+your selected region."
+
+Do not claim a lawyer is "the best" unless the system has an objective and defensible basis.
+
+###############################################################################
+# 70. OPTIONAL AI LEGAL INFORMATION ASSISTANT
+###############################################################################
+
+This feature is OPTIONAL and should be deferred unless the MVP is complete.
+
+If implemented:
+- it must provide GENERAL LEGAL INFORMATION only,
+- it must not replace a lawyer,
+- it must clearly identify uncertainty,
+- it must not fabricate laws, cases, agencies, deadlines, or procedures,
+- it should use an approved/reviewed knowledge source if available,
+- RAG should be used only if the team has time to build and test it properly.
+
+The preferred response pattern is:
+General information
+→ limitations/disclaimer
+→ encourage connection with an appropriate professional through the platform.
+
+Do not allow an unrestricted legal-advice chatbot to become the core of the exam project.
+
+###############################################################################
+# 71. LEGAL-SAFETY BOUNDARY
+###############################################################################
+
+The system must distinguish:
+
+ALLOWED AI ASSISTANCE:
+- issue categorisation,
+- intake summarisation,
+- general orientation,
+- lawyer/law-firm discovery,
+- matching support,
+- clarification prompts,
+- converting user text into structured case-intake information.
+
+NOT TO BE PRESENTED AS AI AUTHORITY:
+- definitive legal advice,
+- legal representation,
+- determining guilt/liability,
+- predicting a court outcome,
+- guaranteeing a legal remedy,
+- fabricating legal citations,
+- instructing a user to ignore qualified professional advice.
+
+UI copy should make the boundary clear without being obstructive.
+
+Suggested disclaimer concept:
+"AI-assisted results are provided to help organise your request and connect you with an
+appropriate legal professional. They are not a substitute for professional legal advice."
+
+###############################################################################
+# 72. AI PROMPTING RULES
+###############################################################################
+
+All legal-triage prompts must:
+- define the model's limited task,
+- provide the allowed category list,
+- prohibit legal conclusions,
+- prohibit fabrication,
+- request structured output,
+- instruct the model to flag ambiguity,
+- instruct the model to use only information supplied by the user for factual summaries.
+
+Prompt template principles:
+
+ROLE:
+You are an intake-classification assistant for a legal-service access platform.
+
+TASK:
+Classify and structure the user's issue for routing to a legal professional.
+
+DO:
+- summarise neutrally,
+- select only from allowed categories,
+- extract explicitly stated facts,
+- identify ambiguity,
+- return JSON.
+
+DO NOT:
+- provide a legal conclusion,
+- determine whether a crime/tort/breach definitely occurred,
+- invent facts,
+- guarantee outcomes,
+- impersonate a lawyer.
+
+Never trust model output without schema validation.
+
+###############################################################################
+# 73. AI OUTPUT VALIDATION
+###############################################################################
+
+Every AI response used by application logic must be validated.
+
+Validate:
+- JSON syntax,
+- required fields,
+- category membership,
+- urgency enum,
+- confidence range,
+- array/string lengths,
+- null/optional values.
+
+If validation fails:
+1. retry only if retry behaviour is deliberately implemented,
+2. otherwise use a safe fallback,
+3. preserve the user's original submission,
+4. never crash the entire consultation workflow because AI failed.
+
+AI failure must degrade gracefully.
+
+Example fallback:
+- category = "Other / Needs Review"
+- summary = original user text truncated safely for UI
+- needsHumanReview = true
+
+###############################################################################
+# 74. AI ERROR / FAILURE MODES
+###############################################################################
+
+Design and test for:
+- provider unavailable,
+- timeout,
+- invalid JSON,
+- unsupported category,
+- low confidence,
+- empty user description,
+- extremely long input,
+- prompt-injection-like text,
+- inappropriate user content,
+- network error,
+- rate limit,
+- duplicate submission.
+
+The consultation request should remain recoverable even if AI is unavailable.
+
+Do NOT make AI availability a single point of failure for storing a user's request unless this is
+explicitly justified.
+
+###############################################################################
+# 75. AI TESTING REQUIREMENTS
+###############################################################################
+
+AI features require tests beyond "the API returned 200".
+
+At minimum test:
+
+AI-TC-001 — clear employment issue
+Expected: Employment category or configured equivalent.
+
+AI-TC-002 — clear tenancy/property issue
+Expected: Property/Tenancy category or configured equivalent.
+
+AI-TC-003 — ambiguous issue
+Expected: low confidence or human-review path.
+
+AI-TC-004 — empty input
+Expected: validation error before calling AI.
+
+AI-TC-005 — AI provider failure
+Expected: controlled fallback; no lost submission.
+
+AI-TC-006 — malformed provider output
+Expected: schema validation rejects output and fallback executes.
+
+AI-TC-007 — fabricated-fact guard
+Expected: summary does not add unsupported names/dates/events in curated test examples.
+
+AI-TC-008 — category whitelist
+Expected: unsupported model category is rejected/mapped to human review.
+
+AI-TC-009 — matching eligibility
+Expected: inactive/unapproved lawyer is not recommended.
+
+AI-TC-010 — matching explanation
+Expected: recommendation reason is traceable to configured matching criteria.
+
+For examination evidence, manually record a small evaluation dataset of representative sample
+inputs and actual outputs.
+Do not claim model accuracy percentages unless a real labelled evaluation was executed.
+
+###############################################################################
+# 76. AI QUALITY METRICS
+###############################################################################
+
+Use practical metrics only where actually measured.
+
+Possible metrics:
+- category agreement on a small labelled test set,
+- structured-output validity rate,
+- fallback rate,
+- average response latency,
+- percentage of low-confidence cases,
+- human/user correction frequency if implemented.
+
+Never fabricate benchmark numbers.
+
+For a 48-hour exam, a small transparent evaluation is better than an unsupported claim of
+"high accuracy".
+
+###############################################################################
+# 77. LEGAL CATEGORY MODEL
+###############################################################################
+
+Keep categories manageable.
+
+Possible initial configurable categories include:
+- Employment / Labour
+- Property / Tenancy
+- Family
+- Business / Commercial
+- Contract
+- Criminal
+- Immigration
+- Consumer
+- Other / Needs Review
+
+These labels are PRODUCT CATEGORIES, not declarations of the legal merits of a case.
+
+The final category list should be reviewed and deliberately selected for the project.
+Do not continuously expand categories during implementation.
+
+###############################################################################
+# 78. CORE DATA MODEL
+###############################################################################
+
+Recommended entities:
+
+User
+- id
+- name
+- email/phone as selected by requirements
+- passwordHash
+- role
+- status
+- createdAt
+- updatedAt
+
+LawyerProfile
+- id
+- userId
+- displayName
+- firmName (optional)
+- bio
+- city/region (optional)
+- isAvailable
+- verificationStatus or approvalStatus if implemented
+- createdAt
+- updatedAt
+
+LegalCategory
+- id
+- name
+- description
+- active
+
+LawyerPracticeArea
+- lawyerId
+- legalCategoryId
+
+LegalIntake
+- id
+- userId
+- originalDescription
+- aiCategoryId or suggestedCategory
+- aiSummary
+- urgency
+- confidence
+- needsHumanReview
+- createdAt
+
+ConsultationRequest
+- id
+- intakeId
+- clientUserId
+- lawyerId
+- status
+- message/notes where needed
+- createdAt
+- updatedAt
+
+Avoid storing unnecessary sensitive data.
+Only add entities required by implemented requirements.
+
+###############################################################################
+# 79. PRIVACY & DATA MINIMISATION
+###############################################################################
+
+Legal concerns may contain sensitive personal information.
+Therefore:
+
+- collect only data required for the MVP,
+- do not request national ID numbers unless explicitly necessary and justified,
+- do not collect financial/medical/family details merely because they might be useful later,
+- avoid logging full legal-intake text,
+- never log passwords/tokens,
+- keep AI API keys server-side,
+- restrict lawyer access to relevant consultation/intake information,
+- restrict admin access to what the administration workflow requires,
+- do not expose one user's intake through predictable IDs without authorization checks.
+
+Where AI requests leave the application boundary, document this architectural/data-processing
+consideration in the project limitations/security discussion.
+
+###############################################################################
+# 80. ACCESS CONTROL FOR LEGALCONNECT
+###############################################################################
+
+Recommended permissions:
+
+CITIZEN:
+- manage own account,
+- create own legal intake,
+- view own intake/consultation requests,
+- browse permitted lawyer profiles,
+- request consultation.
+
+LAWYER:
+- manage own permitted profile fields,
+- view consultation requests assigned/sent to them,
+- view the associated intake only when authorised,
+- update consultation status where implemented.
+
+ADMIN:
+- manage users/categories,
+- approve/suspend lawyer profiles where implemented,
+- view administrative records needed for platform management.
+
+Every object-level route must check ownership/role server-side.
+
+Examples requiring explicit authorization tests:
+- citizen attempts to view another citizen's intake,
+- lawyer attempts to view an unrelated consultation,
+- citizen attempts to access admin endpoint,
+- unapproved lawyer appears in matching results.
+
+###############################################################################
+# 81. CONSULTATION WORKFLOW
+###############################################################################
+
+Keep consultation state simple.
+
+Recommended statuses:
+- PENDING
+- ACCEPTED
+- DECLINED
+- COMPLETED
+- CANCELLED
+
+Only implement statuses that are used by actual workflows.
+
+Example core flow:
+
+Citizen creates intake
+→ AI triage completes/falls back
+→ system shows relevant professionals
+→ citizen chooses professional
+→ consultation request created as PENDING
+→ lawyer reviews structured intake
+→ lawyer accepts or declines
+→ citizen can view status
+
+Do not build full appointment scheduling unless it is deliberately prioritised.
+
+###############################################################################
+# 82. PROJECT-SPECIFIC FUNCTIONAL REQUIREMENTS BASELINE
+###############################################################################
+
+Use these as a STARTING BASELINE only. Refine them in the actual SRS.
+
+FR-001 — Account Registration
+The system shall allow a citizen to create an account using the required registration fields.
+
+FR-002 — Authentication
+The system shall authenticate registered users and establish an authorised session.
+
+FR-003 — Lawyer Profile Management
+The system shall maintain lawyer/legal-service-provider profiles including configured practice
+areas and availability/profile status.
+
+FR-004 — Legal Concern Submission
+The system shall allow a citizen to submit a free-text description of a legal concern.
+
+FR-005 — AI Legal Issue Classification
+The system shall analyse a submitted legal concern and suggest one configured legal category,
+or flag the issue for review where confidence is insufficient.
+
+FR-006 — AI Intake Summary
+The system shall generate a concise structured summary based only on the submitted concern.
+
+FR-007 — Lawyer Discovery
+The system shall allow users to view/search/filter eligible lawyer profiles.
+
+FR-008 — Lawyer Recommendation
+The system shall identify eligible lawyers whose configured practice areas match the legal issue
+category and shall provide a basic explanation for the match.
+
+FR-009 — Consultation Request
+The system shall allow a citizen to send a consultation request to a selected eligible lawyer.
+
+FR-010 — Consultation Management
+The system shall allow authorised users to view and update consultation-request status according
+to their role.
+
+FR-011 — Administration
+The system shall allow an administrator to manage relevant users, lawyer profiles, and legal
+categories within the MVP scope.
+
+FR-012 — AI Failure Fallback
+The system shall preserve the user's submitted concern and provide a recoverable workflow when
+the AI service cannot produce a valid result.
+
+Do not treat these IDs as final until the requirements document is reviewed.
+
+###############################################################################
+# 83. PROJECT-SPECIFIC NON-FUNCTIONAL REQUIREMENTS BASELINE
+###############################################################################
+
+NFR-001 — Security
+The system shall protect authenticated and role-restricted operations through server-side access
+control.
+
+NFR-002 — Privacy
+The system shall minimise collection/exposure of legal-intake information and shall not expose
+one user's private intake to unauthorised users.
+
+NFR-003 — Reliability
+Failure of the AI provider shall not cause loss of a user's submitted legal concern.
+
+NFR-004 — Usability
+A first-time user should be able to describe a concern and reach a relevant lawyer-discovery or
+consultation step without requiring knowledge of legal terminology.
+
+NFR-005 — Maintainability
+AI-provider-specific logic shall be encapsulated behind a dedicated service/adapter boundary.
+
+NFR-006 — Performance
+Define a realistic response target for ordinary application operations and separately document
+AI-dependent latency based on actual observed behaviour.
+
+NFR-007 — Explainability
+Lawyer recommendations shall be explainable using visible matching criteria rather than an
+unverifiable AI claim.
+
+NFR-008 — Availability
+The deployed application shall remain accessible for examination/demo grading subject to the
+selected hosting platform's limitations.
+
+###############################################################################
+# 84. ACCEPTANCE CRITERIA EXAMPLES
+###############################################################################
+
+FR-005 acceptance criteria example:
+- Given a non-empty legal concern,
+- when the AI triage service returns a valid supported category,
+- the system stores/displays that category with the intake,
+- and preserves the original user description.
+
+Fallback:
+- Given an AI timeout or invalid output,
+- the system preserves the intake,
+- marks the item for review/fallback,
+- and shows a controlled message rather than a server error.
+
+FR-008 acceptance criteria example:
+- only active/eligible lawyer profiles are returned,
+- at least one matching practice area must exist for category-based recommendations,
+- the user can see why a lawyer was recommended.
+
+###############################################################################
+# 85. UX RULES FOR ORDINARY USERS
+###############################################################################
+
+The interface must not assume users understand legal terminology.
+
+Prefer:
+"Tell us what happened"
+over:
+"Select the applicable jurisprudential cause of action"
+
+Prefer plain-language category descriptions.
+
+The intake screen should make clear:
+- users can describe the issue in their own words,
+- AI will organise the request,
+- a legal professional remains responsible for professional advice.
+
+Avoid intimidating forms with dozens of fields.
+Start with a small number of fields and progressively request more only if required.
+
+###############################################################################
+# 86. RECOMMENDED CORE SCREENS
+###############################################################################
+
+For the 48-hour MVP, prefer:
+
+PUBLIC:
+- Landing page
+- Lawyer directory/profile view
+- Login/Register
+
+CITIZEN:
+- Dashboard
+- Describe Legal Issue / New Intake
+- AI Triage Result / Confirm Category
+- Recommended Lawyers
+- Consultation Request
+- My Requests
+
+LAWYER:
+- Dashboard
+- Profile
+- Incoming Consultation Requests
+- Request Detail / Intake Summary
+
+ADMIN:
+- Dashboard
+- Users
+- Lawyer Profiles
+- Legal Categories
+
+Do not add screens that lack a requirement or workflow.
+
+###############################################################################
+# 87. AI TECHNICAL DEBT ITEMS TO WATCH
+###############################################################################
+
+Likely technical debt candidates include:
+- relying on a general-purpose LLM rather than a domain-specific classifier,
+- limited labelled evaluation dataset,
+- prompt-based categorisation rather than trained model,
+- limited explainability beyond category/match criteria,
+- no human moderation dashboard for ambiguous classifications,
+- hard-coded initial category taxonomy,
+- provider dependency,
+- no advanced prompt-injection defenses,
+- limited AI observability,
+- no provider failover,
+- no RAG knowledge base.
+
+Only record items that actually apply.
+
+Do not treat all of these as defects.
+Some are acceptable temporary debt for a 48-hour MVP if risk is controlled and documented.
+
+###############################################################################
+# 88. AI-RELATED TECHNICAL DEBT REPAYMENT
+###############################################################################
+
+Potential future repayment path:
+
+Version 1.1:
+- expand labelled evaluation set,
+- improve prompts/schema validation,
+- add human review workflow.
+
+Version 1.2:
+- improve matching model using verified interaction data,
+- add better location/availability filtering,
+- improve monitoring.
+
+Future major version:
+- consider RAG with reviewed Ghana-focused legal-information sources,
+- consider multilingual/voice intake,
+- consider professional-registry integrations,
+- consider appointment/payment modules only with adequate security/compliance design.
+
+Do not promise these features as implemented.
+
+###############################################################################
+# 89. PROJECT-SPECIFIC SECURITY TESTS
+###############################################################################
+
+At minimum consider:
+
+SEC-LG-001
+Citizen cannot read another citizen's legal intake.
+
+SEC-LG-002
+Lawyer cannot read a consultation/intake not assigned or sent to that lawyer.
+
+SEC-LG-003
+Citizen cannot call admin management endpoints.
+
+SEC-LG-004
+AI API credentials are absent from frontend bundles/responses.
+
+SEC-LG-005
+Stored passwords are hashed, not plaintext.
+
+SEC-LG-006
+Invalid/maliciously structured intake text does not bypass validation or crash the service.
+
+SEC-LG-007
+Inactive/unapproved lawyers are excluded where approval is a project requirement.
+
+SEC-LG-008
+Direct object IDs do not bypass ownership authorization.
+
+###############################################################################
+# 90. PROJECT-SPECIFIC EFFORT ESTIMATION GUIDANCE
+###############################################################################
+
+Estimate the project by vertical slices rather than vague modules.
+
+Suggested estimate units:
+- Authentication
+- Lawyer profile CRUD
+- Legal category administration
+- Citizen legal-intake form
+- AI provider integration
+- AI classification + schema validation
+- AI summary generation
+- Matching algorithm
+- Consultation workflow
+- Admin workflows
+- automated tests
+- deployment
+- documentation
+
+Treat AI integration as higher risk than ordinary CRUD because of:
+- external service dependency,
+- nondeterministic output,
+- schema validation,
+- fallback handling,
+- evaluation/testing.
+
+Do not underestimate AI merely because the provider call is a few lines of code.
+
+###############################################################################
+# 91. PROJECT-SPECIFIC DESIGN ARTEFACTS
+###############################################################################
+
+Recommended diagrams for LegalConnect Ghana:
+
+1. Use-case diagram
+Actors: Citizen, Lawyer, Admin.
+
+2. High-level architecture diagram
+React → Express → PostgreSQL + AI Provider.
+
+3. ER diagram
+User, LawyerProfile, LegalCategory, LegalIntake, ConsultationRequest and join entities.
+
+4. Sequence diagram — AI-assisted legal intake
+Citizen → UI → API → AI service → validator → database → matching service → UI.
+
+5. Optional activity diagram — consultation request lifecycle.
+
+These are sufficient if accurately implemented.
+Do not generate unrelated diagrams just to increase document size.
+
+###############################################################################
+# 92. PROJECT-SPECIFIC IMPLEMENTATION ORDER
+###############################################################################
+
+Recommended implementation order:
+
+1. Repository/project skeleton
+2. Database schema + migrations
+3. Authentication + roles
+4. Lawyer profile/category management
+5. Citizen legal-intake persistence WITHOUT AI
+6. Consultation workflow basics
+7. AI provider adapter
+8. AI triage classification
+9. AI summary + validation/fallback
+10. Matching/recommendation logic
+11. Admin essentials
+12. Tests for Must flows
+13. Deployment
+14. Refinement/documentation
+
+Important:
+Build the core intake workflow WITHOUT AI first.
+Then add AI as an enhancement to a working process.
+This prevents AI-provider issues from blocking the whole project.
+
+###############################################################################
+# 93. PROJECT-SPECIFIC DEFINITION OF DONE — AI INTAKE
+###############################################################################
+
+The AI intake feature is DONE only if:
+- original text is submitted and stored,
+- backend validation passes,
+- AI call occurs server-side,
+- provider output is schema-validated,
+- category is restricted to allowed values,
+- summary is stored/displayed,
+- fallback works when provider fails,
+- at least representative AI test cases have been executed,
+- no API key is exposed client-side,
+- relevant technical debt is recorded,
+- deployment behaviour is verified.
+
+###############################################################################
+# 94. PROJECT-SPECIFIC VIVA QUESTIONS TO PREPARE FOR
+###############################################################################
+
+Be prepared to explain:
+
+- Why is this an access problem rather than simply a shortage-of-lawyers problem?
+- Why use AI for triage rather than allowing users to select only a category?
+- Why should AI not provide definitive legal advice?
+- What happens if AI classifies an issue incorrectly?
+- How do you validate model output?
+- Why is lawyer matching implemented deterministically?
+- How is user privacy protected?
+- What data is sent to the AI provider?
+- What happens when the AI provider is down?
+- How did AI uncertainty affect your architecture?
+- How did effort estimation change the project scope?
+- What AI-related technical debt remains?
+- How would you evaluate classification quality with more time?
+- How would the system evolve into a production legal-services platform?
+
+###############################################################################
+# 95. FUTURE EVOLUTION FOR LEGALCONNECT GHANA
+###############################################################################
+
+Potential future evolution, only after the MVP:
+
+- reviewed legal-information RAG assistant,
+- multilingual intake,
+- voice-based legal issue intake,
+- richer lawyer verification workflows,
+- appointment scheduling,
+- notifications,
+- secure document upload,
+- document summarisation,
+- lawyer-side AI case intake organisation,
+- feedback-informed matching,
+- regional/location-aware discovery,
+- integrations with appropriate professional/legal-service directories where feasible,
+- stronger privacy/compliance controls,
+- analytics and service-access reporting.
+
+Future features must be prioritised based on user research and risk, not novelty.
+
+###############################################################################
+# 96. AUTHORITATIVE PROJECT RULE
+###############################################################################
+
+For this repository, sections 61–95 specialise the generic exam rules for LegalConnect Ghana.
+If a generic earlier rule conflicts with a LegalConnect-specific rule, follow the project-specific
+rule while still respecting the examination requirements.
+
+The guiding product principle is:
+
+"Use AI to reduce the friction of accessing appropriate legal professionals, not to replace the
+professional judgment of a lawyer."
+
+###############################################################################
+# END OF .cursorrules
+###############################################################################
