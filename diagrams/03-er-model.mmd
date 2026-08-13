@@ -1,0 +1,82 @@
+erDiagram
+  User ||--o| LawyerProfile : has
+  User ||--o{ LegalIntake : submits
+  User ||--o{ ConsultationRequest : sends
+  User ||--o{ EmailToken : owns
+  LawyerProfile ||--o{ LawyerPracticeArea : lists
+  LegalCategory ||--o{ LawyerPracticeArea : used_in
+  LegalCategory ||--o{ LegalIntake : classifies
+  SubscriptionPackage ||--o{ LawyerProfile : caps
+  SubscriptionPackage ||--o{ SubscriptionPayment : billed_as
+  LawyerProfile ||--o{ SubscriptionPayment : pays
+  LawyerProfile ||--o{ ConsultationRequest : receives
+  LegalIntake ||--o{ ConsultationRequest : linked_to
+  LawyerProfile ||--o{ WalletLedger : ledger
+  LawyerProfile ||--o{ WithdrawalRequest : withdraws
+  ConsultationRequest ||--o| WalletLedger : credits
+  WithdrawalRequest ||--o{ WalletLedger : debits
+  ConsultationRequest ||--o{ Payout : refunds
+  WithdrawalRequest ||--o{ Payout : pays_out
+
+  User {
+    string id PK
+    string email UK
+    string passwordHash
+    string role
+    string status
+    datetime emailVerifiedAt
+  }
+  LawyerProfile {
+    string id PK
+    string userId FK
+    string approvalStatus
+    int consultationFeePesewas
+    datetime subscriptionPeriodEnd
+    string paymentPhone
+  }
+  LegalIntake {
+    string id PK
+    string clientId FK
+    string originalDescription
+    string aiStatus
+    boolean needsHumanReview
+  }
+  ConsultationRequest {
+    string id PK
+    string status
+    int feePesewas
+    datetime scheduledAt
+    datetime settledAt
+  }
+  WalletLedger {
+    string id PK
+    int amountPesewas
+    string type
+  }
+  WithdrawalRequest {
+    string id PK
+    int amountPesewas
+    string status
+  }
+  Payout {
+    string id PK
+    string type
+    string destinationPhone
+    string status
+  }
+  SubscriptionPackage {
+    string id PK
+    string slug UK
+    int monthlyFeePesewas
+    int maxPracticeAreas
+  }
+  LegalCategory {
+    string id PK
+    string slug UK
+    boolean isActive
+  }
+  EmailToken {
+    string id PK
+    string type
+    datetime expiresAt
+  }

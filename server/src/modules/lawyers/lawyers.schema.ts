@@ -6,6 +6,53 @@ const practiceAreaIds = z
   .min(1, 'Select at least one practice area')
   .max(9, 'Select no more than nine practice areas');
 
+const ghanaPhone = z
+  .string()
+  .trim()
+  .regex(/^(\+233|0)\d{9}$/, 'Enter a valid Ghana phone number, e.g. 0244123456');
+
+const momoNetwork = z.enum(['MTN', 'AT', 'TELECEL']);
+
+function assertPaymentAccountTogether(
+  data: {
+    paymentAccountName?: string | null;
+    paymentPhone?: string | null;
+    paymentNetwork?: 'MTN' | 'AT' | 'TELECEL' | null;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const keys = ['paymentAccountName', 'paymentPhone', 'paymentNetwork'] as const;
+  const present = keys.filter((key) => data[key] !== undefined);
+  if (present.length === 0) return;
+  if (present.length !== 3) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['paymentPhone'],
+      message:
+        'Provide account name, mobile money number, and network together, or clear all three',
+    });
+    return;
+  }
+
+  const allNull =
+    data.paymentAccountName == null && data.paymentPhone == null && data.paymentNetwork == null;
+  const allSet = Boolean(data.paymentAccountName && data.paymentPhone && data.paymentNetwork);
+  if (!allNull && !allSet) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['paymentPhone'],
+      message:
+        'Provide account name, mobile money number, and network together, or clear all three',
+    });
+  }
+}
+
+const paymentAccountFields = {
+  paymentAccountName: z.string().trim().min(2).max(120).nullish(),
+  paymentPhone: ghanaPhone.nullish(),
+  paymentNetwork: momoNetwork.nullish(),
+};
+
 // Fields a lawyer may edit about themselves. approvalStatus is absent by design —
 // it is the platform's judgement about the lawyer, not the lawyer's own claim.
 const selfEditableFields = {
@@ -36,11 +83,7 @@ export const createLawyerSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128),
   fullName: z.string().trim().min(2).max(120),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^(\+233|0)\d{9}$/, 'Enter a valid Ghana phone number, e.g. 0244123456')
-    .optional(),
+  phone: ghanaPhone.optional(),
 
   displayName: z.string().trim().min(2).max(120),
   firmName: z.string().trim().min(2).max(120).optional(),
@@ -61,7 +104,13 @@ export const createLawyerSchema = z.object({
 });
 
 export const updateOwnLawyerProfileSchema = z
-  .object(selfEditableFields)
+  .object({
+    ...selfEditableFields,
+    ...paymentAccountFields,
+  })
+  .superRefine((data, ctx) => {
+    assertPaymentAccountTogether(data, ctx);
+  })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Provide at least one field to update',
   });

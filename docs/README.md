@@ -16,6 +16,7 @@ the final submission documents, so keep them current as the project develops.
 | [08-viva-prep.md](08-viva-prep.md) | Questions to be able to answer |
 | [09-process-playbook.md](09-process-playbook.md) | Quality gates, feature/bug/refactor workflow, change log, status formats |
 | [user-manual.md](user-manual.md) | End-user guide (written once the app works) |
+| [diagrams/](../diagrams/) | Use-case, architecture, ER, intake sequence, consultation lifecycle (Mermaid) |
 | [archive/](archive/) | Original combined `.cursorrules` file, kept as source |
 
 Agent behaviour rules live in `../AGENTS.md` and `../.cursor/rules/`, not here.

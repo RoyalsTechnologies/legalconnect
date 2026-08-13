@@ -190,6 +190,33 @@ export const lawyersApi = {
       body: JSON.stringify({ reference }),
     });
   },
+
+  listWithdrawals(): Promise<
+    Array<{
+      id: string;
+      amountPesewas: number;
+      status: 'PENDING' | 'PAID' | 'FAILED';
+      paymentReference: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  > {
+    return apiRequest('/lawyers/me/withdrawals');
+  },
+
+  withdraw(amountGhs: number): Promise<{
+    id: string;
+    amountPesewas: number;
+    status: 'PENDING' | 'PAID' | 'FAILED';
+    paymentReference: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }> {
+    return apiRequest('/lawyers/me/withdrawals', {
+      method: 'POST',
+      body: JSON.stringify({ amountGhs }),
+    });
+  },
 };
 
 export const packagesApi = {
@@ -268,6 +295,10 @@ export const consultationsApi = {
       method: 'POST',
       body: JSON.stringify({ reference }),
     });
+  },
+
+  confirm(id: string): Promise<ConsultationView> {
+    return apiRequest(`/consultations/${id}/confirm`, { method: 'POST' });
   },
 };
 

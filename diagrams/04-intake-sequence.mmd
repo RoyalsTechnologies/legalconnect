@@ -1,0 +1,30 @@
+sequenceDiagram
+  actor Citizen
+  participant Client
+  participant API
+  participant DB
+  participant Triage
+  participant LLM
+
+  Citizen->>Client: Describe concern in plain language
+  Client->>API: POST /api/v1/intakes
+  API->>API: Zod validate body
+  API->>DB: Insert LegalIntake aiStatus PENDING
+  Note right of DB: originalDescription is written once and never overwritten
+  API->>Triage: Classify and summarise
+  Triage->>LLM: Prompt with allowed category list
+  alt Provider returns valid JSON in the category list
+    LLM-->>Triage: Category, summary, urgency, keywords, confidence
+    Triage->>Triage: Zod schema and whitelist check
+    API->>DB: Update aiStatus COMPLETED
+  else Timeout, invalid JSON, or provider error
+    LLM-->>Triage: Failure
+    API->>DB: Update aiStatus FAILED_FALLBACK needsHumanReview true
+    Note right of DB: Summary is an excerpt of the user's own text
+  end
+  API-->>Client: HTTP 201 intake either way
+  Client-->>Citizen: Organised result or fallback, not legal advice
+  Citizen->>Client: Request recommendations
+  Client->>API: GET /intakes/:id/recommendations
+  API->>DB: Eligible lawyers, deterministic rank
+  API-->>Client: Lawyers with human-readable reasons

@@ -704,3 +704,108 @@ describe('FR-004 lawyer self-registration', () => {
     expect(await prisma.user.findUnique({ where: { email: SELF_REGISTER.email } })).toBeNull();
   });
 });
+
+describe('FR-020 lawyer payment account', () => {
+  const ACCOUNT = {
+    paymentAccountName: 'Akua Owusu',
+    paymentPhone: '0244123456',
+    paymentNetwork: 'MTN' as const,
+  };
+
+  it('IT-069: a lawyer can save and read back their payment account', async () => {
+    await createLawyer(await adminToken());
+    const token = await lawyerToken();
+
+    const saved = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send(ACCOUNT);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244123456',
+      network: 'MTN',
+    });
+    expect(saved.body).not.toHaveProperty('paymentPhone');
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+
+    expect(me.status).toBe(200);
+    expect(me.body.paymentAccount).toEqual(saved.body.paymentAccount);
+  });
+
+  it('IT-070: the public directory does not include payment account fields', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin);
+    await request(app)
+      .patch(`/api/v1/lawyers/${created.body.id}`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ approvalStatus: ApprovalStatus.APPROVED });
+    await grantPlan(created.body.id);
+
+    const token = await lawyerToken();
+    await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send(ACCOUNT);
+
+    const user = await userToken();
+    const list = await request(app).get('/api/v1/lawyers').set('Authorization', `Bearer ${user}`);
+    const detail = await request(app)
+      .get(`/api/v1/lawyers/${created.body.id}`)
+      .set('Authorization', `Bearer ${user}`);
+
+    expect(list.status).toBe(200);
+    expect(detail.status).toBe(200);
+    expect(JSON.stringify(list.body)).not.toContain('paymentPhone');
+    expect(JSON.stringify(detail.body)).not.toContain('paymentPhone');
+    expect(JSON.stringify(list.body)).not.toContain('0244123456');
+    expect(JSON.stringify(detail.body)).not.toContain('0244123456');
+    expect(detail.body.paymentAccount).toBeUndefined();
+    expect(list.body.results[0].paymentAccount).toBeUndefined();
+    expect(detail.body.wallet).toBeUndefined();
+    expect(list.body.results[0].wallet).toBeUndefined();
+  });
+
+  it('IT-071: a half-filled payment account is rejected with 422', async () => {
+    await createLawyer(await adminToken());
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ paymentPhone: '0244123456' });
+
+    expect(res.status).toBe(422);
+    const stored = await prisma.lawyerProfile.findFirst();
+    expect(stored?.paymentPhone).toBeNull();
+  });
+
+  it('IT-074: sending null on all three payment fields clears the account', async () => {
+    await createLawyer(await adminToken());
+    const token = await lawyerToken();
+
+    const saved = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send(ACCOUNT);
+    expect(saved.status).toBe(200);
+
+    const cleared = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        paymentAccountName: null,
+        paymentPhone: null,
+        paymentNetwork: null,
+      });
+
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.paymentAccount).toBeNull();
+    const stored = await prisma.lawyerProfile.findFirst();
+    expect(stored?.paymentPhone).toBeNull();
+    expect(stored?.paymentAccountName).toBeNull();
+    expect(stored?.paymentNetwork).toBeNull();
+  });
+});

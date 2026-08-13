@@ -312,16 +312,15 @@ tree-shaking / modular imports if measured load time becomes a problem.
 
 **Cause:** FR-017 needed a book-and-pay path without a payouts product. NaloPay (when
 configured) collects mobile money into the platform merchant account; locally the adapter
-logs and marks paid. Hosted checkout was not wired — collection is a MoMo prompt plus
-signed webhook / status poll.
-**Impact:** A paid booking does not transfer GH₵ to the lawyer. There is no refund,
-invoice, or split. Production without NaloPay credentials refuses to capture. NaloPay
-cannot POST the webhook to `localhost`; the client polls `collection-status` so a local
-booking still completes without a public callback URL.
-**Priority:** High for production · **Category:** functionality · **Status:** Accepted
-**Resolution:** Merchant settlement report to lawyers; refunds; receipts; a public HTTPS
-callback URL in deployed environments.
-**Target:** v1.1 · **Related:** FR-017
+logs and marks paid.
+**Impact:** FR-021 now holds the fee until both parties confirm, credits a wallet ledger,
+refunds on cancel/decline after pay, and accepts withdrawal requests. Live MoMo *push*
+still depends on an unverified disbursement URL (TD-028). Invoices and platform commission
+are not built. NaloPay cannot POST the webhook to `localhost`; the client polls
+`collection-status` so a local booking still completes without a public callback URL.
+**Priority:** Medium for production · **Category:** functionality · **Status:** Partially repaid
+**Resolution:** Confirm the NaloPay disbursement contract (TD-028); receipts; commission if required.
+**Target:** v1.1 · **Related:** FR-017, FR-021
 
 ### TD-026 — Lawyer plans are prepaid periods, not a recurring subscription
 
@@ -348,6 +347,18 @@ check, no reschedule flow, and no automatic Meet conference on the event.
 **Resolution:** Google OAuth (Calendar API `conferenceData`) so accept creates the event
 and Meet room; optional lawyer availability calendar.
 **Target:** v1.1 · **Related:** FR-019
+
+### TD-028 — NaloPay disbursement URL is not confirmed
+
+**Cause:** FR-021 needed refunds and withdrawals. Public NaloPay docs in this repo only
+cover collection (`/clientapi/collection/`). Payouts call `/clientapi/disbursement/` with
+the same token and trans_hash pattern. Tests and local-without-credentials capture
+immediately; production without credentials or a rejected live call is a 503.
+**Impact:** In-app ledger is the source of truth. Live MoMo push to lawyers or refunds to
+clients may fail until the merchant contract is confirmed. Do not add a second PSP.
+**Priority:** High for production · **Category:** integration · **Status:** Accepted
+**Resolution:** Confirm path and payload with NaloPay; keep test/log capture for local demo.
+**Target:** v1.1 · **Related:** FR-021
 
 ## Summary
 
@@ -377,9 +388,10 @@ and Meet room; optional lawyer availability calendar.
 | TD-022 | Recommendation weights are chosen, not calibrated | Low | AI quality | Accepted |
 | TD-023 | No rate limiting on the anonymous read endpoints | Medium | security | Accepted |
 | TD-024 | Ant Design ships as one large client bundle | Low | performance | Accepted |
-| TD-025 | Fees collected but not settled to lawyers | High (prod) | functionality | Accepted |
+| TD-025 | Fees collected but not settled to lawyers | Medium (prod) | functionality | Partially repaid |
 | TD-026 | Lawyer plans are prepaid periods, not recurring | Medium (prod) | functionality | Accepted |
 | TD-027 | Calendar template + pasted Meet link, not OAuth sync | Medium (prod) | integration | Accepted |
+| TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

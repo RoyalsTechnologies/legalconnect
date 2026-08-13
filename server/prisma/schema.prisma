@@ -58,6 +58,12 @@ enum SubscriptionPaymentStatus {
   PAID
 }
 
+enum MomoNetwork {
+  MTN
+  AT
+  TELECEL
+}
+
 model User {
   id              String     @id @default(cuid())
   email           String     @unique
@@ -108,6 +114,9 @@ model LawyerProfile {
   consultationFeePesewas Int            @default(20000)
   subscriptionPackageId  String?
   subscriptionPeriodEnd  DateTime?
+  paymentAccountName     String?
+  paymentPhone           String?
+  paymentNetwork         MomoNetwork?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -116,6 +125,8 @@ model LawyerProfile {
   consultationRequests  ConsultationRequest[]
   subscriptionPackage   SubscriptionPackage?   @relation(fields: [subscriptionPackageId], references: [id], onDelete: SetNull)
   subscriptionPayments  SubscriptionPayment[]
+  walletLedger          WalletLedger[]
+  withdrawals           WithdrawalRequest[]
 
   @@index([approvalStatus, isAvailable])
   @@index([region])
@@ -231,15 +242,102 @@ model ConsultationRequest {
   paymentOrderId   String?           @unique
   scheduledAt     DateTime
   meetUrl         String?
+  clientConfirmedAt DateTime?
+  lawyerConfirmedAt DateTime?
+  payerPhone      String?
+  payerNetwork    MomoNetwork?
+  settledAt       DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
   intake        LegalIntake   @relation(fields: [intakeId], references: [id], onDelete: Cascade)
   client        User          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   lawyerProfile LawyerProfile @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+  walletLedger  WalletLedger[]
+  payouts       Payout[]
 
   @@unique([intakeId, lawyerProfileId])
   @@index([lawyerProfileId, status])
   @@index([clientId])
   @@map("consultation_requests")
+}
+
+enum WalletLedgerType {
+  CREDIT
+  DEBIT
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum PayoutType {
+  REFUND
+  WITHDRAWAL
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+// Signed pesewas: CREDIT is positive, DEBIT is negative. Available balance is the sum.
+model WalletLedger {
+  id              String           @id @default(cuid())
+  lawyerProfileId String
+  amountPesewas   Int
+  type            WalletLedgerType
+  consultationId  String?          @unique
+  withdrawalId    String?
+  createdAt       DateTime         @default(now())
+
+  lawyerProfile LawyerProfile        @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+  consultation  ConsultationRequest? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  withdrawal    WithdrawalRequest?   @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
+
+  @@index([lawyerProfileId, createdAt])
+  @@map("wallet_ledger")
+}
+
+model WithdrawalRequest {
+  id               String           @id @default(cuid())
+  lawyerProfileId  String
+  amountPesewas    Int
+  status           WithdrawalStatus @default(PENDING)
+  paymentReference String?          @unique
+  paymentOrderId   String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  lawyerProfile LawyerProfile @relation(fields: [lawyerProfileId], references: [id], onDelete: Cascade)
+  ledger        WalletLedger[]
+  payouts       Payout[]
+
+  @@index([lawyerProfileId, createdAt])
+  @@map("withdrawal_requests")
+}
+
+model Payout {
+  id                 String       @id @default(cuid())
+  type               PayoutType
+  amountPesewas      Int
+  destinationPhone   String
+  destinationNetwork MomoNetwork?
+  status             PayoutStatus @default(PENDING)
+  paymentReference   String?      @unique
+  paymentOrderId     String?
+  consultationId     String?
+  withdrawalId       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  consultation ConsultationRequest? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  withdrawal   WithdrawalRequest?   @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
+
+  @@index([consultationId])
+  @@index([withdrawalId])
+  @@map("payouts")
 }

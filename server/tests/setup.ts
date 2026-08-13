@@ -13,6 +13,9 @@ beforeEach(async () => {
   // rest, but listing them keeps the intent explicit.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
+      "payouts",
+      "wallet_ledger",
+      "withdrawal_requests",
       "consultation_requests",
       "legal_intakes",
       "subscription_payments",

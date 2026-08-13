@@ -82,9 +82,11 @@ sent to them with the structured intake; accepts or declines.
 | FR-017 | Paid consultation booking | The system shall let each lawyer set a consultation fee and shall require the client to pay that fee before the lawyer is notified of, or can act on, the request. | Should |
 | FR-018 | Lawyer subscription plans | The system shall offer subscription packages billed monthly or as a yearly equivalent (twelve times the monthly fee), with monthly fees configurable by an administrator, that cap how many legal practice areas a lawyer may list, and shall hide lawyers without a live plan from the directory, matching, and new consultation requests. | Should |
 | FR-019 | Calendar and video booking | The system shall let a client propose a consultation date and time when booking, provide an Add to Google Calendar action for that slot, and require the lawyer to attach a Google Meet link when accepting so the client can join the video call. | Should |
+| FR-020 | Lawyer payment account | The system shall let a lawyer save a Ghana mobile-money payment account (registered name, number, and network) for their own use, shall not expose those details on the public directory, and shall use the saved account when the lawyer pays a subscription plan without entering a number. | Should |
+| FR-021 | Consultation fee escrow and withdrawals | The system shall hold a paid consultation fee until both client and lawyer confirm the consultation happened, then credit the lawyer’s in-app wallet; shall refund the paying number if the booking is cancelled or declined after payment; and shall let the lawyer withdraw available credit to their saved mobile money account. | Should |
 
-All fifteen Must items are the approved MVP. FR-016, FR-017, FR-018, and FR-019 were added
-during implementation at the product owner's request.
+All fifteen Must items are the approved MVP. FR-016 through FR-021 were added during
+implementation at the product owner's request.
 
 ## Non-functional requirements
 
@@ -93,7 +95,7 @@ during implementation at the product owner's request.
 | NFR-001 | Security | Passwords shall be stored only as bcrypt hashes and every role- or ownership-restricted operation shall be enforced server-side. | SEC-LG-003, SEC-LG-005 |
 | NFR-002 | Privacy | The system shall collect only data the MVP requires, shall not log full intake text, and shall not expose one user's intake to any unauthorised user. | SEC-LG-001, SEC-LG-002, SEC-LG-008 |
 | NFR-003 | Reliability | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005 |
-| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT |
+| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13; independent participants not yet completed) |
 | NFR-005 | Maintainability | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
 | NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | Measured, not yet recorded |
 | NFR-007 | Explainability | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
@@ -115,12 +117,15 @@ Explicitly excluded from this version and recorded as future evolution: AI-gener
 advice, in-app video, a full chat system, advanced document analysis,
 multilingual support, voice intake, ML-based recommendation, microservices, Redis, queues,
 Kubernetes, and advanced analytics. Card/mobile-money collection for consultation fees
-(FR-017) was added during the build; splitting those funds to lawyers, refunds, and
-invoices remain out of scope. Lawyer plans (FR-018) collect one month or a yearly
-equivalent (12 × the current monthly fee) at a time; automatic recurring billing, proration,
-and dunning are deferred (TD-026). Google Calendar and Google Meet for bookings (FR-019)
-use a Calendar template URL and a Meet link the lawyer pastes; two-way calendar sync and
-auto-created Meet rooms are deferred (TD-027).
+(FR-017) was added during the build. Escrow, dual confirmation, wallet credit, refunds
+on cancel/decline, and withdrawals (FR-021) were added; invoices, platform commission,
+disputes, and auto-release timers remain out of scope. Lawyer plans (FR-018) collect one
+month or a yearly equivalent (12 × the current monthly fee) at a time; automatic recurring
+billing, proration, and dunning are deferred (TD-026). Google Calendar and Google Meet for
+bookings (FR-019) use a Calendar template URL and a Meet link the lawyer pastes; two-way
+calendar sync and auto-created Meet rooms are deferred (TD-027). A lawyer saves a MoMo
+payment account (FR-020) for plan payments and withdrawals. Live NaloPay disbursement
+URL is not confirmed with merchant docs (TD-028).
 
 Deferred but plausible next (Should/Could, not built now): lawyer response notes, saved or
 bookmarked lawyers, post-consultation ratings, dashboard analytics. Lawyer self-registration
@@ -167,6 +172,19 @@ the live plan allows returns `422`.
 Google Calendar template URL for that 30-minute slot. Accepting requires a
 `meet.google.com` link (not `/new`); the client then sees Join Google Meet. A missing
 slot or Meet link returns `422`.
+
+**FR-020** — A lawyer can save account name, Ghana number, and network together on their
+own profile (`GET`/`PATCH /lawyers/me`). A half-filled account returns `422`. Public
+`GET /lawyers` and `GET /lawyers/:id` omit those fields. `POST /lawyers/me/subscription`
+uses the saved number when the payload omits `phone`. Withdrawals (FR-021) also use this
+account.
+
+**FR-021** — After payment the fee is held. `POST /consultations/:id/confirm` from both
+client and lawyer (only from `ACCEPTED`) sets `COMPLETED` and inserts one wallet CREDIT.
+One confirm leaves the request `ACCEPTED` and the balance unchanged. Cancel or decline
+after payment creates a REFUND payout to `payerPhone` and does not credit the lawyer.
+Unpaid cancel is unchanged. `POST /lawyers/me/withdrawals` debits available credit and
+pays out to the saved payment account; over-balance or a missing account returns `422`.
 
 **FR-006** — A non-empty description within length bounds is persisted with its author
 before any AI call occurs. Empty or over-length input returns `422` and no AI call is
@@ -228,6 +246,8 @@ Tested, Done.
 | FR-017 | Consultations + payments | `consultationFeePesewas`; `POST /consultations/:id/pay`; NaloPay adapter + `POST /payments/callback` | payment tests in `consultations.test.ts`, `nalopay.test.ts` | Tested |
 | FR-018 | Subscriptions module | `SubscriptionPackage`; `PATCH /packages/:id` fee; `POST /lawyers/me/subscription` (`interval` month or year); admin grant | `tests/subscriptions.test.ts`, IT-055, IT-063…066, MT-010 | Tested |
 | FR-019 | Consultations + Google Calendar/Meet | `scheduledAt`, `meetUrl`; Calendar template URL; Meet required on accept | IT-067, IT-068, IT-033, `google-calendar.test.ts` | Tested |
+| FR-020 | Lawyer payment account (Wallet) | `LawyerProfile` payment fields; own-profile only; subscribe falls back to saved MoMo | IT-069…075 | Tested |
+| FR-021 | Escrow, wallet ledger, withdrawals | Dual confirm; `WalletLedger`; refund payout; `POST /lawyers/me/withdrawals` | IT-076…083 | Tested |
 
 A requirement is Done only when it is implemented, acceptance criteria are satisfied, test
 evidence exists, debt is recorded, and it works in the deployed environment.

@@ -22,7 +22,16 @@ Only add entities that an implemented requirement needs.
 
 **LawyerProfile** — id, userId, displayName, firmName?, bio, city/region?, isAvailable,
 approvalStatus, consultationFeePesewas, subscriptionPackageId?, subscriptionPeriodEnd?,
-createdAt, updatedAt
+paymentAccountName?, paymentPhone?, paymentNetwork?, createdAt, updatedAt
+
+**WalletLedger** — id, lawyerProfileId, amountPesewas (signed), type CREDIT/DEBIT,
+consultationId?, withdrawalId?, createdAt
+
+**WithdrawalRequest** — id, lawyerProfileId, amountPesewas, status, paymentReference?,
+createdAt
+
+**Payout** — id, type REFUND/WITHDRAWAL, amountPesewas, destinationPhone, status,
+consultationId?, withdrawalId?
 
 **SubscriptionPackage** — id, name, slug, description, monthlyFeePesewas, maxPracticeAreas,
 isActive
@@ -38,7 +47,8 @@ status, paymentReference?, createdAt
 confidence, needsHumanReview, createdAt
 
 **ConsultationRequest** — id, intakeId, clientUserId, lawyerId, status, message?,
-scheduledAt, meetUrl?, createdAt, updatedAt
+scheduledAt, meetUrl?, clientConfirmedAt?, lawyerConfirmedAt?, payerPhone?, payerNetwork?,
+settledAt?, createdAt, updatedAt
 
 `originalDescription` is never overwritten by AI output.
 

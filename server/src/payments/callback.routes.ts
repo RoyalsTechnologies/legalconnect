@@ -4,6 +4,7 @@ import { asyncHandler } from '../lib/async-handler.js';
 import { badRequest, unauthorized } from '../lib/errors.js';
 import * as consultationsService from '../modules/consultations/consultations.service.js';
 import * as subscriptionsService from '../modules/subscriptions/subscriptions.service.js';
+import * as walletService from '../modules/wallet/wallet.service.js';
 import { verifyCallbackSignature } from './nalopay.js';
 
 /**
@@ -44,7 +45,8 @@ paymentsCallbackRouter.post(
 
     const handled =
       (await consultationsService.capturePaidCallback(payload)) ||
-      (await subscriptionsService.capturePaidCallback(payload));
+      (await subscriptionsService.capturePaidCallback(payload)) ||
+      (await walletService.capturePayoutCallback(payload));
 
     if (!handled) console.info('[payments] callback for unknown order');
 
