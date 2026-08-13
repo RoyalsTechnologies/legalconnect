@@ -26,6 +26,7 @@ import {
   formatGhs,
   Loading,
   PageHeading,
+  RegionSelect,
   toFormFields,
 } from '../components/ui';
 import { messageFor, useAsync } from '../hooks/useAsync';
@@ -159,7 +160,13 @@ function PlanSection({
           <Row gutter={[12, 12]}>
             {packages.data.map((pkg) => (
               <Col xs={24} md={8} key={pkg.id}>
-                <Card>
+                <Card
+                  className={
+                    current.package?.id === pkg.id && current.active
+                      ? 'lc-plan lc-plan--current'
+                      : 'lc-plan'
+                  }
+                >
                   <Space wrap size={8}>
                     <strong>{pkg.name}</strong>
                     {current.package?.id === pkg.id && current.active ? (
@@ -403,7 +410,7 @@ export function LawyerProfilePage() {
                   </Col>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Region" name="region" rules={[{ required: true }]}>
-                      <Input />
+                      <RegionSelect />
                     </Form.Item>
                   </Col>
                 </Row>

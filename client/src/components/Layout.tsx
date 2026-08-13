@@ -85,7 +85,7 @@ export function SiteHeader() {
             selectedKeys={selected ? [selected] : []}
             items={items}
             onClick={({ key }) => void navigate(key)}
-            style={{ border: 'none', minWidth: 0, justifyContent: 'flex-end' }}
+            style={{ border: 'none', minWidth: 0 }}
           />
         ) : null}
       </div>
@@ -109,12 +109,20 @@ export function SiteHeader() {
 }
 
 export function SiteFooter({ showDisclaimer = false }: { showDisclaimer?: boolean }) {
+  const { isAuthenticated } = useAuth();
   const year = new Date().getFullYear();
   return (
     <Footer className="lc-footer">
       <div style={{ maxWidth: 72 * 16, margin: '0 auto' }}>
         {showDisclaimer ? (
-          <Text style={{ display: 'block', marginBottom: 20, maxWidth: 720, color: 'rgba(255,255,255,0.65)' }}>
+          <Text
+            style={{
+              display: 'block',
+              marginBottom: 20,
+              maxWidth: 720,
+              color: 'rgba(255,255,255,0.65)',
+            }}
+          >
             {DISCLAIMER}
           </Text>
         ) : null}
@@ -132,11 +140,19 @@ export function SiteFooter({ showDisclaimer = false }: { showDisclaimer?: boolea
           </div>
           <Flex gap={20} wrap="wrap">
             <Link to="/lawyers">Find a lawyer</Link>
-            <Link to="/register">Create an account</Link>
-            <Link to="/login">Sign in</Link>
+            {isAuthenticated ? (
+              <Link to="/app">Home</Link>
+            ) : (
+              <>
+                <Link to="/register">Create an account</Link>
+                <Link to="/login">Sign in</Link>
+              </>
+            )}
           </Flex>
         </Flex>
-        <Text style={{ display: 'block', marginTop: 20, color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
+        <Text
+          style={{ display: 'block', marginTop: 20, color: 'rgba(255,255,255,0.4)', fontSize: 12 }}
+        >
           © {year} LegalConnect Ghana
         </Text>
       </div>

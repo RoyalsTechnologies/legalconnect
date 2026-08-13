@@ -27,6 +27,7 @@ import {
   formatGhs,
   Loading,
   PageHeading,
+  RegionSelect,
   toFormFields,
 } from '../../components/ui';
 import { messageFor, useAsync } from '../../hooks/useAsync';
@@ -182,7 +183,7 @@ function CreateLawyerForm({ onCreated }: { onCreated: () => void }) {
           </Col>
           <Col xs={24} sm={12}>
             <Form.Item label="Region" name="region" rules={[{ required: true }]}>
-              <Input />
+              <RegionSelect />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>

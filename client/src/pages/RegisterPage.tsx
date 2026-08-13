@@ -17,7 +17,7 @@ import { ApiError, fieldErrorsFromApi } from '../api/client';
 import { authApi, categoriesApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { PageShell } from '../components/Layout';
-import { Loading, toFormFields } from '../components/ui';
+import { Loading, RegionSelect, toFormFields } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 
 const { Title, Paragraph, Text } = Typography;
@@ -237,7 +237,7 @@ export function RegisterPage() {
                       name="region"
                       rules={[{ required: true, message: 'Region is required' }]}
                     >
-                      <Input placeholder="e.g. Greater Accra" />
+                      <RegionSelect />
                     </Form.Item>
                   </Col>
                 </Row>

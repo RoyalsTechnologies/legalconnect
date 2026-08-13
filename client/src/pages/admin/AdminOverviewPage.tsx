@@ -62,12 +62,17 @@ export function AdminOverviewPage() {
               </Title>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
-                  <Stat
-                    label="Lawyers awaiting approval"
-                    value={stats.data.lawyers.pending}
-                    hint="Not visible in the directory until approved"
-                    tone="warn"
-                  />
+                  <Link
+                    to="/app/admin/lawyers"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <Stat
+                      label="Lawyers awaiting approval"
+                      value={stats.data.lawyers.pending}
+                      hint="Open the lawyers tab to approve"
+                      tone="warn"
+                    />
+                  </Link>
                 </Col>
                 <Col xs={24} sm={8}>
                   <Stat

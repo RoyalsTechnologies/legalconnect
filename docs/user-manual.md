@@ -117,7 +117,7 @@ Consultation events above are also texted when the recipient has a phone number 
 
 - **Invalid email or password** — check credentials; confirm email if you just registered.
 - **Confirm your email before signing in** — use the link or resend from the login screen.
-- **AI organisation delayed / needs review** — your words were saved; a person may confirm the category. This is not a rejection.
+- **AI organisation delayed / needs review** — your words were saved; you can still browse the directory. Matching waits until the enquiry has a confirmed category. This is not a rejection.
 - **Cannot reach the API** — ensure Docker/API is running on port 4000.
 
 ## Note on AI

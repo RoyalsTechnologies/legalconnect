@@ -1,12 +1,13 @@
 import { Alert, Button, Flex, Form, Space, Typography } from 'antd';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { consultationsApi } from '../api/endpoints';
 import type { ConsultationStatus, ConsultationView, Role } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AiDisclaimer, PageShell } from '../components/Layout';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
 import {
+  BackLink,
   Badge,
   Card,
   ConsultationBadge,
@@ -76,7 +77,6 @@ function StatusExplanation({
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const asLawyer = user?.role === 'LAWYER';
 
@@ -188,13 +188,7 @@ export function RequestDetailPage() {
   return (
     <PageShell showDisclaimer>
       <main className="lc-page lc-page--medium">
-        <Button
-          type="link"
-          style={{ paddingInline: 0 }}
-          onClick={() => void navigate('/app/requests')}
-        >
-          ← Back to requests
-        </Button>
+        <BackLink to="/app/requests">Back to requests</BackLink>
 
         <Space direction="vertical" size={24} style={{ width: '100%', marginTop: 24 }}>
           <header>

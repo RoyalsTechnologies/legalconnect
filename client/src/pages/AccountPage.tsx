@@ -49,6 +49,9 @@ export function AccountPage() {
       <main className="lc-page lc-page--narrow">
         <PageHeading
           title="Your account"
+          eyebrow={
+            user.role === 'USER' ? 'Citizen' : user.role === 'LAWYER' ? 'Lawyer' : 'Administrator'
+          }
           description="Your name is how lawyers see you. A Ghana mobile money number is used to pay consultation fees and to text you when a request changes."
         />
 
