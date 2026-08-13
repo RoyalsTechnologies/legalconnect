@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../lib/async-handler.js';
+import { requireAuth } from '../../middleware/auth.js';
 import { validateBody } from '../../middleware/validate.js';
 import {
+  changePasswordSchema,
   emailOnlySchema,
   loginSchema,
   registerSchema,
@@ -63,6 +65,15 @@ authRouter.post(
   validateBody(resetPasswordSchema),
   asyncHandler(async (req, res) => {
     res.status(200).json(await authService.resetPassword(req.body));
+  }),
+);
+
+authRouter.post(
+  '/change-password',
+  requireAuth,
+  validateBody(changePasswordSchema),
+  asyncHandler(async (req, res) => {
+    res.status(200).json(await authService.changePassword(req.user!.id, req.body));
   }),
 );
 

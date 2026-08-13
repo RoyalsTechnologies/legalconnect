@@ -1,4 +1,4 @@
-import { Button, Col, Flex, Row, Space, Statistic, Typography } from 'antd';
+import { Button, Col, Flex, Row, Space, Typography } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminApi, consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
@@ -258,24 +258,27 @@ function AdminHome({ fullName }: { fullName: string }) {
       {stats.status === 'error' ? <ErrorNotice message={stats.message} /> : null}
 
       {stats.status === 'ready' ? (
-        <Row gutter={[16, 16]}>
+        <Row gutter={[12, 12]}>
           <Col xs={24} sm={8}>
-            <Card>
-              <Statistic title="Lawyers awaiting approval" value={stats.data.lawyers.pending} />
-            </Card>
+            <Link to="/app/admin/lawyers" className="lc-metric lc-metric--warn">
+              <div className="lc-metric__label">Awaiting approval</div>
+              <div className="lc-metric__value">{stats.data.lawyers.pending}</div>
+              <div className="lc-metric__hint">Open the lawyers queue</div>
+            </Link>
           </Col>
           <Col xs={24} sm={8}>
-            <Card>
-              <Statistic title="Enquiries needing review" value={stats.data.intakes.needsReview} />
-            </Card>
+            <div className="lc-metric">
+              <div className="lc-metric__label">Enquiries needing review</div>
+              <div className="lc-metric__value">{stats.data.intakes.needsReview}</div>
+              <div className="lc-metric__hint">Low confidence or uncategorised</div>
+            </div>
           </Col>
           <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Requests awaiting a lawyer"
-                value={stats.data.consultations.pending}
-              />
-            </Card>
+            <div className="lc-metric">
+              <div className="lc-metric__label">Awaiting a lawyer</div>
+              <div className="lc-metric__value">{stats.data.consultations.pending}</div>
+              <div className="lc-metric__hint">Paid requests still open</div>
+            </div>
           </Col>
         </Row>
       ) : null}

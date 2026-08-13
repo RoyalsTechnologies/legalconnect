@@ -1,19 +1,62 @@
 import { ConsultationStatus } from '@prisma/client';
 import { z } from 'zod';
+import { isGoogleMeetUrl } from '../../lib/google-calendar.js';
+
+const MIN_LEAD_MS = 5 * 60 * 1000;
+const MAX_LEAD_MS = 90 * 24 * 60 * 60 * 1000;
 
 export const createConsultationSchema = z.object({
   intakeId: z.string().trim().min(1).max(64),
   lawyerProfileId: z.string().trim().min(1).max(64),
   message: z.string().trim().min(1).max(1000).optional(),
+  scheduledAt: z.coerce.date().superRefine((value, ctx) => {
+    const t = value.getTime();
+    if (Number.isNaN(t)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose a valid date and time' });
+      return;
+    }
+    if (t < Date.now() + MIN_LEAD_MS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Choose a time at least a few minutes from now',
+      });
+    }
+    if (t > Date.now() + MAX_LEAD_MS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Choose a time within the next 90 days',
+      });
+    }
+  }),
 });
 
 // Only the transitions a role is allowed to request. COMPLETED and the accept/decline
 // pair belong to the lawyer; CANCELLED belongs to the client. Enforced again in the
 // service against the current status, because a valid target is not the same as a
 // valid transition.
-export const updateConsultationSchema = z.object({
-  status: z.nativeEnum(ConsultationStatus),
-});
+export const updateConsultationSchema = z
+  .object({
+    status: z.nativeEnum(ConsultationStatus),
+    meetUrl: z.string().trim().url('Enter a valid Google Meet link').optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status !== ConsultationStatus.ACCEPTED) return;
+    if (!data.meetUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['meetUrl'],
+        message: 'Paste a Google Meet link so the client can join the video call',
+      });
+      return;
+    }
+    if (!isGoogleMeetUrl(data.meetUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['meetUrl'],
+        message: 'Use a Google Meet link (https://meet.google.com/…), not a new-meeting page',
+      });
+    }
+  });
 
 export const consultationIdParamSchema = z.object({
   id: z.string().trim().min(1).max(64),

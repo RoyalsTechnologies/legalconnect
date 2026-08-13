@@ -1,4 +1,4 @@
-import { Alert, Button, Flex, Form, Space, Typography } from 'antd';
+import { Alert, Button, Flex, Form, Input, Space, Typography } from 'antd';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { consultationsApi } from '../api/endpoints';
@@ -13,6 +13,7 @@ import {
   ConsultationBadge,
   ErrorNotice,
   formatDate,
+  formatDateTime,
   formatGhs,
   Loading,
   UrgencyBadge,
@@ -63,8 +64,8 @@ function StatusExplanation({
       ? 'This enquiry is waiting for your response.'
       : 'Your request has been sent. The lawyer will accept or decline it.',
     ACCEPTED: asLawyer
-      ? 'You accepted this enquiry. Contact details are shown below so you can reach the client.'
-      : 'The lawyer accepted your request and can now contact you.',
+      ? 'You accepted this enquiry. Contact details are shown below so you can reach the client. The Google Meet link is on this page.'
+      : 'The lawyer accepted. Add the time to Google Calendar and join with Google Meet when the call starts.',
     DECLINED: asLawyer
       ? 'You declined this enquiry.'
       : 'This lawyer declined. That is not a judgement on your situation — you can send the same enquiry to someone else.',
@@ -87,6 +88,8 @@ export function RequestDetailPage() {
   );
 
   const [pendingStatus, setPendingStatus] = useState<ConsultationStatus | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const [meetForm] = Form.useForm<{ meetUrl: string }>();
   const [paying, setPaying] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [paymentHint, setPaymentHint] = useState<string | null>(null);
@@ -149,11 +152,13 @@ export function RequestDetailPage() {
     }
   });
 
-  async function act(status: ConsultationStatus) {
+  async function act(status: ConsultationStatus, extra: { meetUrl?: string } = {}) {
     setActionError(null);
     setPendingStatus(status);
     try {
-      await consultationsApi.setStatus(id ?? '', status);
+      await consultationsApi.setStatus(id ?? '', status, extra);
+      setAccepting(false);
+      meetForm.resetFields();
       request.refresh();
     } catch (err) {
       setActionError(messageFor(err, 'Could not update this request.'));
@@ -226,6 +231,29 @@ export function RequestDetailPage() {
 
           {actionError ? <ErrorNotice message={actionError} /> : null}
 
+          <Card>
+            <Text type="secondary">Video consultation</Text>
+            <Paragraph style={{ marginTop: 8, marginBottom: 8 }}>
+              <Text strong>{formatDateTime(data.scheduledAt)}</Text>
+              {` · ${data.durationMinutes} minutes (Ghana time)`}
+            </Paragraph>
+            <Space wrap>
+              <Button href={data.googleCalendarUrl} target="_blank" rel="noreferrer">
+                Add to Google Calendar
+              </Button>
+              {data.meetUrl && data.status === 'ACCEPTED' ? (
+                <Button type="primary" href={data.meetUrl} target="_blank" rel="noreferrer">
+                  Join Google Meet
+                </Button>
+              ) : null}
+            </Space>
+            {data.status !== 'ACCEPTED' && !asLawyer ? (
+              <Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+                The Google Meet link appears here after the lawyer accepts.
+              </Paragraph>
+            ) : null}
+          </Card>
+
           {data.status === 'AWAITING_PAYMENT' && !asLawyer ? (
             <Card>
               {paymentHint || data.paymentReference ? (
@@ -267,7 +295,50 @@ export function RequestDetailPage() {
             </Card>
           ) : null}
 
-          {actions.length > 0 ? (
+          {accepting ? (
+            <Card>
+              <Text type="secondary">Accept with Google Meet</Text>
+              <Paragraph type="secondary" style={{ marginTop: 8 }}>
+                Open Google Meet, start a meeting, copy the invite link, and paste it here so the
+                client can join at the booked time.
+              </Paragraph>
+              <Form
+                form={meetForm}
+                layout="vertical"
+                requiredMark={false}
+                onFinish={(values) => void act('ACCEPTED', { meetUrl: values.meetUrl.trim() })}
+              >
+                <Form.Item
+                  label="Google Meet link"
+                  name="meetUrl"
+                  rules={[
+                    { required: true, message: 'Paste the Google Meet link' },
+                    {
+                      pattern: /^https:\/\/meet\.google\.com\/.+/i,
+                      message: 'Use a meet.google.com link',
+                    },
+                  ]}
+                >
+                  <Input placeholder="https://meet.google.com/abc-defg-hij" />
+                </Form.Item>
+                <Space wrap>
+                  <Button href="https://meet.google.com/new" target="_blank" rel="noreferrer">
+                    Open Google Meet
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={pendingStatus === 'ACCEPTED'}
+                  >
+                    Accept and share Meet link
+                  </Button>
+                  <Button onClick={() => setAccepting(false)}>Cancel</Button>
+                </Space>
+              </Form>
+            </Card>
+          ) : null}
+
+          {actions.length > 0 && !accepting ? (
             <Space wrap>
               {actions.map((action, index) => (
                 <Button
@@ -275,7 +346,13 @@ export function RequestDetailPage() {
                   type={index === 0 ? 'primary' : 'default'}
                   disabled={pendingStatus !== null}
                   loading={pendingStatus === action.status}
-                  onClick={() => void act(action.status)}
+                  onClick={() => {
+                    if (action.status === 'ACCEPTED') {
+                      setAccepting(true);
+                      return;
+                    }
+                    void act(action.status);
+                  }}
                 >
                   {action.label}
                 </Button>

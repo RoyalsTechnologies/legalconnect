@@ -1,7 +1,7 @@
 import { Alert, Button, Flex, Layout, Menu, Typography } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import type { Role } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { AppSidebar } from './AppSidebar';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -9,27 +9,10 @@ const { Text } = Typography;
 export const DISCLAIMER =
   'AI-assisted results are provided to help organise your request and connect you with an appropriate legal professional. They are not a substitute for professional legal advice.';
 
-const NAV_BY_ROLE: Record<Role, Array<{ key: string; label: string }>> = {
-  USER: [
-    { key: '/app', label: 'Home' },
-    { key: '/app/intake', label: 'New enquiry' },
-    { key: '/lawyers', label: 'Find a lawyer' },
-    { key: '/app/requests', label: 'My requests' },
-    { key: '/app/account', label: 'Account' },
-  ],
-  LAWYER: [
-    { key: '/app', label: 'Home' },
-    { key: '/app/requests', label: 'Requests' },
-    { key: '/app/profile', label: 'My profile' },
-    { key: '/app/account', label: 'Account' },
-  ],
-  ADMIN: [
-    { key: '/app', label: 'Home' },
-    { key: '/app/admin', label: 'Administration' },
-    { key: '/lawyers', label: 'Directory' },
-    { key: '/app/account', label: 'Account' },
-  ],
-};
+const NAV_PUBLIC = [
+  { key: '/lawyers', label: 'Find a lawyer' },
+  { key: '/login', label: 'Sign in' },
+];
 
 function BrandMark({ to }: { to: string }) {
   return (
@@ -47,16 +30,7 @@ export function SiteHeader() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const items =
-    isAuthenticated && user
-      ? NAV_BY_ROLE[user.role].map((item) => ({
-          key: item.key,
-          label: item.label,
-        }))
-      : [
-          { key: '/lawyers', label: 'Find a lawyer' },
-          { key: '/login', label: 'Sign in' },
-        ];
+  const items = isAuthenticated ? [] : NAV_PUBLIC;
 
   const selected =
     items
@@ -65,21 +39,11 @@ export function SiteHeader() {
       .sort((a, b) => b.length - a.length)[0] ?? '';
 
   return (
-    <Header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        width: '100%',
-      }}
-    >
-      <BrandMark to={isAuthenticated ? '/app' : '/'} />
+    <Header>
+      <BrandMark to={user?.role === 'ADMIN' ? '/app/admin' : isAuthenticated ? '/app' : '/'} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {state.status !== 'loading' ? (
+        {state.status !== 'loading' && items.length > 0 ? (
           <Menu
             mode="horizontal"
             selectedKeys={selected ? [selected] : []}
@@ -167,10 +131,22 @@ export function PageShell({
   children: React.ReactNode;
   showDisclaimer?: boolean;
 }) {
+  const { isAuthenticated, user } = useAuth();
+  const withSidebar = Boolean(isAuthenticated && user);
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <SiteHeader />
-      <Content>{children}</Content>
+      <Content>
+        {withSidebar ? (
+          <div className="lc-shell">
+            <AppSidebar />
+            <div className="lc-shell__body">{children}</div>
+          </div>
+        ) : (
+          children
+        )}
+      </Content>
       <SiteFooter showDisclaimer={showDisclaimer} />
     </Layout>
   );

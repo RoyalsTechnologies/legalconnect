@@ -198,6 +198,18 @@ export function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
+export function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Accra',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 export function formatGhs(pesewas: number): string {
   return `GH₵ ${(pesewas / 100).toFixed(2)}`;
 }

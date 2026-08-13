@@ -1,7 +1,12 @@
 import { ConsultationStatus, Prisma, Role } from '@prisma/client';
 import { isNaloPayConfigured, isTest } from '../../config/env.js';
+import { appUrl } from '../../email/mailer.js';
 import { notifyClientOfStatusChange, notifyLawyerOfNewRequest } from '../../email/notifications.js';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
+import {
+  CONSULTATION_DURATION_MINUTES,
+  googleCalendarTemplateUrl,
+} from '../../lib/google-calendar.js';
 import { prisma } from '../../lib/prisma.js';
 import {
   isPaidStatus,
@@ -12,7 +17,11 @@ import {
 } from '../../payments/nalopay.js';
 import { publicLawyerWhere } from '../lawyers/eligibility.js';
 import { rememberPhone } from '../users/users.service.js';
-import type { CreateConsultationInput, StartPaymentInput } from './consultations.schema.js';
+import type {
+  CreateConsultationInput,
+  StartPaymentInput,
+  UpdateConsultationInput,
+} from './consultations.schema.js';
 
 /**
  * Allowed status transitions, by who is asking.
@@ -41,6 +50,8 @@ const consultationFields = {
   matchReason: true,
   feePesewas: true,
   paymentReference: true,
+  scheduledAt: true,
+  meetUrl: true,
   createdAt: true,
   updatedAt: true,
   intake: {
@@ -63,15 +74,42 @@ const consultationFields = {
   },
 } satisfies Prisma.ConsultationRequestSelect;
 
-export type ConsultationView = Prisma.ConsultationRequestGetPayload<{
+export type ConsultationRecord = Prisma.ConsultationRequestGetPayload<{
   select: typeof consultationFields;
 }>;
+
+export type ConsultationView = ConsultationRecord & {
+  durationMinutes: number;
+  googleCalendarUrl: string;
+};
 
 export type PaymentStartView = {
   consultation: ConsultationView;
   authorizationUrl: string | null;
   paymentHint: string | null;
 };
+
+function present(row: ConsultationRecord): ConsultationView {
+  const details = [
+    `LegalConnect Ghana consultation (${CONSULTATION_DURATION_MINUTES} minutes).`,
+    'This is not legal advice.',
+    row.meetUrl
+      ? `Join with Google Meet: ${row.meetUrl}`
+      : 'A Google Meet link is added when the lawyer accepts.',
+    `Request: ${appUrl(`/app/requests/${row.id}`)}`,
+  ].join('\n\n');
+
+  return {
+    ...row,
+    durationMinutes: CONSULTATION_DURATION_MINUTES,
+    googleCalendarUrl: googleCalendarTemplateUrl({
+      title: `Consultation: ${row.client.fullName} and ${row.lawyerProfile.displayName}`,
+      start: row.scheduledAt,
+      details,
+      location: row.meetUrl ?? 'Google Meet',
+    }),
+  };
+}
 
 /**
  * Creates a consultation request. It stays AWAITING_PAYMENT until the client pays
@@ -119,7 +157,7 @@ export async function createConsultation(
     : `Chosen by the client from the lawyer directory rather than from a recommendation.`;
 
   try {
-    return await prisma.consultationRequest.create({
+    const created = await prisma.consultationRequest.create({
       data: {
         intakeId: intake.id,
         clientId,
@@ -127,10 +165,12 @@ export async function createConsultation(
         clientMessage: input.message ?? null,
         matchReason,
         feePesewas: lawyer.consultationFeePesewas,
+        scheduledAt: input.scheduledAt,
         status: ConsultationStatus.AWAITING_PAYMENT,
       },
       select: consultationFields,
     });
+    return present(created);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw conflict('You have already sent this enquiry to that lawyer');
@@ -156,7 +196,7 @@ export async function startConsultationPayment(
 
   if (consultation.status !== ConsultationStatus.AWAITING_PAYMENT) {
     return {
-      consultation: stripClientEmail(consultation),
+      consultation: present(stripClientEmail(consultation)),
       authorizationUrl: null,
       paymentHint: null,
     };
@@ -199,7 +239,7 @@ export async function startConsultationPayment(
     select: consultationFields,
   });
   return {
-    consultation: pending,
+    consultation: present(pending),
     authorizationUrl: started.authorizationUrl,
     paymentHint: started.paymentHint,
   };
@@ -308,11 +348,12 @@ async function markPaid(consultationId: string): Promise<ConsultationView> {
       clientName: paid.client.fullName,
       category: paid.intake.category?.name ?? null,
       consultationId: paid.id,
+      scheduledAt: paid.scheduledAt,
     });
   }
 
   const { lawyerProfile, ...rest } = paid;
-  return {
+  return present({
     ...rest,
     lawyerProfile: {
       id: lawyerProfile.id,
@@ -321,12 +362,12 @@ async function markPaid(consultationId: string): Promise<ConsultationView> {
       city: lawyerProfile.city,
       region: lawyerProfile.region,
     },
-  };
+  });
 }
 
 function stripClientEmail(
-  consultation: ConsultationView & { client: ConsultationView['client'] & { email?: string } },
-): ConsultationView {
+  consultation: ConsultationRecord & { client: ConsultationRecord['client'] & { email?: string } },
+): ConsultationRecord {
   const { client, ...rest } = consultation;
   return {
     ...rest,
@@ -360,11 +401,12 @@ export async function listConsultations(
     return [];
   }
 
-  return prisma.consultationRequest.findMany({
+  const rows = await prisma.consultationRequest.findMany({
     where: { ...(await scopeFor(userId, role)), ...(status ? { status } : {}) },
     select: consultationFields,
     orderBy: { createdAt: 'desc' },
   });
+  return rows.map(present);
 }
 
 export async function getConsultation(
@@ -378,7 +420,7 @@ export async function getConsultation(
   });
 
   if (!consultation) throw notFound('Consultation request not found');
-  return consultation;
+  return present(consultation);
 }
 
 /**
@@ -392,8 +434,9 @@ export async function updateConsultationStatus(
   id: string,
   userId: string,
   role: Role,
-  next: ConsultationStatus,
+  input: UpdateConsultationInput,
 ): Promise<ConsultationView> {
+  const next = input.status;
   const existing = await prisma.consultationRequest.findFirst({
     where: { id, ...(await scopeFor(userId, role)) },
     select: { id: true, status: true },
@@ -412,12 +455,17 @@ export async function updateConsultationStatus(
 
   const updated = await prisma.consultationRequest.update({
     where: { id },
-    data: { status: next },
+    data: {
+      status: next,
+      ...(next === ConsultationStatus.ACCEPTED && input.meetUrl ? { meetUrl: input.meetUrl } : {}),
+    },
     select: {
       ...consultationFields,
       client: { select: { id: true, fullName: true, phone: true, email: true } },
     },
   });
+
+  const view = present(stripClientEmail(updated));
 
   notifyClientOfStatusChange({
     clientEmail: updated.client.email,
@@ -426,11 +474,10 @@ export async function updateConsultationStatus(
     lawyerName: updated.lawyerProfile.displayName,
     status: updated.status,
     consultationId: updated.id,
+    scheduledAt: view.scheduledAt,
+    meetUrl: view.meetUrl,
+    googleCalendarUrl: view.googleCalendarUrl,
   });
 
-  const { client, ...rest } = updated;
-  return {
-    ...rest,
-    client: { id: client.id, fullName: client.fullName, phone: client.phone },
-  };
+  return view;
 }

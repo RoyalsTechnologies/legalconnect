@@ -37,36 +37,36 @@ Use the same form for citizens, lawyers, and administrators. You land on the hom
 
 ## Main navigation
 
-Role-aware links in the header:
+Role-aware links in the side menu (header keeps the brand, your name, and Sign out):
 
 - **Citizen** — Home, New enquiry, Find a lawyer, My requests, Account
-- **Lawyer** — Home, Requests, My profile, Account
-- **Admin** — Home, Administration, Directory, Account
+- **Lawyer** — Home, Requests (pending count when someone is waiting), My profile, Account
+- **Admin** — Overview, Users, Lawyers (pending-approval count), Plans, Categories, Directory, Account
 
 ## Key citizen tasks
 
 1. **Describe a legal issue** — Home → **Tell us what happened** (plain language; optional city/region).
 2. **Review organisation** — suggested category, summary, and your original words. AI results organise the request; they are not legal advice.
 3. **Suggested lawyers** — reasons shown for each match; or browse the full directory.
-4. **Book a consultation** — attach an existing enquiry; pay that lawyer's consultation fee (shown on their profile). The lawyer is notified only after payment.
+4. **Book a consultation** — attach an existing enquiry; choose a date and time; pay that lawyer's consultation fee (shown on their profile). The lawyer is notified only after payment. After they accept, **Add to Google Calendar** and **Join Google Meet** appear on the request.
 5. **Track requests** — **My requests**; status updates are emailed (and SMS’d when SMS is configured and a phone is on the account).
-6. **Account** — change your name or Ghana phone number. Email cannot be changed here.
+6. **Account** — change your name, Ghana phone number, or password. Email cannot be changed here. If you do not remember your current password, use **Forgot password?** on the sign-in page.
 
 ## Key lawyer tasks
 
 1. Choose a **plan** on **My profile** (Starter 1 area, Practice 3, Chambers all listed areas). Pay one month or one year (twelve times the current monthly fee) by mobile money. Citizens cannot find you without a live plan.
 2. Keep **My profile** (practice areas within your plan's cap, availability, location, licence number, consultation fee) accurate — matching uses practice areas; booking uses your fee.
 3. Open **Requests** to read the structured summary and the citizen’s own words.
-4. Accept, decline, or later mark completed. Accepting reveals contact details needed to continue.
+4. Accept (paste a Google Meet link), decline, or later mark completed. Accepting reveals contact details needed to continue.
 
 If you applied yourself, wait for approval **and** subscribe to a plan before
 citizens can find you. If an admin created your account you should receive a welcome email with a temporary password (if email is configured). Change it after first sign-in.
 
 ## Admin tasks
 
-- **Overview** — counts needing attention (pending lawyers, review enquiries, AI fallbacks).
-- **Users** — search, filter by role, suspend/reactivate.
-- **Lawyers** — review pending self-registrations, approve or reject, grant a month or a year, or create an account directly.
+- **Overview** — work queue first (pending lawyers, review enquiries, AI fallbacks), then platform counts.
+- **Users** — search, filter by role or status, suspend/reactivate.
+- **Lawyers** — pending queue by default; approve or reject, grant a month or a year, or add an account.
 - **Plans** — set each plan's monthly fee, add or retire packages (each package is a cap on practice areas). A year costs twelve times that fee. A fee change applies to the next payment, not a period already paid.
 - **Categories** — add or retire practice categories (retired ones stay on old records).
 

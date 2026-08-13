@@ -65,7 +65,7 @@ sent to them with the structured intake; accepts or declines.
 | --- | --- | --- | --- |
 | FR-001 | User registration | The system shall allow a visitor to create a USER account with name, email, and password, rejecting duplicate emails. | Must |
 | FR-002 | Authentication | The system shall authenticate registered users by email and password, establish an authorised session, and support logout. | Must |
-| FR-003 | User profile | The system shall allow an authenticated user to view and update their own profile. | Must |
+| FR-003 | User profile | The system shall allow an authenticated user to view and update their own profile, including changing their password when they know the current one. Forgotten passwords are reset by email. | Must |
 | FR-004 | Lawyer profile management | The system shall maintain lawyer profiles including display name, firm, bio, practice areas, city/region, and availability, editable by the owning lawyer and by an admin. | Must |
 | FR-005 | Legal category management | The system shall maintain a configurable list of legal practice categories usable for classification, lawyer specialisation, and filtering. | Must |
 | FR-006 | Legal issue submission | The system shall allow an authenticated client to submit a free-text description of a legal concern with optional location. | Must |
@@ -81,9 +81,10 @@ sent to them with the structured intake; accepts or declines.
 | FR-016 | Lawyer self-registration | The system shall allow a visitor to create a LAWYER account with a professional profile that stays hidden until an administrator approves it. The applicant cannot set their own approval status. | Should |
 | FR-017 | Paid consultation booking | The system shall let each lawyer set a consultation fee and shall require the client to pay that fee before the lawyer is notified of, or can act on, the request. | Should |
 | FR-018 | Lawyer subscription plans | The system shall offer subscription packages billed monthly or as a yearly equivalent (twelve times the monthly fee), with monthly fees configurable by an administrator, that cap how many legal practice areas a lawyer may list, and shall hide lawyers without a live plan from the directory, matching, and new consultation requests. | Should |
+| FR-019 | Calendar and video booking | The system shall let a client propose a consultation date and time when booking, provide an Add to Google Calendar action for that slot, and require the lawyer to attach a Google Meet link when accepting so the client can join the video call. | Should |
 
-All fifteen Must items are the approved MVP. FR-016, FR-017, and FR-018 were added during
-implementation at the product owner's request.
+All fifteen Must items are the approved MVP. FR-016, FR-017, FR-018, and FR-019 were added
+during implementation at the product owner's request.
 
 ## Non-functional requirements
 
@@ -111,13 +112,15 @@ implementation at the product owner's request.
 ## Out of scope
 
 Explicitly excluded from this version and recorded as future evolution: AI-generated legal
-advice, video calls, a full chat system, advanced document analysis,
+advice, in-app video, a full chat system, advanced document analysis,
 multilingual support, voice intake, ML-based recommendation, microservices, Redis, queues,
 Kubernetes, and advanced analytics. Card/mobile-money collection for consultation fees
 (FR-017) was added during the build; splitting those funds to lawyers, refunds, and
 invoices remain out of scope. Lawyer plans (FR-018) collect one month or a yearly
 equivalent (12 × the current monthly fee) at a time; automatic recurring billing, proration,
-and dunning are deferred (TD-026).
+and dunning are deferred (TD-026). Google Calendar and Google Meet for bookings (FR-019)
+use a Calendar template URL and a Meet link the lawyer pastes; two-way calendar sync and
+auto-created Meet rooms are deferred (TD-027).
 
 Deferred but plausible next (Should/Could, not built now): lawyer response notes, saved or
 bookmarked lawyers, post-consultation ratings, dashboard analytics. Lawyer self-registration
@@ -133,6 +136,11 @@ input returns `422` with field-level messages.
 **FR-002** — Valid credentials return a session token and the user's role. Invalid
 credentials return `401` with an identical message for unknown email and wrong password.
 Protected routes without a valid token return `401`.
+
+**FR-003** — An authenticated user can update their own name and phone. Changing
+password requires the current password; a wrong current password returns `401` and
+leaves the stored hash unchanged. A forgotten password is reset with a one-use email
+link (`POST /auth/forgot-password`, `POST /auth/reset-password`).
 
 **FR-004** — A lawyer can edit only their own profile. An admin can edit any. A lawyer
 cannot set their own `approvalStatus`. Attempting either returns `403`.
@@ -154,6 +162,11 @@ on `SubscriptionPayment`. A lawyer without `subscriptionPeriodEnd` in the future
 from the public directory, matching, and new bookings, even if approved. Paying or an
 admin grant activates the paid or granted number of days. Listing more areas than
 the live plan allows returns `422`.
+
+**FR-019** — Creating a consultation requires a future `scheduledAt`. The API returns a
+Google Calendar template URL for that 30-minute slot. Accepting requires a
+`meet.google.com` link (not `/new`); the client then sees Join Google Meet. A missing
+slot or Meet link returns `422`.
 
 **FR-006** — A non-empty description within length bounds is persisted with its author
 before any AI call occurs. Empty or over-length input returns `422` and no AI call is
@@ -198,7 +211,7 @@ Tested, Done.
 | --- | --- | --- | --- | --- |
 | FR-001 | Auth module | `modules/auth/*` | UT-001…006, SEC-LG-005 | Tested |
 | FR-002 | Auth module | `modules/auth/*`, `lib/jwt.ts` | UT-007…010, SEC-LG-009 | Tested |
-| FR-003 | Users module | `modules/users/*`; `AccountPage` at `/app/account` | IT-001…007, SEC-LG-010 | Tested |
+| FR-003 | Users module | `modules/users/*`; `POST /auth/change-password`; `AccountPage` at `/app/account` | IT-001…007, UT-016…018, SEC-LG-010 | Tested |
 | FR-004 | Lawyers module | `modules/lawyers/*` | IT-020…029, SEC-LG-015…020 | Tested |
 | FR-005 | Legal categories module | `modules/legal-categories/*` | IT-016…019, SEC-LG-003, SEC-LG-014 | Tested |
 | FR-006 | Legal intake module | `modules/legal-intake/*` | IT-011…015, AI-TC-004, AI-TC-014 | Tested |
@@ -214,6 +227,7 @@ Tested, Done.
 | FR-016 | Auth + lawyers | `POST /auth/register` `accountType=lawyer`; admin `PATCH /lawyers/:id` | lawyer self-registration tests in `lawyers.test.ts` | Tested |
 | FR-017 | Consultations + payments | `consultationFeePesewas`; `POST /consultations/:id/pay`; NaloPay adapter + `POST /payments/callback` | payment tests in `consultations.test.ts`, `nalopay.test.ts` | Tested |
 | FR-018 | Subscriptions module | `SubscriptionPackage`; `PATCH /packages/:id` fee; `POST /lawyers/me/subscription` (`interval` month or year); admin grant | `tests/subscriptions.test.ts`, IT-055, IT-063…066, MT-010 | Tested |
+| FR-019 | Consultations + Google Calendar/Meet | `scheduledAt`, `meetUrl`; Calendar template URL; Meet required on accept | IT-067, IT-068, IT-033, `google-calendar.test.ts` | Tested |
 
 A requirement is Done only when it is implemented, acceptance criteria are satisfied, test
 evidence exists, debt is recorded, and it works in the deployed environment.

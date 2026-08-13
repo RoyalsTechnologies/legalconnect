@@ -35,7 +35,7 @@ Only build screens a requirement or workflow calls for.
 
 **Public** — landing, lawyer directory and profile, login/register
 **Citizen** — dashboard, describe legal issue, triage result/confirm category, recommended
-lawyers, consultation request, my requests, account (name and phone)
+lawyers, consultation request (time slot, Google Calendar, Google Meet), my requests, account (name, phone, and password)
 **Lawyer** — dashboard, profile, incoming requests, request detail with intake summary,
 account
 **Admin** — dashboard, users, lawyer profiles, subscription plans, legal categories, account

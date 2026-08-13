@@ -337,6 +337,18 @@ is exactly twelve monthly fees. Platform subscription fees are not invoiced.
 proration; receipts; optional yearly discount.
 **Target:** v1.2 · **Related:** FR-018
 
+### TD-027 — Google Calendar is a template link, not a synced calendar
+
+**Cause:** FR-019 needed a bookable slot and a video call without a Google Cloud OAuth
+product. Meet rooms cannot be minted without the Calendar API and a signed-in Google user.
+**Impact:** The client adds the event themselves via Google's create-event URL. The lawyer
+must open Meet, copy a room link, and paste it when accepting. There is no busy/free
+check, no reschedule flow, and no automatic Meet conference on the event.
+**Priority:** Medium for production · **Category:** integration · **Status:** Accepted
+**Resolution:** Google OAuth (Calendar API `conferenceData`) so accept creates the event
+and Meet room; optional lawyer availability calendar.
+**Target:** v1.1 · **Related:** FR-019
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -367,6 +379,7 @@ proration; receipts; optional yearly discount.
 | TD-024 | Ant Design ships as one large client bundle | Low | performance | Accepted |
 | TD-025 | Fees collected but not settled to lawyers | High (prod) | functionality | Accepted |
 | TD-026 | Lawyer plans are prepaid periods, not recurring | Medium (prod) | functionality | Accepted |
+| TD-027 | Calendar template + pasted Meet link, not OAuth sync | Medium (prod) | integration | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being
@@ -381,9 +394,9 @@ fixed rather than accepted. See the defect log in `docs/04-testing.md`.
 ## Repayment plan
 
 **v1.1** — TD-003 refresh tokens and revocation; TD-007 privacy disclosure and data
-minimisation review; TD-001 labelled evaluation set; TD-008 extend coverage; TD-020
-notifications; TD-021 server-supplied permitted transitions; TD-023 rate limiting on the
-anonymous read endpoints.
+minimisation review; TD-001 labelled evaluation set; TD-008 extend coverage; TD-021
+server-supplied permitted transitions; TD-023 rate limiting on the
+anonymous read endpoints; TD-027 Calendar API Meet rooms.
 
 **v1.2** — TD-002 asynchronous triage; TD-004 outcome-informed matching weights; TD-006
 second provider adapter; TD-018 keyset pagination; TD-019 full-text search; TD-022

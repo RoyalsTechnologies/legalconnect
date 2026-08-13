@@ -1,37 +1,22 @@
-import { Tabs } from 'antd';
-import { useLocation, useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { PageHeading } from '../../components/ui';
 
-const items = [
-  { key: '/app/admin', label: 'Overview' },
-  { key: '/app/admin/users', label: 'Users' },
-  { key: '/app/admin/lawyers', label: 'Lawyers' },
-  { key: '/app/admin/packages', label: 'Plans' },
-  { key: '/app/admin/categories', label: 'Categories' },
-];
-
-export function AdminTabs() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const activeKey =
-    items
-      .map((item) => item.key)
-      .filter(
-        (key) =>
-          location.pathname === key ||
-          (key !== '/app/admin' && location.pathname.startsWith(`${key}/`)),
-      )
-      .sort((a, b) => b.length - a.length)[0] ?? '/app/admin';
-
+/** Page frame for admin screens. Section links live in the shared side menu. */
+export function AdminShell({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Tabs
-      activeKey={activeKey}
-      onChange={(key) => {
-        void navigate(key);
-      }}
-      items={items}
-      style={{ marginTop: 24 }}
-      aria-label="Admin"
-    />
+    <div className="lc-shell__main">
+      <PageHeading title={title} description={description} action={action} />
+      <div style={{ marginTop: 28 }}>{children}</div>
+    </div>
   );
 }

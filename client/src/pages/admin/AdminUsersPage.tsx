@@ -1,25 +1,25 @@
-import { Button, Form, Input, Select, Table, Typography } from 'antd';
+import { Button, Input, Select, Space, Table, Typography } from 'antd';
 import { useState } from 'react';
 import { adminApi } from '../../api/endpoints';
 import type { AdminUserView, Role, UserStatus } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
 import { PageShell } from '../../components/Layout';
-import {
-  Badge,
-  EmptyState,
-  ErrorNotice,
-  formatDate,
-  Loading,
-  PageHeading,
-} from '../../components/ui';
+import { Badge, EmptyState, ErrorNotice, formatDate, Loading } from '../../components/ui';
 import { messageFor, useAsync } from '../../hooks/useAsync';
-import { AdminTabs } from './AdminTabs';
+import { AdminShell } from './AdminTabs';
 
 const { Text } = Typography;
+
+const ROLE_LABEL: Record<Role, string> = {
+  USER: 'Citizen',
+  LAWYER: 'Lawyer',
+  ADMIN: 'Admin',
+};
 
 export function AdminUsersPage() {
   const { user: currentAdmin } = useAuth();
   const [role, setRole] = useState<Role | ''>('');
+  const [status, setStatus] = useState<UserStatus | ''>('');
   const [search, setSearch] = useState('');
   const [applied, setApplied] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +28,10 @@ export function AdminUsersPage() {
     () =>
       adminApi.listUsers({
         role: role || undefined,
+        status: status || undefined,
         q: applied || undefined,
       }),
-    [role, applied],
+    [role, status, applied],
     'Could not load users.',
   );
 
@@ -46,15 +47,16 @@ export function AdminUsersPage() {
 
   const columns = [
     {
-      title: 'Name',
+      title: 'Person',
       key: 'name',
       render: (_: unknown, row: AdminUserView) => (
         <div>
           <Text strong>{row.fullName}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {row.email}
-          </Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {row.email}
+            </Text>
+          </div>
         </div>
       ),
     },
@@ -62,12 +64,16 @@ export function AdminUsersPage() {
       title: 'Role',
       dataIndex: 'role',
       key: 'role',
-      render: (value: Role) => <Badge tone={value === 'ADMIN' ? 'info' : 'neutral'}>{value}</Badge>,
+      width: 120,
+      render: (value: Role) => (
+        <Badge tone={value === 'ADMIN' ? 'info' : 'neutral'}>{ROLE_LABEL[value]}</Badge>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 130,
       render: (value: UserStatus) => (
         <Badge tone={value === 'ACTIVE' ? 'success' : 'danger'}>
           {value === 'ACTIVE' ? 'Active' : 'Suspended'}
@@ -78,21 +84,21 @@ export function AdminUsersPage() {
       title: 'Joined',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 140,
       render: (value: string) => <Text type="secondary">{formatDate(value)}</Text>,
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
       align: 'right' as const,
+      width: 140,
       render: (_: unknown, row: AdminUserView) =>
-        // Self-suspension is refused by the API; hiding the button
-        // keeps the admin from discovering that the hard way.
         row.id === currentAdmin?.id ? (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            This is you
+            You
           </Text>
         ) : (
-          <Button onClick={() => void toggleStatus(row.id, row.status)}>
+          <Button size="small" onClick={() => void toggleStatus(row.id, row.status)}>
             {row.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
           </Button>
         ),
@@ -101,66 +107,74 @@ export function AdminUsersPage() {
 
   return (
     <PageShell>
-      <main className="lc-page lc-page--wide">
-        <PageHeading
-          title="Users"
-          description="Suspend an account to revoke access immediately. Suspension takes effect on the account holder's very next request."
-        />
-        <AdminTabs />
-
-        <Form
-          layout="inline"
-          style={{ marginTop: 24, flexWrap: 'wrap', gap: 8 }}
-          onFinish={() => setApplied(search.trim())}
-        >
-          <Form.Item label="Search">
-            <Input
-              value={search}
-              placeholder="Name or email"
-              onChange={(event) => setSearch(event.target.value)}
-              style={{ width: 220 }}
-            />
-          </Form.Item>
-
-          <Form.Item label="Role">
-            <Select
-              value={role}
-              onChange={(value: Role | '') => setRole(value)}
-              style={{ width: 176 }}
-              options={[
-                { value: '', label: 'All roles' },
-                { value: 'USER', label: 'Citizens' },
-                { value: 'LAWYER', label: 'Lawyers' },
-                { value: 'ADMIN', label: 'Administrators' },
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Button type="default" htmlType="submit">
-              Search
-            </Button>
-          </Form.Item>
-        </Form>
+      <AdminShell
+        title="Users"
+        description="Suspend an account to revoke access on the next request. You cannot suspend yourself."
+      >
+        <div className="lc-admin__toolbar">
+          <Input.Search
+            value={search}
+            placeholder="Search name or email"
+            allowClear
+            onChange={(event) => setSearch(event.target.value)}
+            onSearch={(value) => setApplied(value.trim())}
+            style={{ maxWidth: 280 }}
+          />
+          <Select
+            value={role}
+            onChange={(value: Role | '') => setRole(value)}
+            style={{ width: 160 }}
+            options={[
+              { value: '', label: 'All roles' },
+              { value: 'USER', label: 'Citizens' },
+              { value: 'LAWYER', label: 'Lawyers' },
+              { value: 'ADMIN', label: 'Admins' },
+            ]}
+          />
+          <Select
+            value={status}
+            onChange={(value: UserStatus | '') => setStatus(value)}
+            style={{ width: 150 }}
+            options={[
+              { value: '', label: 'All statuses' },
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'SUSPENDED', label: 'Suspended' },
+            ]}
+          />
+          <Space>
+            <Text type="secondary">
+              {users.status === 'ready' ? `${users.data.length} shown` : ''}
+            </Text>
+          </Space>
+        </div>
 
         {error ? (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginBottom: 16 }}>
             <ErrorNotice message={error} />
           </div>
         ) : null}
 
-        <div style={{ marginTop: 24 }}>
-          {users.status === 'loading' ? (
-            <Loading label="Loading users…" />
-          ) : users.status === 'error' ? (
-            <ErrorNotice message={users.message} />
-          ) : users.data.length === 0 ? (
-            <EmptyState title="No users found" description="Try a different search or role." />
-          ) : (
-            <Table rowKey="id" columns={columns} dataSource={users.data} pagination={false} />
-          )}
-        </div>
-      </main>
+        {users.status === 'loading' ? (
+          <Loading label="Loading users…" />
+        ) : users.status === 'error' ? (
+          <ErrorNotice message={users.message} />
+        ) : users.data.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            description="Try a different search, role, or status."
+          />
+        ) : (
+          <div className="lc-panel">
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={users.data}
+              pagination={false}
+              size="middle"
+            />
+          </div>
+        )}
+      </AdminShell>
     </PageShell>
   );
 }

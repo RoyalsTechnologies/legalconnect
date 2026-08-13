@@ -49,8 +49,9 @@ another user's intake (see `SEC-LG-001`, `SEC-LG-002`, `SEC-LG-008` in
 
 ## Consultation workflow
 
-Statuses: `PENDING`, `ACCEPTED`, `DECLINED`, `COMPLETED`, `CANCELLED`. Only implement the
-ones an actual workflow uses. No appointment scheduling unless deliberately prioritised.
+Statuses: `AWAITING_PAYMENT`, `PENDING`, `ACCEPTED`, `DECLINED`, `COMPLETED`, `CANCELLED`.
+A client proposes `scheduledAt` when booking (FR-019). Accepting requires a Google Meet
+URL; Google Calendar is a template link, not OAuth sync (TD-027).
 
 ## Matching
 

@@ -512,6 +512,28 @@ so the three surfaces cannot drift. Recurring collection is not tested because i
 implemented (TD-026). Yearly billing is a prepaid equivalent, not a discount. `npm test -- tests/subscriptions.test.ts`
 on 2026-08-13: **13 passed**.
 
+## Password change (2026-08-13)
+
+`npx vitest run tests/auth.test.ts` — **30 passed**. Forgot/reset by email was already
+covered (UT-013, UT-014). Signed-in change is new.
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| UT-016 | FR-003 | A signed-in USER can change their password; the old password then fails login | Pass |
+| UT-017 | FR-003 | Wrong current password returns `401` and leaves the hash unchanged | Pass |
+| UT-018 | FR-003 | Unauthenticated `POST /auth/change-password` returns `401` | Pass |
+
+## Google Calendar and Meet booking (2026-08-13)
+
+`npx vitest run tests/google-calendar.test.ts tests/consultations.test.ts tests/subscriptions.test.ts`
+— **3 files, 40 passed**. Meet rooms are not created by the API (TD-027).
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| IT-067 | FR-019 | Booking without `scheduledAt` returns `422` | Pass |
+| IT-068 | FR-019 | Accept without a Google Meet URL returns `422` | Pass |
+| IT-033 | FR-014, FR-019 | Accept stores the Meet URL and a Calendar template link | Pass |
+
 ## Known issues and testing limitations
 
 Classification quality is unmeasured — see TD-011. The suite proves the AI contract is

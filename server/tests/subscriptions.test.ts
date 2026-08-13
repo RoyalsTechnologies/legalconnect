@@ -240,7 +240,11 @@ describe('Lawyer subscription packages (FR-018)', () => {
     const res = await request(app)
       .post('/api/v1/consultations')
       .set('Authorization', `Bearer ${citizen}`)
-      .send({ intakeId: intake.id, lawyerProfileId: created.body.id });
+      .send({
+        intakeId: intake.id,
+        lawyerProfileId: created.body.id,
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
 
     expect(res.status).toBe(404);
   });
