@@ -229,6 +229,8 @@ model ConsultationRequest {
   feePesewas      Int
   paymentReference String?           @unique
   paymentOrderId   String?           @unique
+  scheduledAt     DateTime
+  meetUrl         String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 

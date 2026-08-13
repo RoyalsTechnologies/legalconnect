@@ -177,7 +177,7 @@ LawyerProfile 1───< SubscriptionPayment >── SubscriptionPackage
 | `LegalCategory` | Configurable taxonomy | id, name (unique), slug (unique), description, isActive |
 | `LawyerPracticeArea` | Specialisation join | lawyerProfileId, legalCategoryId — composite primary key |
 | `LegalIntake` | Submitted concern and triage result | id, clientId, originalDescription, city?, region?, categoryId?, aiSummary?, urgency?, keywords[], confidence?, needsHumanReview, aiStatus, aiError?, createdAt, updatedAt |
-| `ConsultationRequest` | Client ↔ lawyer request | id, intakeId, clientId, lawyerProfileId, status, clientMessage?, matchReason, feePesewas, paymentReference?, paymentOrderId?, createdAt, updatedAt |
+| `ConsultationRequest` | Client ↔ lawyer request | id, intakeId, clientId, lawyerProfileId, status, clientMessage?, matchReason, feePesewas, paymentReference?, paymentOrderId?, scheduledAt, meetUrl?, createdAt, updatedAt |
 
 Enums: `Role` = USER · LAWYER · ADMIN. `UserStatus` = ACTIVE · SUSPENDED.
 `ApprovalStatus` = PENDING · APPROVED · REJECTED. `Urgency` = NORMAL · IMPORTANT · URGENT.

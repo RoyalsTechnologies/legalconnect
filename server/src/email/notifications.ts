@@ -1,4 +1,5 @@
 import type { ApprovalStatus, ConsultationStatus } from '@prisma/client';
+import { formatAccraSlot } from '../lib/google-calendar.js';
 import { sendSms } from '../sms/sms-client.js';
 import { consultationNewRequestSms, consultationStatusSms } from '../sms/sms-messages.js';
 import { appUrl, sendEmail } from './mailer.js';
@@ -24,6 +25,7 @@ export function notifyLawyerOfNewRequest(input: {
   clientName: string;
   category: string | null;
   consultationId: string;
+  scheduledAt: Date;
 }): void {
   notify(
     sendEmail(
@@ -32,6 +34,7 @@ export function notifyLawyerOfNewRequest(input: {
         lawyerName: input.lawyerName,
         clientName: input.clientName,
         category: input.category ?? '',
+        when: formatAccraSlot(input.scheduledAt),
         requestUrl: appUrl(`/app/requests/${input.consultationId}`),
       }),
       false,
@@ -63,6 +66,9 @@ export function notifyClientOfStatusChange(input: {
   lawyerName: string;
   status: ConsultationStatus;
   consultationId: string;
+  scheduledAt?: Date;
+  meetUrl?: string | null;
+  googleCalendarUrl?: string;
 }): void {
   const statusLabel = STATUS_LABEL[input.status];
   if (!statusLabel) return;
@@ -75,6 +81,9 @@ export function notifyClientOfStatusChange(input: {
         lawyerName: input.lawyerName,
         statusLabel,
         requestUrl: appUrl(`/app/requests/${input.consultationId}`),
+        when: input.scheduledAt ? formatAccraSlot(input.scheduledAt) : undefined,
+        meetUrl: input.meetUrl ?? undefined,
+        googleCalendarUrl: input.googleCalendarUrl,
       }),
       false,
     ),

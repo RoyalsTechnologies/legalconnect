@@ -78,7 +78,7 @@ consultationsRouter.patch(
         id,
         req.user!.id,
         req.user!.role,
-        req.body.status,
+        req.body,
       ),
     );
   }),

@@ -33,7 +33,7 @@ Candidates, only after the MVP is complete:
 - Multilingual intake
 - Voice-based legal issue intake
 - Richer lawyer verification workflows
-- Appointment scheduling
+- Two-way Google Calendar sync and auto-created Meet rooms (TD-027)
 - Notifications
 - Secure document upload and document summarisation
 - Lawyer-side AI case intake organisation

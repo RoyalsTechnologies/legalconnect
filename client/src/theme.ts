@@ -48,6 +48,14 @@ export const appTheme: ThemeConfig = {
     Tag: {
       borderRadiusSM: 6,
     },
+    Table: {
+      headerBg: '#f8fafc',
+      headerSplitColor: 'transparent',
+      borderColor: '#e8eef5',
+      rowHoverBg: '#f8fafc',
+      cellPaddingBlock: 14,
+      cellPaddingInline: 16,
+    },
     Typography: {
       titleMarginBottom: '0.35em',
       titleMarginTop: 0,

@@ -5,6 +5,7 @@ import { consultationsApi, intakesApi } from '../api/endpoints';
 import type { Recommendation } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AiDisclaimer, PageShell } from '../components/Layout';
+import { BookingSlotField, toScheduledIso } from '../components/BookingSlotField';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
 import {
   BackLink,
@@ -33,17 +34,18 @@ function RecommendationCard({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { lawyer, reason } = recommendation;
-  const [form] = Form.useForm<MomoPayValues>();
+  const [form] = Form.useForm<{ scheduledAt: string } & MomoPayValues>();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(values: MomoPayValues) {
+  async function send(values: { scheduledAt: string } & MomoPayValues) {
     setError(null);
     setSending(true);
     try {
       const created = await consultationsApi.create({
         intakeId,
         lawyerProfileId: lawyer.id,
+        scheduledAt: toScheduledIso(values.scheduledAt),
       });
       const payment = await consultationsApi.pay(created.id, {
         phone: values.phone,
@@ -119,6 +121,7 @@ function RecommendationCard({
         style={{ marginTop: 20 }}
         requiredMark={false}
       >
+        <BookingSlotField />
         <MomoPayFields />
         <Form.Item style={{ marginBottom: 0 }}>
           <Space wrap>

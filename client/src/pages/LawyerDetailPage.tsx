@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { AiDisclaimer, PageShell } from '../components/Layout';
+import { BookingSlotField, toScheduledIso } from '../components/BookingSlotField';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
 import { BackLink, Badge, ErrorNotice, formatGhs, InitialsAvatar, Loading } from '../components/ui';
 import { messageFor, useAsync } from '../hooks/useAsync';
@@ -27,7 +28,7 @@ function RequestForm({
   const navigate = useNavigate();
   const { user } = useAuth();
   const intakes = useAsync(() => intakesApi.list(), [], 'Could not load your enquiries.');
-  const [form] = Form.useForm<{ intakeId: string; message?: string } & MomoPayValues>();
+  const [form] = Form.useForm<{ intakeId: string; message?: string; scheduledAt: string } & MomoPayValues>();
   const intakeId = Form.useWatch('intakeId', form);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,9 @@ function RequestForm({
     );
   }
 
-  async function onFinish(values: { intakeId: string; message?: string } & MomoPayValues) {
+  async function onFinish(
+    values: { intakeId: string; message?: string; scheduledAt: string } & MomoPayValues,
+  ) {
     setError(null);
     setSubmitting(true);
 
@@ -61,6 +64,7 @@ function RequestForm({
         intakeId: values.intakeId,
         lawyerProfileId,
         message: values.message?.trim() || undefined,
+        scheduledAt: toScheduledIso(values.scheduledAt),
       });
       const payment = await consultationsApi.pay(created.id, {
         phone: values.phone,
@@ -84,7 +88,8 @@ function RequestForm({
       </Title>
       <Paragraph type="secondary">
         You pay this lawyer's consultation fee ({formatGhs(feePesewas)}) by mobile money to send the
-        request. Approve the prompt on your phone. The lawyer sees it only after payment.
+        request. Pick a time for Google Calendar and Google Meet. The lawyer sees the booking only
+        after payment.
       </Paragraph>
 
       <Form
@@ -108,6 +113,8 @@ function RequestForm({
             }))}
           />
         </Form.Item>
+
+        <BookingSlotField />
 
         <Form.Item
           label="Anything to add? (optional)"

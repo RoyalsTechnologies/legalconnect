@@ -9,6 +9,7 @@ import { ghsToPesewas } from '../../lib/money.js';
 import { prisma } from '../../lib/prisma.js';
 import { assertPracticeAreas } from '../lawyers/lawyers.service.js';
 import type {
+  ChangePasswordInput,
   EmailOnlyInput,
   LoginInput,
   RegisterInput,
@@ -252,6 +253,40 @@ export async function resetPassword(input: ResetPasswordInput): Promise<{ messag
   ]);
 
   return { message: 'Password updated. You can sign in with your new password.' };
+}
+
+/**
+ * Signed-in password change (FR-003). Requires the current password so a stolen
+ * session alone cannot silently replace credentials. Outstanding reset tokens
+ * are consumed so an earlier forgot-password email cannot undo the change.
+ */
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+): Promise<{ message: string }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, passwordHash: true },
+  });
+  if (!user) throw unauthorized();
+
+  const matches = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!matches) throw unauthorized('Current password is incorrect');
+
+  const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_COST);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    }),
+    prisma.emailToken.updateMany({
+      where: { userId, type: EmailTokenType.RESET_PASSWORD, usedAt: null },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+
+  return { message: 'Password updated.' };
 }
 
 export { publicUserFields };

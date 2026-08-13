@@ -1,4 +1,4 @@
-import { Alert, Button, Col, Form, Input, InputNumber, List, Row, Space, Switch } from 'antd';
+import { Alert, Button, Col, Form, Input, InputNumber, Row, Switch, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { ApiError, fieldErrorsFromApi } from '../../api/client';
 import { packagesApi } from '../../api/endpoints';
@@ -11,20 +11,19 @@ import {
   ErrorNotice,
   formatGhs,
   Loading,
-  PageHeading,
   toFormFields,
 } from '../../components/ui';
 import { messageFor, useAsync } from '../../hooks/useAsync';
-import { AdminTabs } from './AdminTabs';
+import { AdminShell } from './AdminTabs';
 
-function PackageCard({
+const { Text } = Typography;
+
+function FeeEditor({
   pkg,
-  onToggle,
-  onSaveFee,
+  onSave,
 }: {
   pkg: SubscriptionPackage;
-  onToggle: (checked: boolean) => void;
-  onSaveFee: (monthlyFeeGhs: number) => Promise<void>;
+  onSave: (monthlyFeeGhs: number) => Promise<void>;
 }) {
   const [feeGhs, setFeeGhs] = useState(pkg.monthlyFeePesewas / 100);
   const [saving, setSaving] = useState(false);
@@ -37,55 +36,32 @@ function PackageCard({
   async function save() {
     setSaving(true);
     try {
-      await onSaveFee(Number(feeGhs));
+      await onSave(Number(feeGhs));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card>
-      <Space wrap size={8} style={{ width: '100%', justifyContent: 'space-between' }}>
-        <div>
-          <Space wrap size={8}>
-            <strong>{pkg.name}</strong>
-            <Badge tone={pkg.isActive ? 'success' : 'neutral'}>
-              {pkg.isActive ? 'Offered' : 'Retired'}
-            </Badge>
-          </Space>
-          <p style={{ marginBottom: 0, marginTop: 8, color: '#5b6b82' }}>{pkg.description}</p>
-          <p style={{ marginBottom: 0, marginTop: 4, color: '#5b6b82' }}>
-            {pkg.maxPracticeAreas} practice area{pkg.maxPracticeAreas === 1 ? '' : 's'}
-          </p>
-          <p style={{ marginBottom: 0, marginTop: 4, color: '#5b6b82' }}>
-            Yearly equivalent {formatGhs(Math.round(feeGhs * 12 * 100))} (12 × monthly)
-          </p>
-        </div>
-        <Switch
-          checked={pkg.isActive}
-          checkedChildren="Offered"
-          unCheckedChildren="Retired"
-          onChange={onToggle}
-        />
-      </Space>
-
-      <Space wrap align="end" style={{ marginTop: 16 }}>
-        <div>
-          <div style={{ fontSize: 12, color: '#5b6b82', marginBottom: 4 }}>Monthly fee (GHS)</div>
-          <InputNumber
-            min={1}
-            max={50000}
-            value={feeGhs}
-            onChange={(value) => setFeeGhs(value ?? pkg.monthlyFeePesewas / 100)}
-            style={{ width: 140 }}
-            aria-label={`${pkg.name} monthly fee in Ghana cedis`}
-          />
-        </div>
-        <Button type="primary" onClick={() => void save()} loading={saving} disabled={!dirty}>
-          {saving ? 'Saving…' : 'Save fee'}
-        </Button>
-      </Space>
-    </Card>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <InputNumber
+        min={1}
+        max={50000}
+        value={feeGhs}
+        onChange={(value) => setFeeGhs(value ?? pkg.monthlyFeePesewas / 100)}
+        style={{ width: 110 }}
+        aria-label={`${pkg.name} monthly fee in Ghana cedis`}
+      />
+      <Button
+        type="primary"
+        size="small"
+        onClick={() => void save()}
+        loading={saving}
+        disabled={!dirty}
+      >
+        Save
+      </Button>
+    </div>
   );
 }
 
@@ -147,18 +123,77 @@ export function AdminPackagesPage() {
     }
   }
 
+  const columns = [
+    {
+      title: 'Plan',
+      key: 'name',
+      render: (_: unknown, pkg: SubscriptionPackage) => (
+        <div>
+          <Text strong>{pkg.name}</Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {pkg.description}
+            </Text>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Areas',
+      dataIndex: 'maxPracticeAreas',
+      key: 'areas',
+      width: 90,
+    },
+    {
+      title: 'Yearly',
+      key: 'year',
+      width: 130,
+      render: (_: unknown, pkg: SubscriptionPackage) => (
+        <Text type="secondary">{formatGhs(pkg.monthlyFeePesewas * 12)}</Text>
+      ),
+    },
+    {
+      title: 'Monthly (GHS)',
+      key: 'fee',
+      width: 220,
+      render: (_: unknown, pkg: SubscriptionPackage) => (
+        <FeeEditor pkg={pkg} onSave={(ghs) => saveFee(pkg, ghs)} />
+      ),
+    },
+    {
+      title: 'Offered',
+      key: 'active',
+      width: 110,
+      render: (_: unknown, pkg: SubscriptionPackage) => (
+        <Switch
+          checked={pkg.isActive}
+          checkedChildren="Yes"
+          unCheckedChildren="No"
+          onChange={(checked) => void setActive(pkg, checked)}
+        />
+      ),
+    },
+    {
+      title: '',
+      key: 'status',
+      width: 100,
+      render: (_: unknown, pkg: SubscriptionPackage) => (
+        <Badge tone={pkg.isActive ? 'success' : 'neutral'}>
+          {pkg.isActive ? 'Live' : 'Retired'}
+        </Badge>
+      ),
+    },
+  ];
+
   return (
     <PageShell>
-      <main className="lc-page lc-page--wide">
-        <PageHeading
-          title="Subscription plans"
-          description="Set the monthly fee and area cap for each plan. Lawyers pay a month or a year (twelve times that fee). A fee change applies to the next payment — a period already paid is not rewritten."
-        />
-        <AdminTabs />
-
-        <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
-          <Col xs={24} lg={10}>
-            <Card>
+      <AdminShell
+        title="Plans"
+        description="Monthly fee and area cap. A year is twelve times that fee. A change applies to the next payment only."
+      >
+        <Row gutter={[20, 20]}>
+          <Col xs={24} xl={8}>
+            <Card title="New plan">
               <Form
                 form={form}
                 layout="vertical"
@@ -179,7 +214,7 @@ export function AdminPackagesPage() {
                 >
                   <Input.TextArea rows={3} />
                 </Form.Item>
-                <Row gutter={16}>
+                <Row gutter={12}>
                   <Col span={12}>
                     <Form.Item
                       label="Monthly fee (GHS)"
@@ -191,7 +226,7 @@ export function AdminPackagesPage() {
                   </Col>
                   <Col span={12}>
                     <Form.Item
-                      label="Practice areas allowed"
+                      label="Areas allowed"
                       name="maxPracticeAreas"
                       rules={[{ required: true }]}
                     >
@@ -214,7 +249,7 @@ export function AdminPackagesPage() {
               </Form>
             </Card>
           </Col>
-          <Col xs={24} lg={14}>
+          <Col xs={24} xl={16}>
             {packages.status === 'loading' ? (
               <Loading label="Loading plans…" />
             ) : packages.status === 'error' ? (
@@ -225,24 +260,19 @@ export function AdminPackagesPage() {
                 description="Add Starter, Practice, and Chambers so lawyers can subscribe."
               />
             ) : (
-              <List
-                dataSource={packages.data}
-                renderItem={(pkg) => (
-                  <List.Item key={pkg.id} style={{ padding: 0, marginBottom: 12, border: 'none' }}>
-                    <div style={{ width: '100%' }}>
-                      <PackageCard
-                        pkg={pkg}
-                        onToggle={(checked) => void setActive(pkg, checked)}
-                        onSaveFee={(ghs) => saveFee(pkg, ghs)}
-                      />
-                    </div>
-                  </List.Item>
-                )}
-              />
+              <div className="lc-panel">
+                <Table
+                  rowKey="id"
+                  columns={columns}
+                  dataSource={packages.data}
+                  pagination={false}
+                  size="middle"
+                />
+              </div>
             )}
           </Col>
         </Row>
-      </main>
+      </AdminShell>
     </PageShell>
   );
 }

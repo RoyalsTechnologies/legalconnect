@@ -1,7 +1,8 @@
-import { Button, Form, Input, Typography } from 'antd';
+import { Button, Form, Input, Space, Typography } from 'antd';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ApiError, fieldErrorsFromApi } from '../api/client';
-import { usersApi } from '../api/endpoints';
+import { authApi, usersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { PageShell } from '../components/Layout';
 import { Card, ErrorNotice, PageHeading, toFormFields } from '../components/ui';
@@ -10,15 +11,23 @@ import { messageFor } from '../hooks/useAsync';
 const { Paragraph, Text } = Typography;
 
 /**
- * Own-account name and phone (FR-003). Email stays read-only — changing it would
- * need a new verification flow that is out of MVP scope.
+ * Own-account name, phone, and password (FR-003). Email stays read-only — changing
+ * it would need a new verification flow that is out of MVP scope.
  */
 export function AccountPage() {
   const { user, applyUser } = useAuth();
   const [form] = Form.useForm<{ fullName: string; phone?: string }>();
+  const [passwordForm] = Form.useForm<{
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }>();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   if (!user) return null;
 
@@ -44,6 +53,32 @@ export function AccountPage() {
     }
   }
 
+  async function changePassword(values: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) {
+    setPasswordError(null);
+    setPasswordSaved(false);
+    setChangingPassword(true);
+    try {
+      await authApi.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+      passwordForm.resetFields();
+      setPasswordSaved(true);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fields = fieldErrorsFromApi(err);
+        if (Object.keys(fields).length > 0) passwordForm.setFields(toFormFields(fields));
+      }
+      setPasswordError(messageFor(err, 'Could not update your password.'));
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   return (
     <PageShell>
       <main className="lc-page lc-page--narrow">
@@ -55,8 +90,8 @@ export function AccountPage() {
           description="Your name is how lawyers see you. A Ghana mobile money number is used to pay consultation fees and to text you when a request changes."
         />
 
-        <div style={{ marginTop: 24 }}>
-          <Card>
+        <Space direction="vertical" size={24} style={{ width: '100%', marginTop: 24 }}>
+          <Card title="Details">
             <Form
               form={form}
               layout="vertical"
@@ -107,7 +142,71 @@ export function AccountPage() {
               </Form.Item>
             </Form>
           </Card>
-        </div>
+
+          <Card title="Password">
+            <Form
+              form={passwordForm}
+              layout="vertical"
+              requiredMark={false}
+              onFinish={(values) => void changePassword(values)}
+            >
+              <Form.Item
+                label="Current password"
+                name="currentPassword"
+                rules={[{ required: true, message: 'Enter your current password' }]}
+              >
+                <Input.Password autoComplete="current-password" />
+              </Form.Item>
+
+              <Form.Item
+                label="New password"
+                name="newPassword"
+                rules={[
+                  { required: true, message: 'Enter a new password' },
+                  { min: 8, message: 'At least 8 characters' },
+                ]}
+              >
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+
+              <Form.Item
+                label="Confirm new password"
+                name="confirmPassword"
+                dependencies={['newPassword']}
+                rules={[
+                  { required: true, message: 'Confirm your new password' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value: string) {
+                      if (!value || getFieldValue('newPassword') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Passwords do not match'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+
+              {passwordError ? <ErrorNotice message={passwordError} /> : null}
+              {passwordSaved ? (
+                <Paragraph type="secondary" role="status">
+                  Password updated. Use it the next time you sign in.
+                </Paragraph>
+              ) : null}
+
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button type="primary" htmlType="submit" loading={changingPassword}>
+                  Update password
+                </Button>
+              </Form.Item>
+            </Form>
+            <Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0 }}>
+              If you do not remember your current password,{' '}
+              <Link to="/forgot-password">reset it by email</Link>.
+            </Paragraph>
+          </Card>
+        </Space>
       </main>
     </PageShell>
   );

@@ -74,6 +74,16 @@ export const authApi = {
     });
   },
 
+  changePassword(body: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    return apiRequest('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   logout(): Promise<void> {
     return apiRequest('/auth/logout', { method: 'POST' });
   },
@@ -215,6 +225,7 @@ export const consultationsApi = {
     intakeId: string;
     lawyerProfileId: string;
     message?: string;
+    scheduledAt: string;
   }): Promise<ConsultationView> {
     return apiRequest('/consultations', { method: 'POST', body: JSON.stringify(body) });
   },
@@ -227,10 +238,14 @@ export const consultationsApi = {
     return apiRequest(`/consultations/${id}`);
   },
 
-  setStatus(id: string, status: ConsultationStatus): Promise<ConsultationView> {
+  setStatus(
+    id: string,
+    status: ConsultationStatus,
+    extra: { meetUrl?: string } = {},
+  ): Promise<ConsultationView> {
     return apiRequest(`/consultations/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...extra }),
     });
   },
 

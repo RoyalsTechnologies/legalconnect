@@ -245,6 +245,53 @@ describe('email verification and password reset', () => {
     ).toMatchObject({ usedAt: expect.any(Date) });
   });
 
+  it('UT-016: a signed-in citizen can change their password', async () => {
+    const registered = await registerUser();
+    const token = registered.body.token as string;
+
+    const res = await request(app)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: validUser.password, newPassword: 'new-correct-horse' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('passwordHash');
+
+    const oldLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: validUser.email, password: validUser.password });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: validUser.email, password: 'new-correct-horse' });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it('UT-017: change-password rejects a wrong current password', async () => {
+    const registered = await registerUser();
+    const token = registered.body.token as string;
+
+    const res = await request(app)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'wrong-password', newPassword: 'new-correct-horse' });
+
+    expect(res.status).toBe(401);
+
+    const stillOld = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: validUser.email, password: validUser.password });
+    expect(stillOld.status).toBe(200);
+  });
+
+  it('UT-018: change-password requires a session', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/change-password')
+      .send({ currentPassword: validUser.password, newPassword: 'new-correct-horse' });
+    expect(res.status).toBe(401);
+  });
+
   it('UT-015: resend-verification always returns 204', async () => {
     const res = await request(app)
       .post('/api/v1/auth/resend-verification')

@@ -152,6 +152,10 @@ export interface ConsultationView {
   matchReason: string;
   feePesewas: number;
   paymentReference: string | null;
+  scheduledAt: string;
+  meetUrl: string | null;
+  durationMinutes: number;
+  googleCalendarUrl: string;
   createdAt: string;
   updatedAt: string;
   intake: {

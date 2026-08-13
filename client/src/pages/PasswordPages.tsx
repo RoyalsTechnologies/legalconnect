@@ -206,6 +206,24 @@ export function ResetPasswordPage() {
               >
                 <Input.Password autoComplete="new-password" />
               </Form.Item>
+              <Form.Item
+                label="Confirm new password"
+                name="confirmPassword"
+                dependencies={['password']}
+                rules={[
+                  { required: true, message: 'Confirm your new password' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value: string) {
+                      if (!value || getFieldValue('password') === value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Passwords do not match'));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
               {error ? (
                 <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
               ) : null}

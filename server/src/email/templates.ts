@@ -41,11 +41,12 @@ export function consultationNewRequestEmail(input: {
   lawyerName: string;
   clientName: string;
   category: string;
+  when: string;
   requestUrl: string;
 }): OutboundEmail {
   const { text, html } = wrap(
     'New consultation request',
-    `Hello ${input.lawyerName},\n\n${input.clientName} has sent you a consultation request${input.category ? ` about ${input.category}` : ''}.\n\nReview it here:\n${input.requestUrl}`,
+    `Hello ${input.lawyerName},\n\n${input.clientName} has sent you a consultation request${input.category ? ` about ${input.category}` : ''}.\n\nProposed time (Ghana): ${input.when}\n\nReview it here:\n${input.requestUrl}`,
   );
   return { to: input.to, subject: 'New consultation request on LegalConnect Ghana', text, html };
 }
@@ -56,10 +57,21 @@ export function consultationStatusEmail(input: {
   lawyerName: string;
   statusLabel: string;
   requestUrl: string;
+  when?: string;
+  meetUrl?: string;
+  googleCalendarUrl?: string;
 }): OutboundEmail {
+  const extras = [
+    input.when ? `Time (Ghana): ${input.when}` : null,
+    input.meetUrl ? `Google Meet: ${input.meetUrl}` : null,
+    input.googleCalendarUrl ? `Add to Google Calendar:\n${input.googleCalendarUrl}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
   const { text, html } = wrap(
     `Your request was ${input.statusLabel.toLowerCase()}`,
-    `Hello ${input.clientName},\n\n${input.lawyerName} has ${input.statusLabel.toLowerCase()} your consultation request.\n\nSee the details:\n${input.requestUrl}`,
+    `Hello ${input.clientName},\n\n${input.lawyerName} has ${input.statusLabel.toLowerCase()} your consultation request.${extras ? `\n\n${extras}` : ''}\n\nSee the details:\n${input.requestUrl}`,
   );
   return {
     to: input.to,

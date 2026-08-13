@@ -100,8 +100,19 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: passwordSchema,
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    path: ['newPassword'],
+    message: 'Choose a different password from your current one',
+  });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type EmailOnlyInput = z.infer<typeof emailOnlySchema>;
 export type TokenInput = z.infer<typeof tokenSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

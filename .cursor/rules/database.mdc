@@ -38,7 +38,7 @@ status, paymentReference?, createdAt
 confidence, needsHumanReview, createdAt
 
 **ConsultationRequest** — id, intakeId, clientUserId, lawyerId, status, message?,
-createdAt, updatedAt
+scheduledAt, meetUrl?, createdAt, updatedAt
 
 `originalDescription` is never overwritten by AI output.
 

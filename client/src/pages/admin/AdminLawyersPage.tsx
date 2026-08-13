@@ -3,17 +3,18 @@ import {
   Button,
   Checkbox,
   Col,
-  Flex,
+  Drawer,
   Form,
   Input,
   InputNumber,
-  List,
   Row,
+  Segmented,
   Select,
   Space,
+  Table,
   Typography,
 } from 'antd';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ApiError, fieldErrorsFromApi } from '../../api/client';
 import { adminApi, categoriesApi, lawyersApi, packagesApi } from '../../api/endpoints';
 import type { ApprovalStatus, LawyerView } from '../../api/types';
@@ -21,19 +22,18 @@ import { PageShell } from '../../components/Layout';
 import {
   ApprovalBadge,
   Badge,
-  Card,
   EmptyState,
   ErrorNotice,
   formatGhs,
+  InitialsAvatar,
   Loading,
-  PageHeading,
   RegionSelect,
   toFormFields,
 } from '../../components/ui';
 import { messageFor, useAsync } from '../../hooks/useAsync';
-import { AdminTabs } from './AdminTabs';
+import { AdminShell } from './AdminTabs';
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 const EMPTY_FORM = {
   fullName: '',
@@ -51,10 +51,6 @@ const EMPTY_FORM = {
   practiceAreaIds: [] as string[],
 };
 
-/**
- * Optional admin-created accounts (invitation-style). Most lawyers now self-register
- * and wait for approval. New profiles still start pending.
- */
 function CreateLawyerForm({ onCreated }: { onCreated: () => void }) {
   const categories = useAsync(
     () => categoriesApi.selectable(),
@@ -111,141 +107,132 @@ function CreateLawyerForm({ onCreated }: { onCreated: () => void }) {
       : [];
 
   return (
-    <Card>
-      <Title level={4} className="lc-display" style={{ marginTop: 0 }}>
-        Add a lawyer
-      </Title>
-      <Paragraph type="secondary">
-        Use this when you need to provision an account yourself. Self-registered lawyers appear in
-        the list below as pending until you approve them. Verify the licence before approving.
-      </Paragraph>
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={EMPTY_FORM}
+      onFinish={(values) => void submit(values)}
+    >
+      <Row gutter={16}>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            label="Full name"
+            name="fullName"
+            rules={[{ required: true, message: 'Full name is required' }]}
+          >
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Display name" name="displayName" extra="Defaults to the full name.">
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[
+              { required: true, message: 'Email is required' },
+              { type: 'email', message: 'Enter a valid email' },
+            ]}
+          >
+            <Input type="email" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            label="Temporary password"
+            name="password"
+            extra="Share it with the lawyer and ask them to change it."
+            rules={[
+              { required: true, message: 'Password is required' },
+              { min: 8, message: 'At least 8 characters' },
+            ]}
+          >
+            <Input.Password visibilityToggle />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Phone (optional)" name="phone">
+            <Input placeholder="0244123456" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Firm or chambers (optional)" name="firmName">
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="City" name="city" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Region" name="region" rules={[{ required: true }]}>
+            <RegionSelect />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Licence number (optional)" name="licenseNumber">
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Years in practice (optional)" name="yearsExperience">
+            <InputNumber min={0} max={70} style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+        <Col xs={24}>
+          <Form.Item
+            label="Consultation fee (GHS)"
+            name="consultationFeeGhs"
+            rules={[{ required: true, message: 'Set a consultation fee' }]}
+          >
+            <InputNumber min={1} max={50000} step={10} style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
+      </Row>
 
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={EMPTY_FORM}
-        onFinish={(values) => void submit(values)}
+      <Form.Item
+        label="About their practice"
+        name="bio"
+        extra="At least a short paragraph, in plain language."
+        rules={[{ required: true, message: 'A short description is required' }]}
       >
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              label="Full name"
-              name="fullName"
-              rules={[{ required: true, message: 'Full name is required' }]}
-            >
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Display name" name="displayName" extra="Defaults to the full name.">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              label="Email"
-              name="email"
-              rules={[
-                { required: true, message: 'Email is required' },
-                { type: 'email', message: 'Enter a valid email' },
-              ]}
-            >
-              <Input type="email" />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              label="Temporary password"
-              name="password"
-              extra="Share it with the lawyer directly and ask them to change it."
-              rules={[
-                { required: true, message: 'Password is required' },
-                { min: 8, message: 'At least 8 characters' },
-              ]}
-            >
-              <Input.Password visibilityToggle />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Phone (optional)" name="phone">
-              <Input placeholder="0244123456" />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Firm or chambers (optional)" name="firmName">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="City" name="city" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Region" name="region" rules={[{ required: true }]}>
-              <RegionSelect />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Licence number (optional)" name="licenseNumber">
-              <Input />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item label="Years in practice (optional)" name="yearsExperience">
-              <InputNumber min={0} max={70} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              label="Consultation fee (GHS)"
-              name="consultationFeeGhs"
-              rules={[{ required: true, message: 'Set a consultation fee' }]}
-            >
-              <InputNumber min={1} max={50000} step={10} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
+        <Input.TextArea rows={4} />
+      </Form.Item>
 
-        <Form.Item
-          label="About their practice"
-          name="bio"
-          extra="At least a short paragraph, in plain language."
-          rules={[{ required: true, message: 'A short description is required' }]}
-        >
-          <Input.TextArea rows={4} />
-        </Form.Item>
+      <Form.Item label="Practice areas" name="practiceAreaIds">
+        <Checkbox.Group
+          options={practiceOptions}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}
+        />
+      </Form.Item>
 
-        <Form.Item label="Practice areas" name="practiceAreaIds">
-          <Checkbox.Group
-            options={practiceOptions}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}
-          />
-        </Form.Item>
+      {error ? <ErrorNotice message={error} /> : null}
+      {created ? (
+        <Alert
+          type="success"
+          showIcon
+          role="status"
+          style={{ marginBottom: 16 }}
+          message={`Created ${created}. They can sign in with the email and password you set.`}
+        />
+      ) : null}
 
-        {error ? <ErrorNotice message={error} /> : null}
-        {created ? (
-          <Alert
-            type="success"
-            showIcon
-            role="status"
-            style={{ marginBottom: 16 }}
-            message={`Created ${created}. They can sign in with the email and password you set.`}
-          />
-        ) : null}
-
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={saving}>
-            {saving ? 'Creating…' : 'Create lawyer account'}
-          </Button>
-        </Form.Item>
-      </Form>
-    </Card>
+      <Button type="primary" htmlType="submit" loading={saving}>
+        {saving ? 'Creating…' : 'Create lawyer account'}
+      </Button>
+    </Form>
   );
 }
 
+type Filter = 'PENDING' | 'ALL' | ApprovalStatus;
+
 export function AdminLawyersPage() {
   const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<Filter>('PENDING');
   const [error, setError] = useState<string | null>(null);
   const lawyers = useAsync(
     () => lawyersApi.list({ limit: 50 }),
@@ -286,144 +273,234 @@ export function AdminLawyersPage() {
     }
   }
 
+  const rows = useMemo(() => {
+    if (lawyers.status !== 'ready') return [];
+    const sorted = [...lawyers.data.results].sort((a, b) => {
+      const rank = { PENDING: 0, REJECTED: 1, APPROVED: 2 };
+      return rank[a.approvalStatus] - rank[b.approvalStatus];
+    });
+    if (filter === 'ALL') return sorted;
+    return sorted.filter((lawyer) => lawyer.approvalStatus === filter);
+  }, [lawyers, filter]);
+
+  const pendingCount =
+    lawyers.status === 'ready'
+      ? lawyers.data.results.filter((lawyer) => lawyer.approvalStatus === 'PENDING').length
+      : 0;
+
+  const columns = [
+    {
+      title: 'Practitioner',
+      key: 'name',
+      render: (_: unknown, lawyer: LawyerView) => (
+        <Space align="start">
+          <InitialsAvatar name={lawyer.displayName} />
+          <div>
+            <Text strong>{lawyer.displayName}</Text>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {lawyer.firmName ? `${lawyer.firmName} · ` : ''}
+                {lawyer.city}, {lawyer.region}
+              </Text>
+            </div>
+            {lawyer.licenseNumber ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Licence {lawyer.licenseNumber}
+              </Text>
+            ) : null}
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Review',
+      key: 'approval',
+      width: 140,
+      render: (_: unknown, lawyer: LawyerView) => <ApprovalBadge status={lawyer.approvalStatus} />,
+    },
+    {
+      title: 'Plan',
+      key: 'plan',
+      width: 140,
+      render: (_: unknown, lawyer: LawyerView) =>
+        lawyer.subscription.active && lawyer.subscription.package ? (
+          <Badge tone="success">{lawyer.subscription.package.name}</Badge>
+        ) : (
+          <Badge tone="warn">No live plan</Badge>
+        ),
+    },
+    {
+      title: 'Areas',
+      key: 'areas',
+      render: (_: unknown, lawyer: LawyerView) => (
+        <Space wrap size={[4, 4]}>
+          {lawyer.practiceAreas.slice(0, 2).map(({ legalCategory }) => (
+            <Badge key={legalCategory.id} tone="info">
+              {legalCategory.name}
+            </Badge>
+          ))}
+          {lawyer.practiceAreas.length > 2 ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              +{lawyer.practiceAreas.length - 2}
+            </Text>
+          ) : null}
+        </Space>
+      ),
+    },
+    {
+      title: 'Fee',
+      key: 'fee',
+      width: 110,
+      render: (_: unknown, lawyer: LawyerView) => (
+        <Text type="secondary">{formatGhs(lawyer.consultationFeePesewas)}</Text>
+      ),
+    },
+    {
+      title: '',
+      key: 'actions',
+      align: 'right' as const,
+      width: 260,
+      render: (_: unknown, lawyer: LawyerView) => (
+        <Space wrap size={8}>
+          {lawyer.approvalStatus !== 'APPROVED' ? (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => void setApproval(lawyer.id, 'APPROVED')}
+            >
+              Approve
+            </Button>
+          ) : null}
+          {lawyer.approvalStatus !== 'REJECTED' ? (
+            <Button size="small" onClick={() => void setApproval(lawyer.id, 'REJECTED')}>
+              Reject
+            </Button>
+          ) : null}
+          <Button
+            size="small"
+            onClick={() => void grant(lawyer.id)}
+            loading={grantingId === lawyer.id}
+            disabled={!grantPackageId}
+          >
+            Grant plan
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <PageShell>
-      <main className="lc-page lc-page--wide">
-        <PageHeading
-          title="Lawyers"
-          description="Self-registered lawyers wait here as pending. Approve a profile only after you have checked the practitioner. They also need a live plan before citizens can find them."
-          action={
-            <Button type={showForm ? 'default' : 'primary'} onClick={() => setShowForm(!showForm)}>
-              {showForm ? 'Close' : 'Add a lawyer'}
-            </Button>
-          }
-        />
-        <AdminTabs />
-
-        {showForm ? (
-          <div style={{ marginTop: 24 }}>
-            <CreateLawyerForm onCreated={() => lawyers.reload()} />
-          </div>
-        ) : null}
+      <AdminShell
+        title="Lawyers"
+        description="Approve only after you have checked the practitioner. They also need a live plan before citizens can find them."
+        action={
+          <Button type="primary" onClick={() => setShowForm(true)}>
+            Add a lawyer
+          </Button>
+        }
+      >
+        <div className="lc-admin__toolbar">
+          <Segmented
+            value={filter}
+            onChange={(value) => setFilter(value as Filter)}
+            options={[
+              {
+                label: pendingCount > 0 ? `Pending (${pendingCount})` : 'Pending',
+                value: 'PENDING',
+              },
+              { label: 'Approved', value: 'APPROVED' },
+              { label: 'Rejected', value: 'REJECTED' },
+              { label: 'All', value: 'ALL' },
+            ]}
+          />
+          <Select
+            placeholder="Plan to grant"
+            style={{ minWidth: 160 }}
+            value={grantPackageId}
+            onChange={(value) => setGrantPackageId(value)}
+            allowClear
+            options={
+              packages.status === 'ready'
+                ? packages.data.map((pkg) => ({
+                    value: pkg.id,
+                    label: `${pkg.name} (${pkg.maxPracticeAreas} areas)`,
+                  }))
+                : []
+            }
+          />
+          <Select
+            aria-label="Grant period"
+            style={{ minWidth: 130 }}
+            value={grantPeriodDays}
+            onChange={(value) => setGrantPeriodDays(value)}
+            options={[
+              { value: 30, label: '1 month' },
+              { value: 365, label: '1 year' },
+            ]}
+          />
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Choose a plan, then Grant on a row.
+          </Text>
+        </div>
 
         {error ? (
-          <div style={{ marginTop: 24 }}>
+          <div style={{ marginBottom: 16 }}>
             <ErrorNotice message={error} />
           </div>
         ) : null}
 
-        <div style={{ marginTop: 24 }}>
-          {lawyers.status === 'loading' ? (
-            <Loading label="Loading profiles…" />
-          ) : lawyers.status === 'error' ? (
-            <ErrorNotice message={lawyers.message} />
-          ) : lawyers.data.results.length === 0 ? (
-            <EmptyState
-              title="No lawyer profiles yet"
-              description="Add the first practitioner to make matching possible."
+        {lawyers.status === 'loading' ? (
+          <Loading label="Loading profiles…" />
+        ) : lawyers.status === 'error' ? (
+          <ErrorNotice message={lawyers.message} />
+        ) : lawyers.data.results.length === 0 ? (
+          <EmptyState
+            title="No lawyer profiles yet"
+            description="Add the first practitioner to make matching possible."
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="Nothing in this view"
+            description="Try another filter — pending is empty when the queue is clear."
+          />
+        ) : (
+          <div className="lc-panel">
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={rows}
+              pagination={false}
+              size="middle"
+              expandable={{
+                expandedRowRender: (lawyer: LawyerView) => (
+                  <Paragraph type="secondary" style={{ margin: 0, maxWidth: 720 }}>
+                    {lawyer.bio}
+                  </Paragraph>
+                ),
+              }}
             />
-          ) : (
-            <List
-              dataSource={[...lawyers.data.results].sort((a, b) => {
-                const rank = { PENDING: 0, REJECTED: 1, APPROVED: 2 };
-                return rank[a.approvalStatus] - rank[b.approvalStatus];
-              })}
-              renderItem={(lawyer: LawyerView) => (
-                <List.Item key={lawyer.id} style={{ padding: 0, marginBottom: 16, border: 'none' }}>
-                  <div style={{ width: '100%' }}>
-                    <Card>
-                      <Flex justify="space-between" align="flex-start" wrap="wrap" gap={12}>
-                        <div>
-                          <Space wrap size={8}>
-                            <Title level={4} className="lc-display" style={{ margin: 0 }}>
-                              {lawyer.displayName}
-                            </Title>
-                            <Space wrap>
-                              <ApprovalBadge status={lawyer.approvalStatus} />
-                              {lawyer.subscription.active && lawyer.subscription.package ? (
-                                <Badge tone="success">
-                                  {lawyer.subscription.package.name} plan
-                                </Badge>
-                              ) : (
-                                <Badge tone="warn">No live plan</Badge>
-                              )}
-                            </Space>
-                          </Space>
-                          <Text type="secondary">
-                            {lawyer.firmName ? `${lawyer.firmName} · ` : ''}
-                            {lawyer.city}, {lawyer.region}
-                            {` · ${formatGhs(lawyer.consultationFeePesewas)}`}
-                            {lawyer.licenseNumber ? ` · Licence ${lawyer.licenseNumber}` : ''}
-                          </Text>
-                        </div>
+          </div>
+        )}
 
-                        <Space wrap>
-                          {lawyer.approvalStatus !== 'APPROVED' ? (
-                            <Button
-                              type="primary"
-                              onClick={() => void setApproval(lawyer.id, 'APPROVED')}
-                            >
-                              Approve
-                            </Button>
-                          ) : null}
-                          {lawyer.approvalStatus !== 'REJECTED' ? (
-                            <Button onClick={() => void setApproval(lawyer.id, 'REJECTED')}>
-                              Reject
-                            </Button>
-                          ) : null}
-                          <Select
-                            placeholder="Grant a plan"
-                            style={{ minWidth: 160 }}
-                            value={grantPackageId}
-                            onChange={(value) => setGrantPackageId(value)}
-                            options={
-                              packages.status === 'ready'
-                                ? packages.data.map((pkg) => ({
-                                    value: pkg.id,
-                                    label: `${pkg.name} (${pkg.maxPracticeAreas})`,
-                                  }))
-                                : []
-                            }
-                          />
-                          <Select
-                            aria-label="Grant period"
-                            style={{ minWidth: 140 }}
-                            value={grantPeriodDays}
-                            onChange={(value) => setGrantPeriodDays(value)}
-                            options={[
-                              { value: 30, label: '1 month' },
-                              { value: 365, label: '1 year' },
-                            ]}
-                          />
-                          <Button
-                            onClick={() => void grant(lawyer.id)}
-                            loading={grantingId === lawyer.id}
-                            disabled={!grantPackageId}
-                          >
-                            Grant
-                          </Button>
-                        </Space>
-                      </Flex>
-
-                      <Paragraph type="secondary" className="lc-clamp-2" style={{ marginTop: 12 }}>
-                        {lawyer.bio}
-                      </Paragraph>
-
-                      <Space wrap size={[6, 6]} style={{ marginTop: 8 }}>
-                        {lawyer.practiceAreas.map(({ legalCategory }) => (
-                          <Badge key={legalCategory.id} tone="info">
-                            {legalCategory.name}
-                          </Badge>
-                        ))}
-                      </Space>
-                    </Card>
-                  </div>
-                </List.Item>
-              )}
-            />
-          )}
-        </div>
-      </main>
+        <Drawer
+          title="Add a lawyer"
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          width={560}
+          destroyOnHidden
+        >
+          <Paragraph type="secondary">
+            Use this to provision an account. Self-registered lawyers appear as pending until you
+            approve them. Verify the licence before approving.
+          </Paragraph>
+          <CreateLawyerForm
+            onCreated={() => {
+              lawyers.reload();
+            }}
+          />
+        </Drawer>
+      </AdminShell>
     </PageShell>
   );
 }

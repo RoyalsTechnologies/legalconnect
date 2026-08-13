@@ -88,20 +88,35 @@ function sendRequest(token: string, body: Record<string, unknown>) {
   return request(app)
     .post('/api/v1/consultations')
     .set('Authorization', `Bearer ${token}`)
-    .send(body);
+    .send({ scheduledAt: futureSlot(), ...body });
+}
+
+function futureSlot() {
+  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+const SAMPLE_MEET_URL = 'https://meet.google.com/abc-defg-hij';
+
+function setStatus(
+  token: string,
+  id: string,
+  status: ConsultationStatus,
+  extra: Record<string, unknown> = {},
+) {
+  return request(app)
+    .patch(`/api/v1/consultations/${id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      status,
+      ...(status === ConsultationStatus.ACCEPTED ? { meetUrl: SAMPLE_MEET_URL } : {}),
+      ...extra,
+    });
 }
 
 function payRequest(token: string, id: string) {
   return request(app)
     .post(`/api/v1/consultations/${id}/pay`)
     .set('Authorization', `Bearer ${token}`);
-}
-
-function setStatus(token: string, id: string, status: ConsultationStatus) {
-  return request(app)
-    .patch(`/api/v1/consultations/${id}`)
-    .set('Authorization', `Bearer ${token}`)
-    .send({ status });
 }
 
 beforeEach(async () => {
@@ -130,6 +145,22 @@ describe('Consultation requests (FR-013)', () => {
     expect(res.body.status).toBe(ConsultationStatus.AWAITING_PAYMENT);
     expect(res.body.feePesewas).toBe(20000);
     expect(res.body.matchReason).toContain('Employment & Labour');
+    expect(res.body.scheduledAt).toBeTruthy();
+    expect(res.body.googleCalendarUrl).toContain('https://calendar.google.com/calendar/render');
+    expect(res.body.meetUrl).toBeNull();
+  });
+
+  it('IT-067: booking without a time slot returns 422', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const res = await request(app)
+      .post('/api/v1/consultations')
+      .set('Authorization', `Bearer ${client}`)
+      .send({
+        intakeId: await seedIntake(client),
+        lawyerProfileId: lawyer.profileId,
+      });
+    expect(res.status).toBe(422);
   });
 
   it('IT-031: the same enquiry cannot be sent to the same lawyer twice', async () => {
@@ -220,6 +251,17 @@ describe('Consultation management (FR-014)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(ConsultationStatus.ACCEPTED);
+    expect(res.body.meetUrl).toBe(SAMPLE_MEET_URL);
+    expect(res.body.googleCalendarUrl).toContain('meet.google.com');
+  });
+
+  it('IT-068: accepting without a Google Meet link returns 422', async () => {
+    const { lawyer, id } = await pendingRequest();
+    const res = await request(app)
+      .patch(`/api/v1/consultations/${id}`)
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ status: ConsultationStatus.ACCEPTED });
+    expect(res.status).toBe(422);
   });
 
   it('IT-034: a lawyer declines a pending request', async () => {
