@@ -1,5 +1,5 @@
 import { Button, Flex, Space, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { consultationsApi } from '../api/endpoints';
 import type { ConsultationView } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -17,23 +17,10 @@ import { useAsync } from '../hooks/useAsync';
 const { Text } = Typography;
 
 function RequestRow({ request, asLawyer }: { request: ConsultationView; asLawyer: boolean }) {
-  const navigate = useNavigate();
   const counterparty = asLawyer ? request.client.fullName : request.lawyerProfile.displayName;
-  const href = `/app/requests/${request.id}`;
 
   return (
-    <div
-      className="lc-row"
-      role="link"
-      tabIndex={0}
-      onClick={() => void navigate(href)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          void navigate(href);
-        }
-      }}
-    >
+    <Link className="lc-row" to={`/app/requests/${request.id}`}>
       <Flex justify="space-between" align="center" gap={16} wrap="wrap">
         <div style={{ minWidth: 0, flex: 1 }}>
           <Space wrap size={8}>
@@ -51,7 +38,7 @@ function RequestRow({ request, asLawyer }: { request: ConsultationView; asLawyer
           <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
         </Text>
       </Flex>
-    </div>
+    </Link>
   );
 }
 
