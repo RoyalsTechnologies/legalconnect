@@ -50,8 +50,10 @@ application.
 
 ## Gate before deployment
 
-Core Must requirements working · critical tests passing · critical security issues
-addressed · production configuration prepared.
+Core Must requirements working · critical tests passing on GitHub Actions
+(`.github/workflows/ci.yml`) · critical security issues addressed · production
+configuration prepared. Confirm the latest workflow run before treating this gate as
+met — do not assume CI is green from the workflow file existing.
 
 ## Logging and observability
 

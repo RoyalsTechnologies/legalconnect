@@ -16,6 +16,16 @@ describe('Google Calendar / Meet helpers (FR-019)', () => {
     expect(url).toContain('20260820T143000Z');
   });
 
+  it('defaults the duration and location when they are omitted', () => {
+    const url = googleCalendarTemplateUrl({
+      title: 'Consultation',
+      start: new Date('2026-08-20T14:00:00.000Z'),
+      details: 'This is not legal advice.',
+    });
+    expect(url).toContain('20260820T143000Z');
+    expect(url).toContain('Google');
+  });
+
   it('accepts a Meet room URL and rejects /new', () => {
     expect(isGoogleMeetUrl('https://meet.google.com/abc-defg-hij')).toBe(true);
     expect(isGoogleMeetUrl('https://meet.google.com/new')).toBe(false);

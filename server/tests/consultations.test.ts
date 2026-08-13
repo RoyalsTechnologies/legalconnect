@@ -55,6 +55,7 @@ async function seedLawyer(email = 'akua@example.com', displayName = 'Akua Owusu'
       city: 'Accra',
       region: 'Greater Accra',
       approvalStatus: ApprovalStatus.APPROVED,
+      consultationFeePesewas: 20000,
       practiceAreas: { create: [{ legalCategoryId: employmentId }] },
     },
   });
@@ -671,6 +672,164 @@ describe('Consultation fee escrow (FR-021)', () => {
       .post('/api/v1/lawyers/me/withdrawals')
       .set('Authorization', `Bearer ${lawyer.token}`)
       .send({ amountGhs: 50 });
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('Consultation edge paths', () => {
+  it('refuses a booking when the lawyer has not set a fee', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    await prisma.lawyerProfile.update({
+      where: { id: lawyer.profileId },
+      data: { consultationFeePesewas: 50 },
+    });
+
+    const res = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/consultation fee/i);
+  });
+
+  it('requires a paying number when the account has none', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/consultations/${created.body.id as string}/pay`)
+      .set('Authorization', `Bearer ${client}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('hides unpaid bookings when a lawyer filters by AWAITING_PAYMENT', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    const res = await request(app)
+      .get('/api/v1/consultations?status=AWAITING_PAYMENT')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns a paid booking by id to the citizen', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .get(`/api/v1/consultations/${created.body.id as string}`)
+      .set('Authorization', `Bearer ${client}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe(ConsultationStatus.PENDING);
+  });
+
+  it('treats a second pay call as already paid', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const again = await payRequest(client, created.body.id as string);
+    expect(again.status).toBe(200);
+    expect(again.body.consultation.status).toBe(ConsultationStatus.PENDING);
+  });
+
+  it('lists withdrawals for the lawyer after a payout', async () => {
+    const { client, lawyer, id } = await (async () => {
+      const clientToken = await userToken();
+      const seeded = await seedLawyer();
+      const created = await sendRequest(clientToken, {
+        intakeId: await seedIntake(clientToken),
+        lawyerProfileId: seeded.profileId,
+      });
+      const consultationId = created.body.id as string;
+      await payRequest(clientToken, consultationId);
+      await setStatus(seeded.token, consultationId, ConsultationStatus.ACCEPTED);
+      return { client: clientToken, lawyer: seeded, id: consultationId };
+    })();
+
+    await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    await request(app)
+      .post(`/api/v1/consultations/${id}/confirm`)
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    await request(app)
+      .post(`/api/v1/consultations/${id}/confirm`)
+      .set('Authorization', `Bearer ${client}`);
+
+    await request(app)
+      .post('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ amountGhs: 50 });
+
+    const listed = await request(app)
+      .get('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+
+    expect(listed.status).toBe(200);
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].amountPesewas).toBe(5000);
+  });
+
+  it('refuses confirm before the lawyer has accepted', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .post(`/api/v1/consultations/${created.body.id as string}/confirm`)
+      .set('Authorization', `Bearer ${client}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an accept with a URL that is not a Google Meet room', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .patch(`/api/v1/consultations/${created.body.id as string}`)
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ status: ConsultationStatus.ACCEPTED, meetUrl: 'https://zoom.us/j/123' });
 
     expect(res.status).toBe(422);
   });

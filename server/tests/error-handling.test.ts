@@ -35,6 +35,13 @@ describe('NFR-001 error boundary', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
+  it('reports a connected database on GET /api/health', async () => {
+    const res = await request(app).get('/api/health');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok', database: 'connected' });
+  });
+
   it('SEC-LG-012: a token missing its role claim is rejected as malformed', async () => {
     const jwt = (await import('jsonwebtoken')).default;
     const { env } = await import('../src/config/env.js');

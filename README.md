@@ -154,9 +154,12 @@ Send the returned `token` as `authorization: Bearer <token>`.
 | Dev client | `client/` | `npm run dev` |
 | Migrate | `server/` | `npm run prisma:migrate` |
 | Seed | `server/` | `npm run prisma:seed` |
-| Test | `server/` | `npm test` |
+| Test | `server/` | `npm test` (unit then integration) |
+| Unit tests | `server/` | `npm run test:unit` |
+| Integration tests | `server/` | `npm run test:integration` |
 | Typecheck | either | `npm run typecheck` |
 | Build | either | `npm run build` |
+| CI | GitHub | `.github/workflows/ci.yml` |
 
 ### Code quality
 
@@ -165,15 +168,21 @@ Run from the repo root. `npm install` once at the root to get Biome.
 | Task | Command |
 | --- | --- |
 | **Everything** | `npm run verify` |
+| Unit tests | `npm run test:unit` |
+| Integration tests | `npm run test:integration` |
 | Lint + format check | `npm run check` |
 | Lint + format, applying fixes | `npm run check:fix` |
 | Format only | `npm run format` |
 | Typecheck both packages | `npm run typecheck` |
 | Dependency audit | `npm run audit` |
 
-`npm run verify` runs Biome, both typechecks, the test suite, and the dependency audit,
-failing on the first problem. The tests need PostgreSQL running (`docker compose up -d
-postgres`); nothing else does.
+`npm run verify` runs Biome, both typechecks, the test suite (unit then integration), and
+the dependency audit, failing on the first problem. Unit tests do not need a database.
+Integration tests need PostgreSQL (`docker compose up -d postgres`).
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint/typecheck/audit/builds, then
+**unit tests** and **integration tests** as separate jobs. Integration starts its own
+Postgres 16 service.
 
 Inside Docker the API reaches the database at `postgres:5432` and the client proxies
 `/api` to `server:4000`; `docker-compose.yml` overrides `DATABASE_URL` accordingly, so

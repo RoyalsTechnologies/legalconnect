@@ -10,6 +10,9 @@
     "check:fix": "biome check --write .",
     "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
     "test": "npm --prefix server test",
+    "test:unit": "npm --prefix server run test:unit",
+    "test:integration": "npm --prefix server run test:integration",
+    "test:coverage": "npm --prefix server run test:coverage",
     "audit": "npm --prefix server audit --audit-level=high && npm --prefix client audit --audit-level=high",
     "verify": "npm run check && npm run typecheck && npm run test && npm run audit"
   },

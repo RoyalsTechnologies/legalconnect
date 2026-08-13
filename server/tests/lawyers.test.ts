@@ -110,6 +110,41 @@ describe('FR-005 legal category management', () => {
     expect(res.status).toBe(409);
   });
 
+  it('an admin can rename a category and regenerate its slug', async () => {
+    const token = await adminToken();
+
+    const res = await request(app)
+      .patch(`/api/v1/categories/${tenancyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Land & Housing', description: 'Disputes about land, rent, and housing.' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('Land & Housing');
+    expect(res.body.slug).toBe('land-and-housing');
+  });
+
+  it('rejects renaming a category onto an existing name', async () => {
+    const token = await adminToken();
+
+    const res = await request(app)
+      .patch(`/api/v1/categories/${tenancyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Employment & Labour' });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 404 when updating a category that does not exist', async () => {
+    const token = await adminToken();
+
+    const res = await request(app)
+      .patch('/api/v1/categories/does-not-exist')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Something Else' });
+
+    expect(res.status).toBe(404);
+  });
+
   it('IT-018: deactivating retires a category instead of deleting it', async () => {
     const token = await adminToken();
 
@@ -311,6 +346,33 @@ describe('FR-004 profile editing and approval', () => {
     expect(res.status).toBe(200);
     expect(res.body.approvalStatus).toBe(ApprovalStatus.APPROVED);
   });
+
+  it('an admin can reject a lawyer application', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin);
+
+    const res = await request(app)
+      .patch(`/api/v1/lawyers/${created.body.id}`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ approvalStatus: ApprovalStatus.REJECTED });
+
+    expect(res.status).toBe(200);
+    expect(res.body.approvalStatus).toBe(ApprovalStatus.REJECTED);
+  });
+
+  it('an admin can open a pending profile that the public cannot', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin);
+
+    const asAdmin = await request(app)
+      .get(`/api/v1/lawyers/${created.body.id}`)
+      .set('Authorization', `Bearer ${admin}`);
+    const asPublic = await request(app).get(`/api/v1/lawyers/${created.body.id}`);
+
+    expect(asAdmin.status).toBe(200);
+    expect(asAdmin.body.approvalStatus).toBe(ApprovalStatus.PENDING);
+    expect(asPublic.status).toBe(404);
+  });
 });
 
 describe('FR-004 directory visibility', () => {
@@ -455,6 +517,33 @@ describe('FR-012 lawyer discovery', () => {
     expect(res.body.results[0].region).toBe('Ashanti');
   });
 
+  it('the directory can be filtered by availability', async () => {
+    const admin = await adminToken();
+    const busy = await createLawyer(admin, {
+      email: 'busy@example.com',
+      approvalStatus: ApprovalStatus.APPROVED,
+    });
+    await grantPlan(busy.body.id);
+    await request(app)
+      .patch(`/api/v1/lawyers/${busy.body.id}`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ isAvailable: false });
+    await approved(admin, { email: 'free@example.com', displayName: 'Esi Mensah' });
+    const user = await userToken();
+
+    const unavailable = await request(app)
+      .get('/api/v1/lawyers?available=false')
+      .set('Authorization', `Bearer ${user}`);
+    const available = await request(app)
+      .get('/api/v1/lawyers?available=true')
+      .set('Authorization', `Bearer ${user}`);
+
+    expect(unavailable.body.total).toBe(1);
+    expect(unavailable.body.results[0].isAvailable).toBe(false);
+    expect(available.body.total).toBe(1);
+    expect(available.body.results[0].displayName).toBe('Esi Mensah');
+  });
+
   it('IT-048: free-text search matches the bio, not just the name', async () => {
     const admin = await adminToken();
     await approved(admin, { email: 'akua@example.com' });
@@ -545,6 +634,16 @@ describe('FR-012 public access without an account', () => {
     expect(res.status).toBe(200);
     expect(res.body.results).toHaveLength(1);
     expect(res.body.results[0].displayName).toBe(LAWYER_PAYLOAD.displayName);
+  });
+
+  it('treats an empty Bearer token as anonymous on public routes', async () => {
+    const admin = await adminToken();
+    await approvedLawyer(admin);
+
+    const res = await request(app).get('/api/v1/lawyers').set('Authorization', 'Bearer ');
+
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(1);
   });
 
   it('IT-053: an anonymous visitor can open an approved profile', async () => {
