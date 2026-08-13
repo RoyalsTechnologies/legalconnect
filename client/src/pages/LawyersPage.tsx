@@ -17,7 +17,16 @@ import { categoriesApi, lawyersApi } from '../api/endpoints';
 import type { LawyerView } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { PageShell } from '../components/Layout';
-import { Badge, EmptyState, ErrorNotice, formatGhs, InitialsAvatar, Loading, PageHeading, RegionSelect } from '../components/ui';
+import {
+  Badge,
+  EmptyState,
+  ErrorNotice,
+  formatGhs,
+  InitialsAvatar,
+  Loading,
+  PageHeading,
+  RegionSelect,
+} from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 
 const { Title, Paragraph, Text } = Typography;

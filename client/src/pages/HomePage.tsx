@@ -1,5 +1,5 @@
 import { Button, Col, Flex, Row, Space, Statistic, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { adminApi, consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { PageShell } from '../components/Layout';
@@ -80,19 +80,7 @@ function CitizenHome({ fullName }: { fullName: string }) {
         ) : (
           <div>
             {intakes.map((intake) => (
-              <div
-                key={intake.id}
-                className="lc-row"
-                role="link"
-                tabIndex={0}
-                onClick={() => void navigate(`/app/intakes/${intake.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    void navigate(`/app/intakes/${intake.id}`);
-                  }
-                }}
-              >
+              <Link key={intake.id} className="lc-row" to={`/app/intakes/${intake.id}`}>
                 <Flex justify="space-between" align="center" gap={16} wrap="wrap">
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <Text strong>{intake.category?.name ?? 'Being organised'}</Text>
@@ -104,7 +92,7 @@ function CitizenHome({ fullName }: { fullName: string }) {
                     <time dateTime={intake.createdAt}>{formatDate(intake.createdAt)}</time>
                   </Text>
                 </Flex>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -214,19 +202,7 @@ function LawyerHome({ fullName }: { fullName: string }) {
           ) : (
             <div>
               {requests.data.slice(0, 5).map((request) => (
-                <div
-                  key={request.id}
-                  className="lc-row"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => void navigate(`/app/requests/${request.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      void navigate(`/app/requests/${request.id}`);
-                    }
-                  }}
-                >
+                <Link key={request.id} className="lc-row" to={`/app/requests/${request.id}`}>
                   <Flex justify="space-between" align="center" gap={16} wrap="wrap">
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <Space wrap size={8}>
@@ -244,7 +220,7 @@ function LawyerHome({ fullName }: { fullName: string }) {
                       <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
                     </Text>
                   </Flex>
-                </div>
+                </Link>
               ))}
             </div>
           )}

@@ -78,9 +78,19 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section style={{ background: '#fff', padding: '4.5rem 1.5rem', borderTop: '1px solid #d7deea' }}>
+      <section
+        style={{ background: '#fff', padding: '4.5rem 1.5rem', borderTop: '1px solid #d7deea' }}
+      >
         <div className="lc-page" style={{ paddingTop: 0, paddingBottom: 0 }}>
-          <Text strong style={{ color: '#1f4a9a', letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: 12 }}>
+          <Text
+            strong
+            style={{
+              color: '#1f4a9a',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              fontSize: 12,
+            }}
+          >
             How it works
           </Text>
           <Title level={2} className="lc-display" style={{ marginTop: 8, marginBottom: 8 }}>
