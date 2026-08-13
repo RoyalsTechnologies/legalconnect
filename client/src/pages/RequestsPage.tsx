@@ -1,4 +1,4 @@
-import { Button, Flex, List, Space, Typography } from 'antd';
+import { Button, Flex, Space, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { consultationsApi } from '../api/endpoints';
 import type { ConsultationView } from '../api/types';
@@ -16,22 +16,25 @@ import { useAsync } from '../hooks/useAsync';
 
 const { Text } = Typography;
 
-/**
- * One list for both sides of the conversation.
- *
- * A citizen and a lawyer want the same information from opposite directions, so the
- * only thing that changes is whose name is shown as the counterparty.
- */
 function RequestRow({ request, asLawyer }: { request: ConsultationView; asLawyer: boolean }) {
   const navigate = useNavigate();
   const counterparty = asLawyer ? request.client.fullName : request.lawyerProfile.displayName;
+  const href = `/app/requests/${request.id}`;
 
   return (
-    <List.Item
-      style={{ cursor: 'pointer' }}
-      onClick={() => void navigate(`/app/requests/${request.id}`)}
+    <div
+      className="lc-row"
+      role="link"
+      tabIndex={0}
+      onClick={() => void navigate(href)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void navigate(href);
+        }
+      }}
     >
-      <Flex justify="space-between" align="center" gap={16} style={{ width: '100%' }} wrap="wrap">
+      <Flex justify="space-between" align="center" gap={16} wrap="wrap">
         <div style={{ minWidth: 0, flex: 1 }}>
           <Space wrap size={8}>
             <Text strong>{counterparty}</Text>
@@ -48,7 +51,7 @@ function RequestRow({ request, asLawyer }: { request: ConsultationView; asLawyer
           <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
         </Text>
       </Flex>
-    </List.Item>
+    </div>
   );
 }
 
@@ -92,13 +95,9 @@ export function RequestsPage() {
               }
             />
           ) : (
-            <List
-              bordered
-              dataSource={requests.data}
-              renderItem={(request) => (
-                <RequestRow key={request.id} request={request} asLawyer={asLawyer} />
-              )}
-            />
+            requests.data.map((request) => (
+              <RequestRow key={request.id} request={request} asLawyer={asLawyer} />
+            ))
           )}
         </div>
       </main>

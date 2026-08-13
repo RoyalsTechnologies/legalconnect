@@ -17,7 +17,7 @@ import { categoriesApi, lawyersApi } from '../api/endpoints';
 import type { LawyerView } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { PageShell } from '../components/Layout';
-import { Badge, EmptyState, ErrorNotice, formatGhs, Loading, PageHeading } from '../components/ui';
+import { Badge, EmptyState, ErrorNotice, formatGhs, InitialsAvatar, Loading, PageHeading, RegionSelect } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 
 const { Title, Paragraph, Text } = Typography;
@@ -31,26 +31,41 @@ export function LawyerCard({ lawyer }: { lawyer: LawyerView }) {
     <Card
       hoverable
       onClick={() => void navigate(`/lawyers/${lawyer.id}`)}
-      style={{ height: '100%' }}
+      style={{ height: '100%', cursor: 'pointer' }}
     >
-      <FlexHeader lawyer={lawyer} />
-      <Paragraph type="secondary" className="lc-clamp-2" style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <InitialsAvatar name={lawyer.displayName} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <FlexHeader lawyer={lawyer} />
+        </div>
+      </div>
+      <Paragraph type="secondary" className="lc-clamp-2" style={{ marginTop: 12, minHeight: 44 }}>
         {lawyer.bio}
       </Paragraph>
-      <Space wrap size={[6, 6]} style={{ marginTop: 16 }}>
+      <Space wrap size={[6, 6]} style={{ marginTop: 12 }}>
         {lawyer.practiceAreas.map(({ legalCategory }) => (
           <Badge key={legalCategory.id} tone="info">
             {legalCategory.name}
           </Badge>
         ))}
       </Space>
-      <Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0, fontSize: 12 }}>
-        {lawyer.city}, {lawyer.region}
-        {` · ${formatGhs(lawyer.consultationFeePesewas)}`}
-        {lawyer.yearsExperience !== null
-          ? ` · ${lawyer.yearsExperience} year${lawyer.yearsExperience === 1 ? '' : 's'} in practice`
-          : ''}
-      </Paragraph>
+      <div
+        style={{
+          marginTop: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 8,
+          alignItems: 'baseline',
+        }}
+      >
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {lawyer.city}, {lawyer.region}
+          {lawyer.yearsExperience !== null
+            ? ` · ${lawyer.yearsExperience} yr${lawyer.yearsExperience === 1 ? '' : 's'}`
+            : ''}
+        </Text>
+        <span className="lc-fee">{formatGhs(lawyer.consultationFeePesewas)}</span>
+      </div>
     </Card>
   );
 }
@@ -190,11 +205,14 @@ export function LawyersPage() {
               </Col>
               <Col xs={24} sm={12} md={7}>
                 <Form.Item label="Region">
-                  <Input
+                  <RegionSelect
+                    allowClear
+                    placeholder="All regions"
                     value={regionDraft}
-                    placeholder="e.g. Greater Accra"
-                    onChange={(event) => setRegionDraft(event.target.value)}
-                    onBlur={() => apply({ region: regionDraft.trim() })}
+                    onChange={(value) => {
+                      setRegionDraft(value);
+                      apply({ region: value });
+                    }}
                   />
                 </Form.Item>
               </Col>

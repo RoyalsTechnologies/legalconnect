@@ -1,4 +1,4 @@
-import { Button, Col, Flex, List, Row, Space, Statistic, Typography } from 'antd';
+import { Button, Col, Flex, Row, Space, Statistic, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { adminApi, consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
@@ -78,21 +78,22 @@ function CitizenHome({ fullName }: { fullName: string }) {
             }
           />
         ) : (
-          <List
-            bordered
-            dataSource={intakes}
-            renderItem={(intake) => (
-              <List.Item
-                style={{ cursor: 'pointer' }}
+          <div>
+            {intakes.map((intake) => (
+              <div
+                key={intake.id}
+                className="lc-row"
+                role="link"
+                tabIndex={0}
                 onClick={() => void navigate(`/app/intakes/${intake.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void navigate(`/app/intakes/${intake.id}`);
+                  }
+                }}
               >
-                <Flex
-                  justify="space-between"
-                  align="center"
-                  gap={16}
-                  style={{ width: '100%' }}
-                  wrap="wrap"
-                >
+                <Flex justify="space-between" align="center" gap={16} wrap="wrap">
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <Text strong>{intake.category?.name ?? 'Being organised'}</Text>
                     <div className="lc-clamp-1">
@@ -103,9 +104,9 @@ function CitizenHome({ fullName }: { fullName: string }) {
                     <time dateTime={intake.createdAt}>{formatDate(intake.createdAt)}</time>
                   </Text>
                 </Flex>
-              </List.Item>
-            )}
-          />
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </Space>
@@ -211,21 +212,22 @@ function LawyerHome({ fullName }: { fullName: string }) {
               }
             />
           ) : (
-            <List
-              bordered
-              dataSource={requests.data.slice(0, 5)}
-              renderItem={(request) => (
-                <List.Item
-                  style={{ cursor: 'pointer' }}
+            <div>
+              {requests.data.slice(0, 5).map((request) => (
+                <div
+                  key={request.id}
+                  className="lc-row"
+                  role="link"
+                  tabIndex={0}
                   onClick={() => void navigate(`/app/requests/${request.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      void navigate(`/app/requests/${request.id}`);
+                    }
+                  }}
                 >
-                  <Flex
-                    justify="space-between"
-                    align="center"
-                    gap={16}
-                    style={{ width: '100%' }}
-                    wrap="wrap"
-                  >
+                  <Flex justify="space-between" align="center" gap={16} wrap="wrap">
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <Space wrap size={8}>
                         <Text strong>{request.client.fullName}</Text>
@@ -242,9 +244,9 @@ function LawyerHome({ fullName }: { fullName: string }) {
                       <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
                     </Text>
                   </Flex>
-                </List.Item>
-              )}
-            />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </section>

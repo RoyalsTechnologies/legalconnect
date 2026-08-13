@@ -6,7 +6,7 @@ import { intakesApi } from '../api/endpoints';
 import { AiDisclaimer, PageShell } from '../components/Layout';
 import { PageHeading, RegionSelect, toFormFields } from '../components/ui';
 
-const { Title, Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 type IntakeValues = {
   description: string;
