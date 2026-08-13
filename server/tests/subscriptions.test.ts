@@ -304,4 +304,82 @@ describe('Lawyer subscription packages (FR-018)', () => {
     const stored = await prisma.subscriptionPackage.findUniqueOrThrow({ where: { id: starterId } });
     expect(stored.monthlyFeePesewas).toBe(5000);
   });
+
+  it('IT-072: subscribing without a phone uses the saved payment account', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const saved = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    expect(saved.status).toBe(200);
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: await packageId('starter') });
+
+    expect(res.status).toBe(201);
+    expect(res.body.subscription.active).toBe(true);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244123456',
+      network: 'MTN',
+    });
+  });
+
+  it('IT-073: paying with a new number persists it onto the payment account', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        packageId: await packageId('starter'),
+        phone: '0244987654',
+        network: 'AT',
+      });
+
+    expect(res.status).toBe(201);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244987654',
+      network: 'AT',
+    });
+  });
+
+  it('IT-075: a pay-from number without network is stored with the inferred network', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        packageId: await packageId('starter'),
+        phone: '0244123456',
+      });
+
+    expect(res.status).toBe(201);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244123456',
+      network: 'MTN',
+    });
+  });
 });

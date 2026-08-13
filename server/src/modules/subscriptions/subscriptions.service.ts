@@ -11,6 +11,7 @@ import {
   verifyPayment,
 } from '../../payments/nalopay.js';
 import { assertAreaCount, hasActiveSubscription } from '../lawyers/eligibility.js';
+import { rememberPaymentAccount } from '../lawyers/lawyers.service.js';
 import { rememberPhone } from '../users/users.service.js';
 import type {
   ConfirmSubscriptionInput,
@@ -212,6 +213,9 @@ export async function startSubscription(
     select: {
       id: true,
       displayName: true,
+      paymentAccountName: true,
+      paymentPhone: true,
+      paymentNetwork: true,
       user: { select: { fullName: true, phone: true } },
     },
   });
@@ -223,10 +227,11 @@ export async function startSubscription(
   const quote = quoteForInterval(pkg.monthlyFeePesewas, input.interval);
   const termLabel = input.interval === 'year' ? '1 year' : '1 month';
 
-  const phone = input.phone ?? profile.user.phone;
+  const phone = input.phone ?? profile.paymentPhone ?? profile.user.phone;
+  const network = input.network ?? profile.paymentNetwork ?? undefined;
   if (!isTest && isNaloPayConfigured && !phone) {
     throw badRequest(
-      'Enter the mobile money number you will pay from. You can also add a phone number to your account.',
+      'Enter the mobile money number you will pay from, or save a payment account in Wallet.',
     );
   }
 
@@ -242,15 +247,22 @@ export async function startSubscription(
 
   const reference = newPaymentReference(payment.id);
   const started = await startPayment({
-    accountName: profile.user.fullName,
+    accountName: profile.paymentAccountName ?? profile.user.fullName,
     phone: phone ?? '',
-    network: input.network,
+    network,
     amountPesewas: quote.feePesewas,
     reference,
     description: `LegalConnect ${pkg.name} plan (${termLabel}) — ${profile.displayName}`,
   });
 
   await rememberPhone(userId, input.phone ?? phone);
+  if (phone) {
+    await rememberPaymentAccount(profile.id, {
+      accountName: profile.paymentAccountName ?? profile.user.fullName,
+      phone,
+      network,
+    });
+  }
 
   await prisma.subscriptionPayment.update({
     where: { id: payment.id },

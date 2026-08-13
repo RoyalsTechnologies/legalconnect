@@ -1,0 +1,19 @@
+flowchart TB
+  client["React 18 + Vite + Ant Design"]
+  api["Express REST API /api/v1"]
+  mw["Auth JWT, Zod validation, role guards"]
+  services["Services: auth, users, lawyers, categories, intake, matching, consultations, subscriptions, wallet, admin"]
+  ai["AI adapter - server only"]
+  prisma["Prisma ORM"]
+  llm["External LLM provider"]
+  pg["PostgreSQL"]
+  nalopay["NaloPay MoMo collection and unverified disbursement"]
+
+  client -->|"JSON HTTPS, bearer token"| api
+  api --> mw
+  mw --> services
+  services --> ai
+  services --> prisma
+  ai --> llm
+  prisma --> pg
+  services --> nalopay

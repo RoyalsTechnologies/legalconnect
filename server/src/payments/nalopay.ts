@@ -29,6 +29,10 @@ export function newPaymentReference(consultationId: string): string {
   return `lc_${consultationId}_${randomBytes(8).toString('hex')}`;
 }
 
+export function newPayoutReference(kind: 'rf' | 'wd', entityId: string): string {
+  return `lc_${kind}_${entityId}_${randomBytes(8).toString('hex')}`;
+}
+
 /** Amount string used in both the request body and trans_hash (two decimal places). */
 export function amountForHash(amountPesewas: number): string {
   return pesewasToGhs(amountPesewas).toFixed(2);
@@ -167,7 +171,7 @@ async function generatePaymentToken(): Promise<string> {
 }
 
 /**
- * Starts a mobile-money collection for a consultation fee.
+ * Starts a mobile-money collection for a consultation fee or plan payment.
  *
  * NaloPay when configured. Tests always capture immediately. Local development
  * without credentials logs and captures, matching the email/SMS adapters.
@@ -181,6 +185,40 @@ export async function startPayment(input: {
   reference: string;
   description: string;
 }): Promise<PaymentStart> {
+  return startMomoTransfer('/clientapi/collection/', input);
+}
+
+/**
+ * Sends MoMo to a number (lawyer withdrawal or client refund).
+ *
+ * Live path `/clientapi/disbursement/` is not verified against merchant docs (TD-028).
+ * Tests and local-without-credentials capture immediately, same as collection.
+ * Production without credentials, or a rejected live call, is a 503 — do not pretend money moved.
+ */
+export async function startPayout(input: {
+  accountName: string;
+  phone: string;
+  network?: MomoNetwork;
+  amountPesewas: number;
+  reference: string;
+  description: string;
+}): Promise<PaymentStart> {
+  return startMomoTransfer('/clientapi/disbursement/', input);
+}
+
+async function startMomoTransfer(
+  path: '/clientapi/collection/' | '/clientapi/disbursement/',
+  input: {
+    accountName: string;
+    phone: string;
+    network?: MomoNetwork;
+    amountPesewas: number;
+    reference: string;
+    description: string;
+  },
+): Promise<PaymentStart> {
+  const kind = path.includes('disbursement') ? 'payout' : 'payments';
+
   if (isTest) {
     return {
       reference: input.reference,
@@ -198,7 +236,7 @@ export async function startPayment(input: {
       );
     }
     console.info(
-      `[payments:log] capture reference=${input.reference} amount=${input.amountPesewas} to=${input.phone}`,
+      `[${kind}:log] capture reference=${input.reference} amount=${input.amountPesewas} to=${input.phone}`,
     );
     return {
       reference: input.reference,
@@ -235,7 +273,7 @@ export async function startPayment(input: {
 
   let response: Response;
   try {
-    response = await fetch(nalopayUrl('/clientapi/collection/'), {
+    response = await fetch(nalopayUrl(path), {
       method: 'POST',
       headers: {
         token,
@@ -252,7 +290,7 @@ export async function startPayment(input: {
         reference: input.reference,
         callback: callbackUrl(),
         description: input.description,
-        extra_data: { consultation_reference: input.reference },
+        extra_data: { reference: input.reference },
       }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -267,14 +305,20 @@ export async function startPayment(input: {
 
   const orderId = body?.data?.order_id;
   if (!response.ok || !body?.success || !orderId) {
-    console.error('[payments] collection failed', response.status, body?.code, body?.message);
-    throw serviceUnavailable('Could not start the payment. Please try again in a few minutes.');
+    console.error(`[${kind}] ${path} failed`, response.status, body?.code, body?.message);
+    throw serviceUnavailable(
+      kind === 'payout'
+        ? 'Could not send that mobile money payout. Please try again in a few minutes.'
+        : 'Could not start the payment. Please try again in a few minutes.',
+    );
   }
 
   const otp = body.data?.otp_code && body.data.otp_code !== 'None' ? body.data.otp_code : null;
   const paymentHint = otp
     ? `Approve the mobile money prompt on ${accountNumber}. If asked, use ${otp}.`
-    : `Approve the mobile money prompt sent to ${accountNumber}.`;
+    : kind === 'payout'
+      ? `A mobile money transfer was sent to ${accountNumber}.`
+      : `Approve the mobile money prompt sent to ${accountNumber}.`;
 
   return {
     reference: input.reference,
@@ -290,6 +334,25 @@ export async function verifyPayment(input: {
   expectedPesewas: number;
   orderId: string | null;
 }): Promise<boolean> {
+  return verifyMomoTransfer('/clientapi/collection-status/', input);
+}
+
+export async function verifyPayout(input: {
+  reference: string;
+  expectedPesewas: number;
+  orderId: string | null;
+}): Promise<boolean> {
+  return verifyMomoTransfer('/clientapi/disbursement-status/', input);
+}
+
+async function verifyMomoTransfer(
+  path: '/clientapi/collection-status/' | '/clientapi/disbursement-status/',
+  input: {
+    reference: string;
+    expectedPesewas: number;
+    orderId: string | null;
+  },
+): Promise<boolean> {
   if (isTest) return true;
 
   if (!isNaloPayConfigured) {
@@ -304,7 +367,7 @@ export async function verifyPayment(input: {
 
   let response: Response;
   try {
-    response = await fetch(nalopayUrl('/clientapi/collection-status/'), {
+    response = await fetch(nalopayUrl(path), {
       method: 'POST',
       headers: {
         token,

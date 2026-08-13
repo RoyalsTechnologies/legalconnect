@@ -23,7 +23,8 @@ web interface: registration and login, AI-assisted intake with a safe fallback,
 deterministic lawyer matching with visible reasons, a filterable lawyer directory, the
 consultation request workflow, and administration.
 
-Not yet done: deployment to a hosting platform (phase 10) and user acceptance testing.
+Not yet done: deployment to a hosting platform (phase 10). Developer UAT against the local
+stack was run on 2026-08-13; independent participant UAT is not yet completed.
 The AI provider key is unset by default, so triage takes the fallback path until one is
 configured — the intake and consultation flow works either way, which is the point of
 building it that way. See [docs/03-architecture.md](docs/03-architecture.md) for the phase

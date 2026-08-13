@@ -22,6 +22,7 @@ import { RecommendationsPage } from './pages/RecommendationsPage';
 import { CheckEmailPage, RegisterPage } from './pages/RegisterPage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { RequestsPage } from './pages/RequestsPage';
+import { WalletPage } from './pages/WalletPage';
 
 const { Text } = Typography;
 
@@ -113,6 +114,7 @@ export default function App() {
 
         <Route element={<RequireRole allow={['LAWYER']} />}>
           <Route path="/app/profile" element={<LawyerProfilePage />} />
+          <Route path="/app/wallet" element={<WalletPage />} />
         </Route>
 
         <Route element={<RequireRole allow={['ADMIN']} />}>

@@ -12,6 +12,7 @@ import {
   Switch,
 } from 'antd';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ApiError, fieldErrorsFromApi } from '../api/client';
 import { categoriesApi, lawyersApi, packagesApi } from '../api/endpoints';
 import type { LawyerView, SubscriptionPackage } from '../api/types';
@@ -77,6 +78,15 @@ function PlanSection({
 
   const current = profile.subscription;
   const maxAreas = current.active ? (current.package?.maxPracticeAreas ?? null) : null;
+
+  useEffect(() => {
+    const account = profile.paymentAccount;
+    if (!account) return;
+    form.setFieldsValue({
+      phone: form.getFieldValue('phone') || account.phone,
+      network: form.getFieldValue('network') || account.network,
+    });
+  }, [profile.paymentAccount, form]);
 
   async function pay(values: MomoPayValues & { packageId: string; interval: 'month' | 'year' }) {
     setError(null);
@@ -189,7 +199,12 @@ function PlanSection({
           form={form}
           layout="vertical"
           onFinish={(values) => void pay(values)}
-          initialValues={{ packageId: current.package?.id, interval: 'month' }}
+          initialValues={{
+            packageId: current.package?.id,
+            interval: 'month',
+            phone: profile.paymentAccount?.phone,
+            network: profile.paymentAccount?.network,
+          }}
         >
           <Form.Item
             label="Plan"
@@ -219,6 +234,12 @@ function PlanSection({
               ]}
             />
           </Form.Item>
+          <p style={{ marginBottom: 12, color: '#5b6b82', fontSize: 13 }}>
+            {profile.paymentAccount
+              ? 'Prefilling from the mobile money account on your Wallet.'
+              : 'Save a number on Wallet so you do not re-enter it each time you pay.'}{' '}
+            <Link to="/app/wallet">Open Wallet</Link>
+          </p>
           <MomoPayFields />
           {error ? <ErrorNotice message={error} /> : null}
           {hint ? (

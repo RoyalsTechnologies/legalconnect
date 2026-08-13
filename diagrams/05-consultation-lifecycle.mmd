@@ -1,0 +1,20 @@
+flowchart TD
+  start([Citizen books a slot]) --> pay[Pay consultation fee via MoMo]
+  pay --> pending[PENDING - lawyer notified]
+  pending --> accept[Lawyer accepts with Google Meet URL]
+  pending --> decline[Lawyer declines]
+  pending --> cancelPending[Citizen cancels]
+  accept --> accepted[ACCEPTED - fee held]
+  accepted --> confirmC[Citizen confirms session happened]
+  accepted --> confirmL[Lawyer confirms session happened]
+  accepted --> cancelAccepted[Citizen cancels]
+  confirmC --> both{Both confirmed?}
+  confirmL --> both
+  both -->|No| accepted
+  both -->|Yes| completed[COMPLETED - CREDIT lawyer wallet]
+  completed --> withdraw[Lawyer withdraws to saved MoMo]
+  decline --> refund[REFUND to payerPhone]
+  cancelPending --> refund
+  cancelAccepted --> refund
+  pay -.-> unpaidCancel[Cancel before pay]
+  unpaidCancel --> cancelledNoRefund[CANCELLED - nothing to refund]

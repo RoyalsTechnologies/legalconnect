@@ -51,7 +51,9 @@ another user's intake (see `SEC-LG-001`, `SEC-LG-002`, `SEC-LG-008` in
 
 Statuses: `AWAITING_PAYMENT`, `PENDING`, `ACCEPTED`, `DECLINED`, `COMPLETED`, `CANCELLED`.
 A client proposes `scheduledAt` when booking (FR-019). Accepting requires a Google Meet
-URL; Google Calendar is a template link, not OAuth sync (TD-027).
+URL; Google Calendar is a template link, not OAuth sync (TD-027). `COMPLETED` requires
+both parties to `POST /consultations/:id/confirm` (FR-021). Cancel or decline after
+payment refunds the payer; do not credit the lawyer.
 
 ## Matching
 
@@ -66,4 +68,5 @@ Never claim a lawyer is "the best".
 
 Legal intake text is sensitive. Collect only what the MVP needs, avoid logging full intake
 text, never log passwords or tokens, and restrict lawyer and admin access to what the
-workflow actually requires.
+workflow actually requires. Lawyer payment-account fields stay off the public directory
+select (FR-020). The wallet ledger is own-profile only (FR-021).

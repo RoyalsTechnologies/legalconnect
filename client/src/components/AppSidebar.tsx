@@ -11,6 +11,7 @@ import {
   TeamOutlined,
   UnorderedListOutlined,
   UserOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';
 import { adminApi, consultationsApi } from '../api/endpoints';
@@ -48,6 +49,7 @@ const NAV: Record<Role, { label: string; items: NavItem[]; more: NavItem[] }> = 
       { key: '/app', label: 'Home', icon: HomeOutlined, exact: true },
       { key: '/app/requests', label: 'Requests', icon: InboxOutlined },
       { key: '/app/profile', label: 'My profile', icon: IdcardOutlined },
+      { key: '/app/wallet', label: 'Wallet', icon: WalletOutlined },
     ],
     more: [{ key: '/app/account', label: 'Account', icon: UserOutlined }],
   },

@@ -30,10 +30,9 @@ export const createConsultationSchema = z.object({
   }),
 });
 
-// Only the transitions a role is allowed to request. COMPLETED and the accept/decline
-// pair belong to the lawyer; CANCELLED belongs to the client. Enforced again in the
-// service against the current status, because a valid target is not the same as a
-// valid transition.
+// Only the transitions a role is allowed to request. Accept/decline belong to the
+// lawyer; CANCELLED belongs to the client. Completing is a separate confirm endpoint
+// (FR-021), not a PATCH status. Enforced again in the service against the current status.
 export const updateConsultationSchema = z
   .object({
     status: z.nativeEnum(ConsultationStatus),
