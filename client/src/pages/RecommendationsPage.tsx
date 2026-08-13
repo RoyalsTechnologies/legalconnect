@@ -7,11 +7,13 @@ import { useAuth } from '../auth/AuthContext';
 import { AiDisclaimer, PageShell } from '../components/Layout';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
 import {
+  BackLink,
   Badge,
   Card,
   EmptyState,
   ErrorNotice,
   formatGhs,
+  InitialsAvatar,
   Loading,
   PageHeading,
 } from '../components/ui';
@@ -22,9 +24,11 @@ const { Text, Paragraph } = Typography;
 function RecommendationCard({
   recommendation,
   intakeId,
+  rank,
 }: {
   recommendation: Recommendation;
   intakeId: string;
+  rank: number;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -59,23 +63,34 @@ function RecommendationCard({
   return (
     <Card>
       <Flex justify="space-between" align="flex-start" gap={12} wrap="wrap">
-        <div>
-          <Button
-            type="link"
-            className="lc-display"
-            style={{ padding: 0, height: 'auto', fontSize: 18, fontWeight: 600 }}
-            onClick={() => void navigate(`/lawyers/${lawyer.id}`)}
-          >
-            {lawyer.displayName}
-          </Button>
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            {lawyer.firmName ? `${lawyer.firmName} · ` : ''}
-            {lawyer.city}, {lawyer.region} · {formatGhs(lawyer.consultationFeePesewas)}
-          </Paragraph>
+        <Flex gap={12} align="flex-start">
+          <InitialsAvatar name={lawyer.displayName} />
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
+              Suggestion {rank}
+            </Text>
+            <div>
+              <Button
+                type="link"
+                className="lc-display"
+                style={{ padding: 0, height: 'auto', fontSize: 18, fontWeight: 600 }}
+                onClick={() => void navigate(`/lawyers/${lawyer.id}`)}
+              >
+                {lawyer.displayName}
+              </Button>
+            </div>
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              {lawyer.firmName ? `${lawyer.firmName} · ` : ''}
+              {lawyer.city}, {lawyer.region}
+            </Paragraph>
+          </div>
+        </Flex>
+        <div style={{ textAlign: 'right' }}>
+          <div className="lc-fee">{formatGhs(lawyer.consultationFeePesewas)}</div>
+          <Badge tone={lawyer.isAvailable ? 'success' : 'neutral'}>
+            {lawyer.isAvailable ? 'Accepting enquiries' : 'Not accepting'}
+          </Badge>
         </div>
-        <Badge tone={lawyer.isAvailable ? 'success' : 'neutral'}>
-          {lawyer.isAvailable ? 'Accepting enquiries' : 'Not accepting'}
-        </Badge>
       </Flex>
 
       {/* NFR-007 — the reason is shown next to the recommendation, never hidden
@@ -134,13 +149,7 @@ export function RecommendationsPage() {
   return (
     <PageShell showDisclaimer>
       <main className="lc-page lc-page--medium">
-        <Button
-          type="link"
-          style={{ paddingInline: 0 }}
-          onClick={() => void navigate(`/app/intakes/${id}`)}
-        >
-          ← Back to your enquiry
-        </Button>
+        <BackLink to={`/app/intakes/${id}`}>Back to your enquiry</BackLink>
 
         <div style={{ marginTop: 24 }}>
           <PageHeading
@@ -178,11 +187,12 @@ export function RecommendationsPage() {
                   Matching on <Text strong>{match.data.category.name}</Text>.
                 </Text>
               ) : null}
-              {match.data.recommendations.map((recommendation) => (
+              {match.data.recommendations.map((recommendation, index) => (
                 <RecommendationCard
                   key={recommendation.lawyer.id}
                   recommendation={recommendation}
                   intakeId={id ?? ''}
+                  rank={index + 1}
                 />
               ))}
             </>

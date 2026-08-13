@@ -1,11 +1,11 @@
-import { Button, Card, Col, Form, Input, Row, Select, Space, Typography } from 'antd';
+import { Button, Card, Col, Flex, Form, Input, Row, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { AiDisclaimer, PageShell } from '../components/Layout';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
-import { Badge, ErrorNotice, formatGhs, Loading } from '../components/ui';
+import { BackLink, Badge, ErrorNotice, formatGhs, InitialsAvatar, Loading } from '../components/ui';
 import { messageFor, useAsync } from '../hooks/useAsync';
 
 const { Title, Paragraph, Text } = Typography;
@@ -140,9 +140,7 @@ export function LawyerDetailPage() {
   return (
     <PageShell showDisclaimer>
       <main className="lc-page lc-page--medium">
-        <Button type="link" style={{ paddingInline: 0 }} onClick={() => void navigate('/lawyers')}>
-          ← Back to directory
-        </Button>
+        <BackLink to="/lawyers">Back to directory</BackLink>
 
         {lawyer.status === 'loading' ? (
           <Loading label="Loading profile…" />
@@ -153,18 +151,26 @@ export function LawyerDetailPage() {
         ) : (
           <Space direction="vertical" size={24} style={{ width: '100%', marginTop: 24 }}>
             <header>
-              <Space wrap size={12} align="center">
-                <Title level={1} className="lc-display" style={{ margin: 0 }}>
-                  {lawyer.data.displayName}
-                </Title>
-                <Badge tone={lawyer.data.isAvailable ? 'success' : 'neutral'}>
-                  {lawyer.data.isAvailable ? 'Accepting enquiries' : 'Not accepting'}
-                </Badge>
-              </Space>
-              <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4 }}>
-                {lawyer.data.firmName ? `${lawyer.data.firmName} · ` : ''}
-                {lawyer.data.city}, {lawyer.data.region}
-              </Paragraph>
+              <Flex gap={16} align="flex-start" wrap="wrap">
+                <InitialsAvatar name={lawyer.data.displayName} size="lg" />
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <Space wrap size={12} align="center">
+                    <Title level={1} className="lc-display" style={{ margin: 0 }}>
+                      {lawyer.data.displayName}
+                    </Title>
+                    <Badge tone={lawyer.data.isAvailable ? 'success' : 'neutral'}>
+                      {lawyer.data.isAvailable ? 'Accepting enquiries' : 'Not accepting'}
+                    </Badge>
+                  </Space>
+                  <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4 }}>
+                    {lawyer.data.firmName ? `${lawyer.data.firmName} · ` : ''}
+                    {lawyer.data.city}, {lawyer.data.region}
+                  </Paragraph>
+                  <div className="lc-fee" style={{ marginTop: 8 }}>
+                    {formatGhs(lawyer.data.consultationFeePesewas)} consultation
+                  </div>
+                </div>
+              </Flex>
             </header>
 
             <Card>
