@@ -37,25 +37,19 @@ const APP_ERROR_STATUSES = new Set([400, 401, 403, 404, 409, 422, 503]);
 
 function asAppError(err: unknown): AppError | undefined {
   if (err instanceof AppError) return err;
+  if (typeof err !== 'object' || err === null) return undefined;
+
+  const candidate = err as Record<string, unknown>;
+  const { statusCode, code, message, details } = candidate;
   if (
-    typeof err === 'object' &&
-    err !== null &&
-    'statusCode' in err &&
-    'code' in err &&
-    typeof (err as { statusCode: unknown }).statusCode === 'number' &&
-    typeof (err as { code: unknown }).code === 'string' &&
-    typeof (err as { message: unknown }).message === 'string'
+    typeof statusCode !== 'number' ||
+    typeof code !== 'string' ||
+    typeof message !== 'string' ||
+    !APP_ERROR_STATUSES.has(statusCode)
   ) {
-    const shaped = err as {
-      statusCode: number;
-      code: string;
-      message: string;
-      details?: unknown;
-    };
-    if (!APP_ERROR_STATUSES.has(shaped.statusCode)) return undefined;
-    return new AppError(shaped.statusCode, shaped.message, shaped.code, shaped.details);
+    return undefined;
   }
-  return undefined;
+  return new AppError(statusCode, message, code, details);
 }
 
 function bodyParserFailure(err: unknown) {
