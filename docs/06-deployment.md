@@ -23,7 +23,7 @@ time and the build will fail if `DATABASE_URL` or `JWT_SECRET` is missing.
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `NODE_ENV` | Yes | `production` |
-| `DATABASE_URL` | Yes | Supabase **direct** URI (`db.<ref>.supabase.co:5432?sslmode=require`). **Not** `localhost:5433` and **not** the Transaction pooler on port `6543` |
+| `DATABASE_URL` | Yes | Supabase **direct** URI (`db.<ref>.supabase.co:5432?sslmode=require`). **Edit the existing variable** if it still says `localhost:5433` — adding a second `DATABASE_URL` does nothing. Not the Transaction pooler on port `6543`. The Supabase Vercel integration’s `POSTGRES_URL_NON_POOLING` is used if `DATABASE_URL` is still local |
 | `JWT_SECRET` | Yes | ≥ 32 characters. `openssl rand -base64 48` |
 | `CLIENT_ORIGIN` | Yes | `https://<project>.vercel.app` (update after the first URL is known) |
 | `NALOPAY_CALLBACK_URL` | If NaloPay is set | `https://<project>.vercel.app/api/v1/payments/callback` |
