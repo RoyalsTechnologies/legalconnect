@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { EmailTokenType } from '@prisma/client';
 import type { Transporter } from 'nodemailer';
-import nodemailer from 'nodemailer';
+import { nodemailer } from '../lib/cjs-default.js';
 import { env, isEmailConfigured, isTest } from '../config/env.js';
 import { serviceUnavailable } from '../lib/errors.js';
 import { log } from '../lib/logger.js';

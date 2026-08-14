@@ -1,5 +1,5 @@
 import { Prisma, Role } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { bcrypt } from '../../lib/cjs-default.js';
 import { FALLBACK_CATEGORY_NAME } from '../../ai/legal-triage.service.js';
 import { notifyLawyerApprovalDecision, notifyLawyerWelcome } from '../../email/notifications.js';
 import { badRequest, conflict, notFound } from '../../lib/errors.js';

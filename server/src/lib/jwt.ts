@@ -1,6 +1,7 @@
 import type { Role } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import type { JwtPayload, SignOptions } from 'jsonwebtoken';
 import { env } from '../config/env.js';
+import { jwt } from './cjs-default.js';
 import { unauthorized } from './errors.js';
 
 export interface TokenPayload {
@@ -11,11 +12,11 @@ export interface TokenPayload {
 export function signToken(payload: TokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN,
-  } as jwt.SignOptions);
+  } as SignOptions);
 }
 
 export function verifyToken(token: string): TokenPayload {
-  let decoded: string | jwt.JwtPayload;
+  let decoded: string | JwtPayload;
 
   // Only the signature check belongs in the try. Shape validation is deliberately
   // outside it, because a throw inside would be caught by this same handler and
