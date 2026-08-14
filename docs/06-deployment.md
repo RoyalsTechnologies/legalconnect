@@ -5,7 +5,9 @@ Status: Vercel configuration is in the repository. A live URL is **not yet deplo
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build from `public/` (CDN) and runs Express as one Function
 (`index.ts` must `import express` then `export default createApp()` — Vercel’s Express
-preset rejects the file otherwise). `express.static()` is ignored on Vercel; do not rely on it.
+preset rejects the file otherwise). The root `tsconfig.json` is for that Vercel
+typecheck (`esModuleInterop`); local Docker still starts from `server/src/server.ts`.
+`express.static()` is ignored on Vercel; do not rely on it.
 `outputDirectory` is intentionally unset so Vercel does not treat the project as a
 static site.
 

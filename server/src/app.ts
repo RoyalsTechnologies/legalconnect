@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express, { Router } from 'express';
-import helmet from 'helmet';
+import * as helmet from 'helmet';
 import { env } from './config/env.js';
 import { prisma } from './lib/prisma.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
@@ -26,7 +26,7 @@ function corsOrigins(): string[] {
 export function createApp() {
   const app = express();
 
-  app.use(helmet());
+  app.use(helmet.default());
   app.use(cors({ origin: corsOrigins(), credentials: true }));
 
   // Raw body must be read before express.json(), or the NaloPay HMAC will not match.
