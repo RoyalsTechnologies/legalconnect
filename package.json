@@ -19,6 +19,9 @@
     "verify": "npm run check && npm run typecheck && npm run test && npm run audit",
     "vercel-build": "node scripts/assert-hosted-database-url.mjs && npm --prefix client run build && rm -rf public && mkdir -p public && cp -r client/dist/. public/"
   },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0"
   }
