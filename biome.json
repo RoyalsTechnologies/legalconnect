@@ -12,7 +12,11 @@
       "!**/dist",
       "!**/prisma/migrations",
       "!**/*.tsbuildinfo",
-      "!docs/archive"
+      "!docs/archive",
+      "!**/test-results",
+      "!**/playwright-report",
+      "!**/blob-report",
+      "!**/playwright/.cache"
     ]
   },
   "formatter": {

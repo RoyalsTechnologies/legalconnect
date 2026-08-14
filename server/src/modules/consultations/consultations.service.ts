@@ -6,6 +6,7 @@ import {
   CONSULTATION_DURATION_MINUTES,
   googleCalendarTemplateUrl,
 } from '../../lib/google-calendar.js';
+import { log } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import {
   inferMomoNetwork,
@@ -313,7 +314,7 @@ export async function capturePaidCallback(payload: {
 
   const paidPesewas = pesewasFromAmount(payload.amount ?? NaN);
   if (paidPesewas !== consultation.feePesewas) {
-    console.error('[payments] callback amount mismatch', consultation.id);
+    log.payment.error('callback amount mismatch', { consultationId: consultation.id });
     return true;
   }
 

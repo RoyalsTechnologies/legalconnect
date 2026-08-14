@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Tooling shared across client/ and server/. Neither app depends on this package.",
+  "type": "module",
   "scripts": {
     "lint": "biome lint .",
     "format": "biome format --write .",
@@ -13,8 +14,10 @@
     "test:unit": "npm --prefix server run test:unit",
     "test:integration": "npm --prefix server run test:integration",
     "test:coverage": "npm --prefix server run test:coverage",
+    "test:e2e": "npm --prefix client run test:e2e",
     "audit": "npm --prefix server audit --audit-level=high && npm --prefix client audit --audit-level=high",
-    "verify": "npm run check && npm run typecheck && npm run test && npm run audit"
+    "verify": "npm run check && npm run typecheck && npm run test && npm run audit",
+    "vercel-build": "npm --prefix server run prisma:generate && npm --prefix server exec prisma migrate deploy && npm --prefix client run build && rm -rf public && mkdir -p public && cp -r client/dist/. public/"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0"

@@ -7,13 +7,14 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { setToken } from '../api/client';
+import { ApiError, getToken, onSessionInvalid, setToken } from '../api/client';
 import { authApi, usersApi } from '../api/endpoints';
 import type { AuthResult, PublicUser, RegisterPayload, RegisterResult } from '../api/types';
+import { tokenExpiresAtMs } from './session';
 
 type AuthState =
   | { status: 'loading' }
-  | { status: 'anonymous' }
+  | { status: 'anonymous'; reason?: 'expired' }
   | { status: 'authenticated'; user: PublicUser };
 
 type AuthContextValue = {
@@ -29,6 +30,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Browsers clamp setTimeout; anything longer is still caught by the next 401. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 function applySession(result: AuthResult): PublicUser {
   setToken(result.token);
   return result.user;
@@ -37,12 +41,29 @@ function applySession(result: AuthResult): PublicUser {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
 
+  const endExpiredSession = useCallback(() => {
+    setToken(null);
+    setState({ status: 'anonymous', reason: 'expired' });
+  }, []);
+
+  useEffect(() => {
+    return onSessionInvalid(() => {
+      setState({ status: 'anonymous', reason: 'expired' });
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    const token = localStorage.getItem('lc_token');
+    const token = getToken();
 
     if (!token) {
       setState({ status: 'anonymous' });
+      return;
+    }
+
+    const expiresAt = tokenExpiresAtMs(token);
+    if (expiresAt !== null && expiresAt <= Date.now()) {
+      endExpiredSession();
       return;
     }
 
@@ -51,15 +72,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((user) => {
         if (!cancelled) setState({ status: 'authenticated', user });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         setToken(null);
-        if (!cancelled) setState({ status: 'anonymous' });
+        if (cancelled) return;
+        const expired = error instanceof ApiError && error.status === 401;
+        setState((prev) =>
+          prev.status === 'anonymous'
+            ? prev
+            : { status: 'anonymous', reason: expired ? 'expired' : undefined },
+        );
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [endExpiredSession]);
+
+  useEffect(() => {
+    if (state.status !== 'authenticated') return;
+    const token = getToken();
+    if (!token) return;
+    const expiresAt = tokenExpiresAtMs(token);
+    if (expiresAt === null) return;
+
+    const delay = Math.min(MAX_TIMEOUT_MS, Math.max(0, expiresAt - Date.now()));
+    const id = window.setTimeout(endExpiredSession, delay);
+    return () => window.clearTimeout(id);
+  }, [state, endExpiredSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const user = applySession(await authApi.login({ email, password }));

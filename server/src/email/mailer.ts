@@ -4,6 +4,7 @@ import type { Transporter } from 'nodemailer';
 import nodemailer from 'nodemailer';
 import { env, isEmailConfigured, isTest } from '../config/env.js';
 import { serviceUnavailable } from '../lib/errors.js';
+import { log } from '../lib/logger.js';
 import { prisma } from '../lib/prisma.js';
 
 export type OutboundEmail = {
@@ -39,13 +40,16 @@ function getTransporter(): Transporter | null {
  */
 export async function sendEmail(message: OutboundEmail, critical = true): Promise<void> {
   if (isTest) {
-    console.info(`[email:test] to=${message.to} subject=${message.subject}`);
+    log.notification.info('email skipped (test)', { to: message.to, subject: message.subject });
     return;
   }
 
   const transport = getTransporter();
   if (!transport) {
-    console.info(`[email:log] to=${message.to} subject=${message.subject}\n${message.text}`);
+    log.notification.info('email logged (smtp unset)', {
+      to: message.to,
+      subject: message.subject,
+    });
     return;
   }
 
@@ -57,8 +61,9 @@ export async function sendEmail(message: OutboundEmail, critical = true): Promis
       text: message.text,
       html: message.html,
     });
+    log.notification.info('email sent', { to: message.to, subject: message.subject });
   } catch (error) {
-    console.error('[email] send failed', error);
+    log.notification.error('email send failed', error);
     if (critical) {
       throw serviceUnavailable(
         'We could not send email right now. Please try again in a few minutes.',

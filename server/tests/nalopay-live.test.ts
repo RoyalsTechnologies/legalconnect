@@ -20,10 +20,13 @@ vi.mock('../src/config/env.js', async (importOriginal) => {
 });
 
 import {
+  computeTransHash,
+  FALLBACK_COLLECTION_CALLBACK,
   newPaymentReference,
   newPayoutReference,
   startPayment,
   startPayout,
+  transHashMessage,
   verifyCallbackSignature,
   verifyPayment,
   verifyPayout,
@@ -35,6 +38,15 @@ function jsonOk(data: unknown, success = true, status = 200) {
     status,
     json: async () => ({ success, data }),
   };
+}
+
+function fetchBody(
+  fetchMock: { mock: { calls: unknown[][] } },
+  index: number,
+): Record<string, unknown> {
+  const init = fetchMock.mock.calls[index]?.[1] as RequestInit | undefined;
+  if (!init?.body) throw new Error(`fetch call ${index} has no body`);
+  return JSON.parse(String(init.body)) as Record<string, unknown>;
 }
 
 describe('NaloPay live collection and payout', () => {
@@ -49,14 +61,62 @@ describe('NaloPay live collection and payout', () => {
     vi.unstubAllGlobals();
   });
 
-  it('mints payment and payout references', () => {
-    expect(newPaymentReference('c1')).toMatch(/^lc_c1_[a-f0-9]+$/);
-    expect(newPayoutReference('wd', 'w1')).toMatch(/^lc_wd_w1_[a-f0-9]+$/);
+  it('mints short alphanumeric payment and payout references', () => {
+    expect(newPaymentReference('c1')).toMatch(/^LCP[a-f0-9]{20}$/);
+    expect(newPayoutReference('wd', 'w1')).toMatch(/^LCW[a-f0-9]{20}$/);
+    expect(newPayoutReference('rf', 'r1')).toMatch(/^LCR[a-f0-9]{20}$/);
   });
 
   it('rejects a signature header that is not t=,s=', () => {
     expect(verifyCallbackSignature('{}', 'nope', 'secret')).toBe(false);
     expect(verifyCallbackSignature('{}', 't=1,s=zz', 'secret', 1)).toBe(false);
+  });
+
+  it('UT-019: collection payload matches the NaloPay contract (FR-017)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonOk({ token: 'tok' }))
+      .mockResolvedValueOnce(jsonOk({ order_id: 'ord' }));
+
+    const reference = 'LCP0123456789abcdef0123';
+    await startPayment({
+      accountName: 'Ama Mensah',
+      phone: '+233244123456',
+      network: 'MTN',
+      amountPesewas: 15000,
+      reference,
+      description: 'LegalConnect Starter plan (1 month) — Ama',
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://nalopay.test/clientapi/generate-payment-token/',
+    );
+    expect(fetchBody(fetchMock, 0)).toEqual({
+      merchant_id: 'MERCH',
+    });
+
+    const body = fetchBody(fetchMock, 1);
+    expect(body).toEqual({
+      merchant_id: 'MERCH',
+      service_name: 'MOMO_TRANSACTION',
+      trans_hash: computeTransHash(
+        transHashMessage({
+          merchantId: 'MERCH',
+          accountNumber: '0244123456',
+          amount: '150.00',
+          reference,
+        }),
+        'secret',
+      ),
+      account_number: '0244123456',
+      account_name: 'Ama Mensah',
+      network: 'MTN',
+      amount: '150.00',
+      reference,
+      description: 'LegalConnect Starter plan (1 month) Ama',
+      callback: FALLBACK_COLLECTION_CALLBACK,
+    });
+    expect(String(body.reference)).not.toMatch(/_/);
+    expect(body).not.toHaveProperty('extra_data');
   });
 
   it('collects after generating a token, including an OTP hint', async () => {
@@ -278,9 +338,56 @@ describe('NaloPay live collection and payout', () => {
 
     const init = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
     expect(init?.body).toBeTruthy();
-    const body = JSON.parse(String(init?.body)) as { network: string; callback: string };
-    expect(body.network).toBe('TELECEL');
-    expect(body.callback).toContain('/api/v1/payments/callback');
+    const body = JSON.parse(String(init?.body)) as {
+      account_number: string;
+      network: string;
+      callback?: string;
+      extra_data?: unknown;
+    };
+    expect(body.account_number).toBe('0204123456');
+    expect(body.network).toBe('VODAFONE');
+    expect(body.callback).toBe(FALLBACK_COLLECTION_CALLBACK);
+    expect(body.extra_data).toBeUndefined();
+  });
+
+  it('maps AirtelTigo onto AIRTELTIGO and sends a local MSISDN', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonOk({ token: 'tok' }))
+      .mockResolvedValueOnce(jsonOk({ order_id: 'ord_at' }));
+
+    await startPayment({
+      accountName: 'Ama',
+      phone: '0274123456',
+      network: 'AT',
+      amountPesewas: 100,
+      reference: 'r',
+      description: 'x',
+    });
+
+    const body = fetchBody(fetchMock, 1);
+    expect(body.account_number).toBe('0274123456');
+    expect(body.network).toBe('AIRTELTIGO');
+  });
+
+  it('surfaces a PAY-INVAL collection rejection as 422', async () => {
+    fetchMock.mockResolvedValueOnce(jsonOk({ token: 'tok' })).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        success: false,
+        code: 'PAY-INVAL-0060',
+        error: { cause: 'reference', description: 'Invalid reference' },
+      }),
+    });
+    await expect(
+      startPayment({
+        accountName: 'Ama',
+        phone: '0244123456',
+        amountPesewas: 100,
+        reference: 'r',
+        description: 'x',
+      }),
+    ).rejects.toThrow(/Invalid reference/);
   });
 
   it('sends Basic auth when the stored token has no prefix', async () => {

@@ -1,4 +1,5 @@
 import { env, isSmsConfigured, isTest } from '../config/env.js';
+import { lastDigits, log } from '../lib/logger.js';
 
 /**
  * Normalises a Ghana (or E.164) phone number for the SMS gateway.
@@ -29,17 +30,23 @@ export function normalizeMsisdn(raw: string | null | undefined): string | null {
 export async function sendSms(to: string | null | undefined, message: string): Promise<void> {
   const destination = normalizeMsisdn(to);
   if (!destination) {
-    if (to) console.info(`[sms:skip] unusable phone="${to}"`);
+    if (to) log.notification.info('sms skipped (unusable phone)', { toLast4: lastDigits(to) });
     return;
   }
 
   if (isTest) {
-    console.info(`[sms:test] to=${destination} chars=${message.length}`);
+    log.notification.info('sms skipped (test)', {
+      toLast4: lastDigits(destination),
+      chars: message.length,
+    });
     return;
   }
 
   if (!isSmsConfigured) {
-    console.info(`[sms:log] to=${destination}\n${message}`);
+    log.notification.info('sms logged (gateway unset)', {
+      toLast4: lastDigits(destination),
+      chars: message.length,
+    });
     return;
   }
 
@@ -59,16 +66,16 @@ export async function sendSms(to: string | null | undefined, message: string): P
     });
     const body = await response.text();
     if (!response.ok) {
-      console.error(`[sms] gateway HTTP ${response.status}`, body.slice(0, 200));
+      log.notification.error('sms gateway HTTP error', { status: response.status });
       return;
     }
     // Nalo-style success often starts with 1701; treat other codes as soft failures.
     if (body.includes('1701') || /success/i.test(body)) {
-      console.info(`[sms] sent to=${destination}`);
+      log.notification.info('sms sent', { toLast4: lastDigits(destination) });
       return;
     }
-    console.error(`[sms] unexpected gateway response`, body.slice(0, 200));
+    log.notification.error('sms unexpected gateway response');
   } catch (error) {
-    console.error('[sms] send failed', error);
+    log.notification.error('sms send failed', error);
   }
 }

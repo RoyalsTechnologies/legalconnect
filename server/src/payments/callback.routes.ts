@@ -2,6 +2,7 @@ import { Router, raw } from 'express';
 import { env, isNaloPayConfigured } from '../config/env.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { badRequest, unauthorized } from '../lib/errors.js';
+import { log } from '../lib/logger.js';
 import * as consultationsService from '../modules/consultations/consultations.service.js';
 import * as subscriptionsService from '../modules/subscriptions/subscriptions.service.js';
 import * as walletService from '../modules/wallet/wallet.service.js';
@@ -48,7 +49,7 @@ paymentsCallbackRouter.post(
       (await subscriptionsService.capturePaidCallback(payload)) ||
       (await walletService.capturePayoutCallback(payload));
 
-    if (!handled) console.info('[payments] callback for unknown order');
+    if (!handled) log.payment.info('callback for unknown order');
 
     res.status(200).json({ received: true });
   }),

@@ -89,7 +89,10 @@ function RequireAuth() {
   const { isAuthenticated, state } = useAuth();
 
   if (state.status === 'loading') return <Splash />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    const expired = state.status === 'anonymous' && state.reason === 'expired';
+    return <Navigate to={expired ? '/login?expired=1' : '/login'} replace />;
+  }
   return <Outlet />;
 }
 

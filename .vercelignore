@@ -1,0 +1,12 @@
+.cursor
+.github
+client/e2e
+client/test-results
+client/playwright-report
+diagrams
+docs
+server/coverage
+server/logs
+server/tests
+**/*.test.ts
+**/*.spec.ts

@@ -26,6 +26,16 @@ describe('errorHandler in production', () => {
     expect(json.mock.calls[0]?.[0].error.message).toBe('An unexpected error occurred');
   });
 
+  it('does not treat a duck-typed 500 as a safe AppError', () => {
+    const { status, json } = invoke({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'db password is hunter2',
+    });
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json.mock.calls[0]?.[0].error.message).toBe('An unexpected error occurred');
+  });
+
   it('still returns AppError messages', () => {
     const { status, json } = invoke(new AppError(409, 'taken', 'CONFLICT', { field: 'email' }));
     expect(status).toHaveBeenCalledWith(409);
