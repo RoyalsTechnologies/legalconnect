@@ -3,9 +3,7 @@
   "framework": "express",
   "installCommand": "npm ci && NPM_CONFIG_PRODUCTION=false npm ci --prefix server && NPM_CONFIG_PRODUCTION=false npm ci --prefix client",
   "buildCommand": "npm run vercel-build",
-  "rewrites": [
-    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
-  ],
+  "rewrites": [{ "source": "/((?!api/|assets/).*)", "destination": "/index.html" }],
   "functions": {
     "index.ts": {
       "maxDuration": 60,
