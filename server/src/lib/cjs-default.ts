@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
+import type bcryptjs from 'bcryptjs';
 import type { CorsOptions } from 'cors';
 import type { RequestHandler } from 'express';
-import type bcryptjs from 'bcryptjs';
 import type jwtTypes from 'jsonwebtoken';
 import type nodemailerTypes from 'nodemailer';
 

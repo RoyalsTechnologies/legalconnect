@@ -38,7 +38,12 @@ export default defineConfig({
           setupFiles: ['./tests/setup.ts'],
           include: ['tests/**/*.test.ts'],
           exclude: unitTestFiles,
+          // Same serial lock as vitest.config.ts — one shared `test` schema (TD-009).
           fileParallelism: false,
+          maxWorkers: 1,
+          minWorkers: 1,
+          maxConcurrency: 1,
+          sequence: { concurrent: false },
           testTimeout: 20000,
           isolate: true,
         },

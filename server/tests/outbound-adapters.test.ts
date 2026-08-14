@@ -1,32 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../src/config/env.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/config/env.js')>();
-  return {
-    ...actual,
-    isTest: false,
-    isEmailConfigured: true,
-    isSmsConfigured: true,
-    env: {
-      ...actual.env,
-      EMAIL_HOST: 'smtp.test',
-      EMAIL_PORT: 465,
-      EMAIL_SECURE: true,
-      EMAIL_USER: 'mailer',
-      EMAIL_PASSWORD: 'secret',
-      EMAIL_FROM: 'noreply@test.com',
-      EMAIL_FROM_NAME: 'LegalConnect Ghana',
-      SMS_ENDPOINT: 'https://sms.test/send?',
-      SMS_USERNAME: 'user',
-      SMS_PASSWORD: 'pass',
-      SMS_SENDER_ID: 'LC',
-    },
-  };
-});
+const { sendMail } = vi.hoisted(() => ({ sendMail: vi.fn() }));
 
-const sendMail = vi.fn();
-vi.mock('nodemailer', () => ({
-  default: {
+vi.mock('../src/config/env.js', () => ({
+  env: {
+    CLIENT_ORIGIN: 'http://localhost:5173',
+    EMAIL_HOST: 'smtp.test',
+    EMAIL_PORT: 465,
+    EMAIL_SECURE: true,
+    EMAIL_USER: 'mailer',
+    EMAIL_PASSWORD: 'secret',
+    EMAIL_FROM: 'noreply@test.com',
+    EMAIL_FROM_NAME: 'LegalConnect Ghana',
+    SMS_ENDPOINT: 'https://sms.test/send?',
+    SMS_USERNAME: 'user',
+    SMS_PASSWORD: 'pass',
+    SMS_SENDER_ID: 'LC',
+  },
+  isTest: false,
+  isEmailConfigured: true,
+  isSmsConfigured: true,
+  isProduction: false,
+}));
+
+vi.mock('../src/lib/cjs-default.js', () => ({
+  nodemailer: {
     createTransport: () => ({ sendMail }),
   },
 }));

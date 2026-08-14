@@ -1,8 +1,8 @@
 import { ApprovalStatus, EmailTokenType, Prisma, Role, UserStatus } from '@prisma/client';
-import { bcrypt } from '../../lib/cjs-default.js';
 import { isTest } from '../../config/env.js';
 import { appUrl, consumeEmailToken, issueEmailToken, sendEmail } from '../../email/mailer.js';
 import { passwordResetEmail, verificationEmail } from '../../email/templates.js';
+import { bcrypt } from '../../lib/cjs-default.js';
 import { badRequest, conflict, forbidden, unauthorized } from '../../lib/errors.js';
 import { signToken } from '../../lib/jwt.js';
 import { log } from '../../lib/logger.js';
