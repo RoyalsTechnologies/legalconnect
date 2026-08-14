@@ -183,9 +183,13 @@ the dependency audit, failing on the first problem. Unit tests do not need a dat
 Integration tests need PostgreSQL (`docker compose up -d postgres`).
 
 GitHub Actions (`.github/workflows/ci.yml`) runs lint/typecheck/audit/builds, then
-**unit tests**, **integration tests**, **coverage**, and **frontend E2E** as separate jobs.
-Integration starts its own Postgres 16 service. E2E starts the Vite client and mocks
-`/api/v1` — it does not call NaloPay or need the database.
+**unit tests**, **integration tests**, and **coverage** as separate jobs.
+Integration starts its own Postgres 16 service. Frontend E2E is local-only
+(`npm run test:e2e`).
+
+Hosting is Vercel (`vercel.json`): the Vite build is served from `public/`, Express
+handles `/api/*`. Create a hosted Postgres (Neon pooled URL recommended), set the
+variables in `docs/06-deployment.md`, then deploy. The live URL is not yet deployed.
 
 Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 

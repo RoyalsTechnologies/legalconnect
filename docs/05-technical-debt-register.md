@@ -364,17 +364,27 @@ clients may fail until the merchant contract is confirmed. Do not add a second P
 **Resolution:** Confirm path and payload with NaloPay; keep test/log capture for local demo.
 **Target:** v1.1 · **Related:** FR-021
 
-### TD-029 — File logs do not persist on Render free instances
+### TD-029 — File logs do not persist on serverless hosts
 
 **Cause:** FR-style operational logging writes `sys.log`, `security.log`, `payment.log`,
-and `notification.log` under `server/logs/`. Render free web services have no persistent
-disk.
+and `notification.log` under `server/logs/`. Vercel Functions (and Render free disks) have
+no persistent filesystem.
 **Impact:** After a sleep, restart, or redeploy those files are gone. Stdout still carries
 the same lines for the host log viewer.
 **Priority:** Low · **Category:** observability · **Status:** Accepted
 **Resolution:** Ship logs to the platform viewer, or attach a disk / log drain if the
 product outlives the exam.
 **Target:** v1.2 · **Related:** NFR-001, NFR-002
+
+### TD-030 — Prisma on Vercel without a connection pooler
+
+**Cause:** The exam host is Vercel. Each Function invocation may open a new Postgres
+connection. Prisma was kept (stack rule) rather than introducing Redis or a second ORM.
+**Impact:** A burst of traffic can exhaust the database `max_connections`. Cold starts are
+slower than a long-lived Node process.
+**Priority:** Medium for the live exam URL · **Category:** infrastructure · **Status:** Accepted
+**Resolution:** Use a pooled URL (Neon `-pooler` or PgBouncer). Do not add another datastore.
+**Target:** v1.1 · **Related:** NFR-008, CON-002
 
 ## Summary
 
@@ -408,7 +418,8 @@ product outlives the exam.
 | TD-026 | Lawyer plans are prepaid periods, not recurring | Medium (prod) | functionality | Accepted |
 | TD-027 | Calendar template + pasted Meet link, not OAuth sync | Medium (prod) | integration | Accepted |
 | TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
-| TD-029 | File logs ephemeral on Render free | Low | observability | Accepted |
+| TD-029 | File logs ephemeral on serverless hosts | Low | observability | Accepted |
+| TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

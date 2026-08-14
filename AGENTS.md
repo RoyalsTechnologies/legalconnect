@@ -54,8 +54,8 @@ Decided — do not substitute or introduce alternatives without asking.
 No microservices, message brokers, Redis, Kubernetes, vector databases, or additional
 datastores. If you believe one is genuinely required, raise it before adding it.
 
-Deployment target is not yet fixed. See `docs/06-deployment.md`; confirm with the user
-before writing platform-specific configuration.
+Deployment target is **Vercel** (static Vite build + one Express Function) plus hosted
+PostgreSQL. See `docs/06-deployment.md`. A live URL is not yet deployed.
 
 ## Repository layout
 

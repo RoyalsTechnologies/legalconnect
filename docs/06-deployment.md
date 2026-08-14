@@ -1,35 +1,56 @@
 # Deployment
 
-Status: not yet deployed. Platform not yet selected.
+Status: Vercel configuration is in the repository. A live URL is **not yet deployed**.
 
-The final application must be accessible online. Choose the approach that minimises
-examination risk and has the fewest moving parts — ideally one web deployment plus managed
-PostgreSQL.
+The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
+host, so Vercel serves the Vite build from `public/` (CDN) and runs Express as one Function
+(`index.ts` → `createApp()`). `express.static()` is ignored on Vercel; do not rely on it.
+`outputDirectory` is intentionally unset so Vercel does not treat the project as a
+static site.
 
-Candidate platforms include Vercel, Netlify, Render, or another suitable host. **Confirm
-the choice with the user before writing platform-specific configuration**, since it
-depends on which accounts are available.
+Companion database: a hosted Postgres (Neon, Vercel Postgres, or similar). The Function
+must use a **pooled** connection string (Neon’s `-pooler` host) or it will exhaust
+connections (TD-030).
 
-## Configuration
+## What to set on Vercel before the first deploy
 
-Keep production configuration separate from development. Use environment variables, commit
-a `.env.example` containing placeholders only, and document every variable name.
+Create the project from this Git repository (root directory = repo root). Add these
+**Production** environment variables, then deploy. The server validates config at import
+time and the build will fail if `DATABASE_URL` or `JWT_SECRET` is missing.
 
-Never commit `.env`, API secrets, database passwords, private keys, or admin passwords.
-The AI provider key is server-side only and must never appear in a client bundle.
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NODE_ENV` | Yes | `production` |
+| `DATABASE_URL` | Yes | Pooled `postgresql://…` URL, `sslmode=require` |
+| `JWT_SECRET` | Yes | ≥ 32 characters. `openssl rand -base64 48` |
+| `CLIENT_ORIGIN` | Yes | `https://<project>.vercel.app` (update after the first URL is known) |
+| `NALOPAY_CALLBACK_URL` | If NaloPay is set | `https://<project>.vercel.app/api/v1/payments/callback` |
+| `AI_PROVIDER_*` | No | Unset → intake fallback (FR-010) |
+| `EMAIL_*` / `SMS_*` / `NALOPAY_*` | No | Unset → log / local-dev behaviour; production NaloPay without credentials returns 503 |
 
-Planned variables (update as the code is written):
+Never put secrets in git. `CLIENT_ORIGIN` and the callback URL can be filled on the second
+deploy once Vercel prints the hostname.
 
+## Commands Vercel runs
+
+Defined in `vercel.json` and the root `vercel-build` script:
+
+1. `npm ci` at the root, then in `server/` and `client/` with devDependencies (Vite and
+   `prisma` are devDependencies; a production-only install would fail the build)
+2. `prisma generate` and `prisma migrate deploy`
+3. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
+   `outputDirectory` or the project is treated as static-only and `/api` disappears)
+
+SPA routes (`/login`, `/app`, …) rewrite to `/index.html`. `/api/*` and `/assets/*` are
+left alone so Express and hashed JS/CSS are not replaced by the HTML shell.
+
+One-off seed against the hosted database (from your machine, not on every deploy):
+
+```bash
+DATABASE_URL='postgresql://…' SEED_DEMO_DATA=true SEED_DEMO_PASSWORD='…' npm --prefix server run prisma:seed
 ```
-DATABASE_URL=
-JWT_SECRET=
-AI_PROVIDER_API_KEY=
-AI_PROVIDER_BASE_URL=
-AI_PROVIDER_MODEL=
-AI_REQUEST_TIMEOUT_MS=
-PORT=
-CLIENT_ORIGIN=
-```
+
+Record the printed admin password only in `Deployment_and_Source_Links.txt`, not in the repo.
 
 ## Pre-deployment verification
 
@@ -37,7 +58,7 @@ CLIENT_ORIGIN=
 - [ ] Environment variables configured on the host
 - [ ] Database connection works
 - [ ] Migrations applied
-- [ ] API endpoints work
+- [ ] API endpoints work (`/api/health` returns `ok`)
 - [ ] Authentication works
 - [ ] Static assets load
 - [ ] Critical workflows work end to end
@@ -58,7 +79,7 @@ met — do not assume CI is green from the workflow file existing.
 ## Logging and observability
 
 The API writes four files under `server/logs/` and also prints the same lines to stdout
-so a host such as Render still shows them:
+so the Vercel function log still shows them (TD-029):
 
 | File | Contents |
 | --- | --- |
@@ -69,8 +90,7 @@ so a host such as Render still shows them:
 
 Never log passwords, access tokens, secret keys, full email addresses, full phone
 numbers, names, full sensitive records, or full legal-intake text. The logger masks
-those fields and any email or Ghana MSISDN that appears in a message (NFR-002). On Render's free web service the disk is ephemeral (TD-029); stdout
-is the durable view there.
+those fields and any email or Ghana MSISDN that appears in a message (NFR-002).
 
 ## Submission links
 
@@ -89,6 +109,6 @@ Admin URL:               <not yet deployed>
 Test Username:           <not yet created>
 Test Password:           <supply in submission file only, not in the repository>
 Admin Username:          <not yet created>
-Admin Password:          <supply in submission file only, not in the repository>
-Source Code Repository:  <not yet published>
+Admin Password:           <supply in submission file only, not in the repository>
+Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 ```

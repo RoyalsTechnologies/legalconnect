@@ -17,11 +17,17 @@ import { paymentsCallbackRouter } from './payments/callback.routes.js';
 
 export const API_PREFIX = '/api/v1';
 
+function corsOrigins(): string[] {
+  const origins = [env.CLIENT_ORIGIN];
+  if (process.env.VERCEL_URL) origins.push(`https://${process.env.VERCEL_URL}`);
+  return [...new Set(origins)];
+}
+
 export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
+  app.use(cors({ origin: corsOrigins(), credentials: true }));
 
   // Raw body must be read before express.json(), or the NaloPay HMAC will not match.
   app.use(`${API_PREFIX}/payments`, paymentsCallbackRouter);

@@ -37,6 +37,10 @@ pnpm-debug.log*
 prisma/*.db
 prisma/*.db-journal
 
+# Vercel
+.vercel
+/public
+
 # Cursor
 .cursorrules
 
