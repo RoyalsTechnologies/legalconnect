@@ -37,7 +37,8 @@ Defined in `vercel.json` and the root `vercel-build` script:
 
 1. `npm ci` at the root, then in `server/` and `client/` with devDependencies (Vite and
    `prisma` are devDependencies; a production-only install would fail the build)
-2. `prisma generate` and `prisma migrate deploy`
+2. `prisma generate` and `prisma migrate deploy` via the server npm scripts (so the
+   working directory is `server/`, where `prisma/schema.prisma` lives)
 3. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
    `outputDirectory` or the project is treated as static-only and `/api` disappears)
 
