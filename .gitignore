@@ -21,6 +21,10 @@ build/
 # Test / coverage
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Logs
 *.log
@@ -32,6 +36,10 @@ pnpm-debug.log*
 # Prisma local artefacts
 prisma/*.db
 prisma/*.db-journal
+
+# Vercel
+.vercel
+/public
 
 # Cursor
 .cursorrules

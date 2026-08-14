@@ -115,6 +115,84 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(monthPay?.periodDays).toBe(30);
   });
 
+  it('confirming an already-captured plan payment returns the active subscription', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const started = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: await packageId('starter'), phone: '0244123456' });
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ reference: started.body.reference });
+
+    expect(res.status).toBe(200);
+    expect(res.body.active).toBe(true);
+  });
+
+  it('confirming an unknown plan payment returns 404', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ reference: 'no-such-payment-reference' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('an admin can create a package and cannot reuse its name', async () => {
+    const admin = await adminToken();
+    const body = {
+      name: 'Solo desk',
+      description: 'One practice area for a newly qualified lawyer.',
+      monthlyFeeGhs: 40,
+      maxPracticeAreas: 1,
+    };
+
+    const created = await request(app)
+      .post('/api/v1/packages')
+      .set('Authorization', `Bearer ${admin}`)
+      .send(body);
+    const duplicate = await request(app)
+      .post('/api/v1/packages')
+      .set('Authorization', `Bearer ${admin}`)
+      .send(body);
+
+    expect(created.status).toBe(201);
+    expect(created.body.slug).toBe('solo-desk');
+    expect(duplicate.status).toBe(409);
+  });
+
+  it('returns 404 when updating a package that does not exist', async () => {
+    const admin = await adminToken();
+
+    const res = await request(app)
+      .patch('/api/v1/packages/missing-package')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ monthlyFeeGhs: 10 });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects renaming a package onto an existing name', async () => {
+    const admin = await adminToken();
+    const starterId = await packageId('starter');
+
+    const res = await request(app)
+      .patch(`/api/v1/packages/${starterId}`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ name: 'Practice' });
+
+    expect(res.status).toBe(409);
+  });
+
   it('IT-065: a lawyer can pay a yearly equivalent of twelve monthly fees', async () => {
     const admin = await adminToken();
     await createLawyer(admin, [employmentId]);
@@ -303,5 +381,83 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.status).toBe(403);
     const stored = await prisma.subscriptionPackage.findUniqueOrThrow({ where: { id: starterId } });
     expect(stored.monthlyFeePesewas).toBe(5000);
+  });
+
+  it('IT-072: subscribing without a phone uses the saved payment account', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const saved = await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    expect(saved.status).toBe(200);
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: await packageId('starter') });
+
+    expect(res.status).toBe(201);
+    expect(res.body.subscription.active).toBe(true);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244123456',
+      network: 'MTN',
+    });
+  });
+
+  it('IT-073: paying with a new number persists it onto the payment account', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        packageId: await packageId('starter'),
+        phone: '0244987654',
+        network: 'AT',
+      });
+
+    expect(res.status).toBe(201);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244987654',
+      network: 'AT',
+    });
+  });
+
+  it('IT-075: a pay-from number without network is stored with the inferred network', async () => {
+    const admin = await adminToken();
+    await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        packageId: await packageId('starter'),
+        phone: '0244123456',
+      });
+
+    expect(res.status).toBe(201);
+
+    const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.body.paymentAccount).toEqual({
+      accountName: 'Akua Owusu',
+      phone: '0244123456',
+      network: 'MTN',
+    });
   });
 });

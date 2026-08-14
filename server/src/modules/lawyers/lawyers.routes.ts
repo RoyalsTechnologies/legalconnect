@@ -9,6 +9,8 @@ import {
   subscribeSchema,
 } from '../subscriptions/subscriptions.schema.js';
 import * as subscriptionsService from '../subscriptions/subscriptions.service.js';
+import { withdrawSchema } from '../wallet/wallet.schema.js';
+import * as walletService from '../wallet/wallet.service.js';
 import {
   adminUpdateLawyerSchema,
   createLawyerSchema,
@@ -97,6 +99,25 @@ lawyersRouter.post(
   validateBody(confirmSubscriptionSchema),
   asyncHandler(async (req, res) => {
     res.json(await subscriptionsService.confirmSubscription(req.user!.id, req.body));
+  }),
+);
+
+lawyersRouter.get(
+  '/me/withdrawals',
+  requireAuth,
+  requireRole(Role.LAWYER),
+  asyncHandler(async (req, res) => {
+    res.json(await walletService.listWithdrawalsForUser(req.user!.id));
+  }),
+);
+
+lawyersRouter.post(
+  '/me/withdrawals',
+  requireAuth,
+  requireRole(Role.LAWYER),
+  validateBody(withdrawSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await walletService.requestWithdrawal(req.user!.id, req.body));
   }),
 );
 

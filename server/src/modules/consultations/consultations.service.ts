@@ -1,5 +1,4 @@
 import { ConsultationStatus, Prisma, Role } from '@prisma/client';
-import { isNaloPayConfigured, isTest } from '../../config/env.js';
 import { appUrl } from '../../email/mailer.js';
 import { notifyClientOfStatusChange, notifyLawyerOfNewRequest } from '../../email/notifications.js';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
@@ -7,8 +6,10 @@ import {
   CONSULTATION_DURATION_MINUTES,
   googleCalendarTemplateUrl,
 } from '../../lib/google-calendar.js';
+import { log } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import {
+  inferMomoNetwork,
   isPaidStatus,
   newPaymentReference,
   pesewasFromAmount,
@@ -17,6 +18,7 @@ import {
 } from '../../payments/nalopay.js';
 import { publicLawyerWhere } from '../lawyers/eligibility.js';
 import { rememberPhone } from '../users/users.service.js';
+import { creditConsultationFee, refundHeldFee } from '../wallet/wallet.service.js';
 import type {
   CreateConsultationInput,
   StartPaymentInput,
@@ -38,7 +40,6 @@ const TRANSITIONS: Record<Role, Partial<Record<ConsultationStatus, ConsultationS
   },
   [Role.LAWYER]: {
     [ConsultationStatus.PENDING]: [ConsultationStatus.ACCEPTED, ConsultationStatus.DECLINED],
-    [ConsultationStatus.ACCEPTED]: [ConsultationStatus.COMPLETED],
   },
   [Role.ADMIN]: {},
 };
@@ -52,6 +53,8 @@ const consultationFields = {
   paymentReference: true,
   scheduledAt: true,
   meetUrl: true,
+  clientConfirmedAt: true,
+  lawyerConfirmedAt: true,
   createdAt: true,
   updatedAt: true,
   intake: {
@@ -203,7 +206,8 @@ export async function startConsultationPayment(
   }
 
   const phone = input.phone ?? consultation.client.phone;
-  if (!isTest && isNaloPayConfigured && !phone) {
+  const network = input.network ?? (phone ? (inferMomoNetwork(phone) ?? undefined) : undefined);
+  if (!phone) {
     throw badRequest(
       'Enter the mobile money number you will pay from. You can also add a phone number to your account.',
     );
@@ -213,7 +217,7 @@ export async function startConsultationPayment(
   const started = await startPayment({
     accountName: consultation.client.fullName,
     phone: phone ?? '',
-    network: input.network,
+    network,
     amountPesewas: consultation.feePesewas,
     reference,
     description: `LegalConnect consultation ${consultation.id}`,
@@ -226,6 +230,8 @@ export async function startConsultationPayment(
     data: {
       paymentReference: started.reference,
       paymentOrderId: started.orderId,
+      payerPhone: phone,
+      payerNetwork: network ?? inferMomoNetwork(phone),
     },
   });
 
@@ -308,7 +314,7 @@ export async function capturePaidCallback(payload: {
 
   const paidPesewas = pesewasFromAmount(payload.amount ?? NaN);
   if (paidPesewas !== consultation.feePesewas) {
-    console.error('[payments] callback amount mismatch', consultation.id);
+    log.payment.error('callback amount mismatch', { consultationId: consultation.id });
     return true;
   }
 
@@ -439,7 +445,7 @@ export async function updateConsultationStatus(
   const next = input.status;
   const existing = await prisma.consultationRequest.findFirst({
     where: { id, ...(await scopeFor(userId, role)) },
-    select: { id: true, status: true },
+    select: { id: true, status: true, settledAt: true },
   });
 
   if (!existing) throw notFound('Consultation request not found');
@@ -453,12 +459,29 @@ export async function updateConsultationStatus(
     throw badRequest(`A ${existing.status.toLowerCase()} request cannot become ${next}`);
   }
 
-  const updated = await prisma.consultationRequest.update({
-    where: { id },
+  const paidHold =
+    existing.status === ConsultationStatus.PENDING ||
+    existing.status === ConsultationStatus.ACCEPTED;
+  if (paidHold && (next === ConsultationStatus.CANCELLED || next === ConsultationStatus.DECLINED)) {
+    const refunded = await refundHeldFee(id);
+    if (!refunded) {
+      throw badRequest('This consultation is already settled and cannot be cancelled or declined.');
+    }
+  }
+
+  const moved = await prisma.consultationRequest.updateMany({
+    where: { id, status: existing.status },
     data: {
       status: next,
       ...(next === ConsultationStatus.ACCEPTED && input.meetUrl ? { meetUrl: input.meetUrl } : {}),
     },
+  });
+  if (moved.count === 0) {
+    throw conflict('This request was already updated');
+  }
+
+  const updated = await prisma.consultationRequest.findFirstOrThrow({
+    where: { id },
     select: {
       ...consultationFields,
       client: { select: { id: true, fullName: true, phone: true, email: true } },
@@ -480,4 +503,64 @@ export async function updateConsultationStatus(
   });
 
   return view;
+}
+
+/**
+ * Client or lawyer confirms the consultation happened (FR-021). The fee stays held
+ * until both have confirmed; the second confirm credits the lawyer wallet.
+ */
+export async function confirmConsultation(
+  id: string,
+  userId: string,
+  role: Role,
+): Promise<ConsultationView> {
+  if (role !== Role.USER && role !== Role.LAWYER) {
+    throw forbidden('Only the client and the lawyer can confirm this consultation');
+  }
+
+  const existing = await prisma.consultationRequest.findFirst({
+    where: { id, ...(await scopeFor(userId, role)) },
+    select: {
+      id: true,
+      status: true,
+      feePesewas: true,
+      lawyerProfileId: true,
+      clientConfirmedAt: true,
+      lawyerConfirmedAt: true,
+      settledAt: true,
+    },
+  });
+  if (!existing) throw notFound('Consultation request not found');
+
+  if (
+    existing.status !== ConsultationStatus.ACCEPTED &&
+    existing.status !== ConsultationStatus.COMPLETED
+  ) {
+    throw badRequest('Confirm after the lawyer has accepted and you have met.');
+  }
+
+  const field = role === Role.USER ? 'clientConfirmedAt' : 'lawyerConfirmedAt';
+  if (!existing[field]) {
+    await prisma.consultationRequest.update({
+      where: { id },
+      data: { [field]: new Date() },
+    });
+  }
+
+  const current = await prisma.consultationRequest.findFirstOrThrow({
+    where: { id },
+    select: {
+      clientConfirmedAt: true,
+      lawyerConfirmedAt: true,
+      settledAt: true,
+      feePesewas: true,
+      lawyerProfileId: true,
+    },
+  });
+
+  if (current.clientConfirmedAt && current.lawyerConfirmedAt && !current.settledAt) {
+    await creditConsultationFee(id, current.lawyerProfileId, current.feePesewas);
+  }
+
+  return getConsultation(id, userId, role);
 }

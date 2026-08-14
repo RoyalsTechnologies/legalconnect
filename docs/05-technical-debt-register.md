@@ -1,8 +1,8 @@
 # Technical debt register
 
-Status: initial debt identified at design time (2026-08-12). Items TD-001 to TD-008 are
-**accepted design trade-offs, not yet incurred in code** — each is dated and its status
-updated when the corresponding code lands. Add new entries as real shortcuts are taken.
+Status: initial debt identified at design time (2026-08-12). Items TD-001 to TD-007 are
+**accepted design trade-offs** unless a later status says otherwise. TD-008 is partially
+mitigated on the server; the frontend is still untested.
 
 Technical debt is worth 6 of 48 marks. Record actual trade-offs; never invent debt to fill
 the document and never hide it.
@@ -94,12 +94,15 @@ privacy notice, and evaluate a self-hosted or in-region model.
 ### TD-008 — Targeted rather than broad test coverage
 
 **Cause:** E-13 budgets 4.5 hours; broad coverage was estimated near 12.
-**Impact:** Coverage concentrates on auth, authorization, AI validation and fallback, and
-matching. CRUD paths, most of the frontend, and edge cases are untested, so regressions
-there would not be caught.
-**Priority:** Medium · **Category:** testing · **Status:** Acceptable temporarily
-**Resolution:** Extend to remaining service methods and add frontend component tests.
-**Target:** v1.1 · **Related:** All, `server/tests/`
+**Impact:** Server `src/` is now measured at **96.3% statements / 97.48% lines / 99.61%
+functions / 89.42% branches** (`npm run test:coverage`, 2026-08-13, 358 tests). Remaining
+server gaps are env-gated mail paths and defensive catches. **The React client still has
+no component tests**, so isolated UI regressions would not be caught. Playwright E2E
+covers landing, citizen intake, and lawyer plan payment against a mocked `/api/v1`.
+**Priority:** Medium · **Category:** testing · **Status:** Partially mitigated
+**Resolution:** Add frontend component tests. Remaining server branch gaps are listed in
+`docs/04-testing.md`.
+**Target:** v1.1 · **Related:** All, `server/tests/`, `client/src/`
 
 ### TD-009 — Tests share one database schema and run sequentially
 
@@ -312,16 +315,16 @@ tree-shaking / modular imports if measured load time becomes a problem.
 
 **Cause:** FR-017 needed a book-and-pay path without a payouts product. NaloPay (when
 configured) collects mobile money into the platform merchant account; locally the adapter
-logs and marks paid. Hosted checkout was not wired — collection is a MoMo prompt plus
-signed webhook / status poll.
-**Impact:** A paid booking does not transfer GH₵ to the lawyer. There is no refund,
-invoice, or split. Production without NaloPay credentials refuses to capture. NaloPay
-cannot POST the webhook to `localhost`; the client polls `collection-status` so a local
-booking still completes without a public callback URL.
-**Priority:** High for production · **Category:** functionality · **Status:** Accepted
-**Resolution:** Merchant settlement report to lawyers; refunds; receipts; a public HTTPS
-callback URL in deployed environments.
-**Target:** v1.1 · **Related:** FR-017
+logs and marks paid.
+**Impact:** FR-021 now holds the fee until both parties confirm, credits a wallet ledger,
+refunds on cancel/decline after pay, and accepts withdrawal requests. Live MoMo *push*
+still depends on an unverified disbursement URL (TD-028). Invoices and platform commission
+are not built. NaloPay cannot POST the webhook to `localhost` and rejects a missing or
+http `callback` (`PAY-INVAL-0069`); the adapter sends an https placeholder locally and
+the client polls `collection-status` so a booking still completes.
+**Priority:** Medium for production · **Category:** functionality · **Status:** Partially repaid
+**Resolution:** Confirm the NaloPay disbursement contract (TD-028); receipts; commission if required.
+**Target:** v1.1 · **Related:** FR-017, FR-021
 
 ### TD-026 — Lawyer plans are prepaid periods, not a recurring subscription
 
@@ -349,6 +352,40 @@ check, no reschedule flow, and no automatic Meet conference on the event.
 and Meet room; optional lawyer availability calendar.
 **Target:** v1.1 · **Related:** FR-019
 
+### TD-028 — NaloPay disbursement URL is not confirmed
+
+**Cause:** FR-021 needed refunds and withdrawals. Public NaloPay docs in this repo only
+cover collection (`/clientapi/collection/`). Payouts call `/clientapi/disbursement/` with
+the same token and trans_hash pattern. Tests and local-without-credentials capture
+immediately; production without credentials or a rejected live call is a 503.
+**Impact:** In-app ledger is the source of truth. Live MoMo push to lawyers or refunds to
+clients may fail until the merchant contract is confirmed. Do not add a second PSP.
+**Priority:** High for production · **Category:** integration · **Status:** Accepted
+**Resolution:** Confirm path and payload with NaloPay; keep test/log capture for local demo.
+**Target:** v1.1 · **Related:** FR-021
+
+### TD-029 — File logs do not persist on serverless hosts
+
+**Cause:** FR-style operational logging writes `sys.log`, `security.log`, `payment.log`,
+and `notification.log` under `server/logs/`. Vercel Functions (and Render free disks) have
+no persistent filesystem.
+**Impact:** After a sleep, restart, or redeploy those files are gone. Stdout still carries
+the same lines for the host log viewer.
+**Priority:** Low · **Category:** observability · **Status:** Accepted
+**Resolution:** Ship logs to the platform viewer, or attach a disk / log drain if the
+product outlives the exam.
+**Target:** v1.2 · **Related:** NFR-001, NFR-002
+
+### TD-030 — Prisma on Vercel without a connection pooler
+
+**Cause:** The exam host is Vercel. Each Function invocation may open a new Postgres
+connection. Prisma was kept (stack rule) rather than introducing Redis or a second ORM.
+**Impact:** A burst of traffic can exhaust the database `max_connections`. Cold starts are
+slower than a long-lived Node process.
+**Priority:** Medium for the live exam URL · **Category:** infrastructure · **Status:** Accepted
+**Resolution:** Use a pooled URL (Neon `-pooler` or PgBouncer). Do not add another datastore.
+**Target:** v1.1 · **Related:** NFR-008, CON-002
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -360,7 +397,7 @@ and Meet room; optional lawyer availability calendar.
 | TD-005 | No lawyer self-onboarding | Low (MVP) | architecture | Partially mitigated |
 | TD-006 | Single AI provider | Low | dependency | Accepted |
 | TD-007 | Intake data leaves boundary | High | data | Accepted, needs disclosure |
-| TD-008 | Targeted test coverage | Medium | testing | Accepted |
+| TD-008 | Targeted test coverage | Medium | testing | Partially mitigated |
 | TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | Accepted |
 | TD-010 | Password reset and email verification | Medium | security | **Resolved** |
 | TD-011 | Confidence threshold not calibrated | Medium | AI quality | Accepted |
@@ -377,9 +414,12 @@ and Meet room; optional lawyer availability calendar.
 | TD-022 | Recommendation weights are chosen, not calibrated | Low | AI quality | Accepted |
 | TD-023 | No rate limiting on the anonymous read endpoints | Medium | security | Accepted |
 | TD-024 | Ant Design ships as one large client bundle | Low | performance | Accepted |
-| TD-025 | Fees collected but not settled to lawyers | High (prod) | functionality | Accepted |
+| TD-025 | Fees collected but not settled to lawyers | Medium (prod) | functionality | Partially repaid |
 | TD-026 | Lawyer plans are prepaid periods, not recurring | Medium (prod) | functionality | Accepted |
 | TD-027 | Calendar template + pasted Meet link, not OAuth sync | Medium (prod) | integration | Accepted |
+| TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
+| TD-029 | File logs ephemeral on serverless hosts | Low | observability | Accepted |
+| TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

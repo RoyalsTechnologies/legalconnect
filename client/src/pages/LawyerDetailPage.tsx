@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { consultationsApi, intakesApi, lawyersApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
-import { AiDisclaimer, PageShell } from '../components/Layout';
 import { BookingSlotField, toScheduledIso } from '../components/BookingSlotField';
+import { AiDisclaimer, PageShell } from '../components/Layout';
 import { MomoPayFields, type MomoPayValues } from '../components/MomoPayFields';
 import { BackLink, Badge, ErrorNotice, formatGhs, InitialsAvatar, Loading } from '../components/ui';
 import { messageFor, useAsync } from '../hooks/useAsync';
@@ -28,7 +28,9 @@ function RequestForm({
   const navigate = useNavigate();
   const { user } = useAuth();
   const intakes = useAsync(() => intakesApi.list(), [], 'Could not load your enquiries.');
-  const [form] = Form.useForm<{ intakeId: string; message?: string; scheduledAt: string } & MomoPayValues>();
+  const [form] = Form.useForm<
+    { intakeId: string; message?: string; scheduledAt: string } & MomoPayValues
+  >();
   const intakeId = Form.useWatch('intakeId', form);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

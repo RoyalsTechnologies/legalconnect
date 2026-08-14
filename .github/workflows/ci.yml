@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  JWT_SECRET: ci-test-jwt-secret-not-for-production-use!!
+  CLIENT_ORIGIN: http://localhost:5173
+  DATABASE_URL: postgresql://legalconnect:ci@localhost:5432/legalconnect?schema=public
+
+jobs:
+  quality:
+    name: lint, types, audit, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+            server/package-lock.json
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix server
+          npm ci --prefix client
+      - name: Generate Prisma client
+        run: npm --prefix server run prisma:generate
+      - name: Biome
+        run: npm run check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Dependency audit
+        run: npm run audit
+      - name: Production builds
+        run: |
+          npm --prefix server run build
+          npm --prefix client run build
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install server
+        run: npm ci --prefix server
+      - name: Generate Prisma client
+        run: npm --prefix server run prisma:generate
+      - name: Run unit tests
+        run: npm run test:unit
+
+  integration:
+    name: integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: legalconnect
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: legalconnect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U legalconnect -d legalconnect"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install server
+        run: npm ci --prefix server
+      - name: Generate Prisma client
+        run: npm --prefix server run prisma:generate
+      - name: Run integration tests
+        run: npm run test:integration
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: legalconnect
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: legalconnect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U legalconnect -d legalconnect"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install server
+        run: npm ci --prefix server
+      - name: Generate Prisma client
+        run: npm --prefix server run prisma:generate
+      - name: Run coverage
+        run: npm run test:coverage

@@ -266,6 +266,17 @@ describe('AI-TC-005 provider failure', () => {
       triageLegalIssue({ description: DESCRIPTION, categories: CATEGORIES }, explode),
     ).resolves.toMatchObject({ status: 'FAILED_FALLBACK' });
   });
+
+  it('falls back when the provider rejects with a non-Error', async () => {
+    const explode = stubClient(() => Promise.reject('nope'));
+
+    const result = await triageLegalIssue(
+      { description: DESCRIPTION, categories: CATEGORIES },
+      explode,
+    );
+    expect(result.status).toBe('FAILED_FALLBACK');
+    expect(result.note).toContain('unknown provider failure');
+  });
 });
 
 describe('FR-010 fallback content', () => {

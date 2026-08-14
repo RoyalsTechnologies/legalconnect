@@ -29,7 +29,10 @@ export async function updateProfile(
 }
 
 /** Keeps the number used to pay on the account so the next booking can reuse it. */
-export async function rememberPhone(userId: string, phone: string | null | undefined): Promise<void> {
+export async function rememberPhone(
+  userId: string,
+  phone: string | null | undefined,
+): Promise<void> {
   if (!phone) return;
   await prisma.user.update({ where: { id: userId }, data: { phone } });
 }

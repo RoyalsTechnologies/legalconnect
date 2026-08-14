@@ -2,10 +2,15 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   amountForHash,
+  collectionCallbackUrl,
   computeTransHash,
+  FALLBACK_COLLECTION_CALLBACK,
   inferMomoNetwork,
   isPaidStatus,
   pesewasFromAmount,
+  publicCallbackUrl,
+  toNaloPayAccountNumber,
+  toNaloPayNetwork,
   transHashMessage,
   verifyCallbackSignature,
 } from '../src/payments/nalopay.js';
@@ -85,6 +90,38 @@ describe('NaloPay helpers', () => {
 
   it('treats COMPLETED as paid', () => {
     expect(isPaidStatus('COMPLETED')).toBe(true);
+    expect(isPaidStatus('success')).toBe(true);
+    expect(isPaidStatus('PAID')).toBe(true);
     expect(isPaidStatus('FAILED')).toBe(false);
+    expect(isPaidStatus(undefined)).toBe(false);
+  });
+
+  it('sends a local 0-prefixed MSISDN to NaloPay, matching the hash example', () => {
+    expect(toNaloPayAccountNumber('233244123456')).toBe('0244123456');
+    expect(toNaloPayAccountNumber('0244123456')).toBe('0244123456');
+  });
+
+  it('maps in-app networks onto the NaloPay collection names', () => {
+    expect(toNaloPayNetwork('MTN')).toBe('MTN');
+    expect(toNaloPayNetwork('AT')).toBe('AIRTELTIGO');
+    expect(toNaloPayNetwork('TELECEL')).toBe('VODAFONE');
+  });
+
+  it('omits loopback and http callbacks so NaloPay does not reject them', () => {
+    expect(publicCallbackUrl('http://localhost:4000/api/v1/payments/callback')).toBeUndefined();
+    expect(publicCallbackUrl('https://127.0.0.1/callback')).toBeUndefined();
+    expect(publicCallbackUrl('http://example.com/callback')).toBeUndefined();
+    expect(publicCallbackUrl('https://pay.example.com/api/v1/payments/callback')).toBe(
+      'https://pay.example.com/api/v1/payments/callback',
+    );
+  });
+
+  it('always supplies an https callback because omitting it is PAY-INVAL-0069', () => {
+    expect(collectionCallbackUrl('http://localhost:4000/api/v1/payments/callback')).toBe(
+      FALLBACK_COLLECTION_CALLBACK,
+    );
+    expect(collectionCallbackUrl('https://pay.example.com/api/v1/payments/callback')).toBe(
+      'https://pay.example.com/api/v1/payments/callback',
+    );
   });
 });

@@ -92,6 +92,22 @@ export interface LawyerView {
     periodEnd: string | null;
     package: SubscriptionPackage | null;
   };
+  paymentAccount?: {
+    accountName: string;
+    phone: string;
+    network: 'MTN' | 'AT' | 'TELECEL';
+  } | null;
+  wallet?: {
+    availablePesewas: number;
+    entries: Array<{
+      id: string;
+      type: 'CREDIT' | 'DEBIT';
+      amountPesewas: number;
+      consultationId: string | null;
+      withdrawalId: string | null;
+      createdAt: string;
+    }>;
+  };
 }
 
 export interface SubscriptionPackage {
@@ -154,6 +170,8 @@ export interface ConsultationView {
   paymentReference: string | null;
   scheduledAt: string;
   meetUrl: string | null;
+  clientConfirmedAt: string | null;
+  lawyerConfirmedAt: string | null;
   durationMinutes: number;
   googleCalendarUrl: string;
   createdAt: string;

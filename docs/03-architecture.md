@@ -108,9 +108,11 @@ All product endpoints sit under `/api/v1`:
 | `/api/v1/packages` | Lawyer plans — read for anyone, write for admins |
 | `/api/v1/lawyers` | Lawyer directory with filters — read for anyone; own-profile editing, admin creation and approval require a session |
 | `/api/v1/lawyers/me/subscription` | Lawyer pays for a month or a yearly equivalent of a plan |
+| `/api/v1/lawyers/me/withdrawals` | Lawyer lists and requests wallet withdrawals |
 | `/api/v1/intakes` | Legal issue submission and retrieval |
 | `/api/v1/intakes/:id/recommendations` | Deterministic lawyer matching for one intake |
 | `/api/v1/consultations` | Consultation requests and their status workflow |
+| `/api/v1/consultations/:id/confirm` | Client or lawyer confirms the session happened |
 | `/api/v1/payments/callback` | NaloPay signed webhook — no JWT; raw body for HMAC |
 | `/api/v1/admin` | User management, suspension, platform statistics |
 | `/api/health` | Operational probe — **not** versioned |
@@ -171,18 +173,24 @@ LawyerProfile 1───< SubscriptionPayment >── SubscriptionPackage
 | Entity | Purpose | Fields |
 | --- | --- | --- |
 | `User` | Account, credentials, role | id, email (unique), passwordHash, fullName, phone?, role, status, createdAt, updatedAt |
-| `LawyerProfile` | Professional profile | id, userId (unique), displayName, firmName?, bio, licenseNumber?, city, region, isAvailable, approvalStatus, yearsExperience?, consultationFeePesewas, subscriptionPackageId?, subscriptionPeriodEnd?, createdAt, updatedAt |
+| `LawyerProfile` | Professional profile | id, userId (unique), displayName, firmName?, bio, licenseNumber?, city, region, isAvailable, approvalStatus, yearsExperience?, consultationFeePesewas, subscriptionPackageId?, subscriptionPeriodEnd?, paymentAccountName?, paymentPhone?, paymentNetwork?, createdAt, updatedAt |
 | `SubscriptionPackage` | Plan capping practice areas | id, name (unique), slug (unique), description, monthlyFeePesewas, maxPracticeAreas, isActive |
 | `SubscriptionPayment` | One prepaid plan payment | id, lawyerProfileId, packageId, feePesewas, periodDays, status, paymentReference?, paymentOrderId?, createdAt, updatedAt |
 | `LegalCategory` | Configurable taxonomy | id, name (unique), slug (unique), description, isActive |
 | `LawyerPracticeArea` | Specialisation join | lawyerProfileId, legalCategoryId — composite primary key |
 | `LegalIntake` | Submitted concern and triage result | id, clientId, originalDescription, city?, region?, categoryId?, aiSummary?, urgency?, keywords[], confidence?, needsHumanReview, aiStatus, aiError?, createdAt, updatedAt |
-| `ConsultationRequest` | Client ↔ lawyer request | id, intakeId, clientId, lawyerProfileId, status, clientMessage?, matchReason, feePesewas, paymentReference?, paymentOrderId?, scheduledAt, meetUrl?, createdAt, updatedAt |
+| `ConsultationRequest` | Client ↔ lawyer request | id, intakeId, clientId, lawyerProfileId, status, clientMessage?, matchReason, feePesewas, paymentReference?, paymentOrderId?, scheduledAt, meetUrl?, clientConfirmedAt?, lawyerConfirmedAt?, payerPhone?, payerNetwork?, settledAt?, createdAt, updatedAt |
+| `WalletLedger` | Signed pesewas for a lawyer | id, lawyerProfileId, amountPesewas, type CREDIT/DEBIT, consultationId? (unique), withdrawalId?, createdAt |
+| `WithdrawalRequest` | Lawyer cash-out | id, lawyerProfileId, amountPesewas, status PENDING/PAID/FAILED, paymentReference?, paymentOrderId?, createdAt, updatedAt |
+| `Payout` | MoMo send (refund or withdrawal) | id, type REFUND/WITHDRAWAL, amountPesewas, destinationPhone, destinationNetwork?, status, paymentReference?, paymentOrderId?, consultationId?, withdrawalId?, createdAt, updatedAt |
 
 Enums: `Role` = USER · LAWYER · ADMIN. `UserStatus` = ACTIVE · SUSPENDED.
 `ApprovalStatus` = PENDING · APPROVED · REJECTED. `Urgency` = NORMAL · IMPORTANT · URGENT.
 `AiStatus` = PENDING · COMPLETED · FAILED_FALLBACK. `ConsultationStatus` = AWAITING_PAYMENT · PENDING ·
 ACCEPTED · DECLINED · COMPLETED · CANCELLED. `SubscriptionPaymentStatus` = PENDING · PAID.
+`MomoNetwork` = MTN · AT · TELECEL. `WalletLedgerType` = CREDIT · DEBIT.
+`WithdrawalStatus` = PENDING · PAID · FAILED. `PayoutType` = REFUND · WITHDRAWAL.
+`PayoutStatus` = PENDING · PAID · FAILED.
 
 Design notes worth defending:
 
@@ -195,12 +203,16 @@ Design notes worth defending:
 - `matchReason` is stored on the consultation request, not recomputed, so the lawyer sees
   the reason the client actually saw (NFR-007).
 - `confidence` is stored so low-confidence intakes can be found later.
+- Payment account columns on `LawyerProfile` are omitted from the public directory
+  select. Own-profile and admin detail return a nested `paymentAccount` object (FR-020).
+  Wallet ledger and withdrawals are own-profile only (FR-021). Live NaloPay disbursement
+  uses `/clientapi/disbursement/`; that path is not confirmed with merchant docs (TD-028).
 
 All six `ConsultationStatus` values are reachable: a booking starts as `AWAITING_PAYMENT`
-until the fee is paid, then a lawyer accepts, declines, or completes; a client can cancel
-an unpaid or pending request. Transitions are declared as a role-to-status table in
-`consultations.service.ts` rather than as nested conditionals, so an unlisted transition
-is refused by omission rather than by an explicit rule someone has to remember to write.
+until the fee is paid, then a lawyer accepts or declines. `COMPLETED` requires both
+parties to confirm. A client can cancel an unpaid, pending, or accepted request; cancel
+or decline after payment refunds the payer. Transitions are declared as a role-to-status
+table in `consultations.service.ts`; confirm is a separate endpoint.
 
 ## Matching design
 
@@ -284,9 +296,10 @@ route handlers; the provider is never reachable from the client.
 
 ## Design artefacts
 
-To produce in `../diagrams/`: use-case diagram (Client, Lawyer, Admin), architecture
-diagram, ER diagram, and a sequence diagram for AI-assisted intake including the fallback
-branch. Optionally an activity diagram for the consultation lifecycle. No others.
+Produced in `../diagrams/` (Mermaid `.mmd`): use-case diagram (Citizen, Lawyer, Admin,
+Visitor), architecture diagram, ER diagram, sequence diagram for AI-assisted intake
+including the fallback branch, and the optional consultation lifecycle activity. See
+`diagrams/README.md`. No further diagram types.
 
 ## Implementation phases
 
@@ -300,7 +313,7 @@ branch. Optionally an activity diagram for the consultation lifecycle. No others
 | 6 | Lawyer matching and discovery | FR-011, FR-012 | Complete |
 | 7 | Consultation requests | FR-013, FR-014 | Complete |
 | 8 | Admin functionality | FR-015 | Complete |
-| 9 | Testing pass | All | Automated suite complete; UAT not yet completed |
+| 9 | Testing pass | All | Automated suite complete; developer UAT 2026-08-13 (independent participants not yet completed) |
 | 10 | Deployment and documentation | CON-002, NFR-008 | Not yet completed |
 
 The frontend was built alongside phases 6–8 rather than as a separate phase, because

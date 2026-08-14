@@ -1,3 +1,5 @@
+import { Role } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from './setup.js';
@@ -217,6 +219,31 @@ describe('NFR-002 intake visibility', () => {
     expect(found.status).toBe(404);
     expect(missing.status).toBe(404);
     expect(found.body.error.message).toBe(missing.body.error.message);
+  });
+
+  it('an admin can read any intake for oversight', async () => {
+    const ownerToken = await registerUser('owner@example.com');
+    const created = await submit(ownerToken);
+
+    await prisma.user.create({
+      data: {
+        email: 'admin@example.com',
+        passwordHash: await bcrypt.hash('admin-password-123', 4),
+        fullName: 'Platform Administrator',
+        role: Role.ADMIN,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'admin@example.com', password: 'admin-password-123' });
+
+    const res = await request(app)
+      .get(`/api/v1/intakes/${created.body.id}`)
+      .set('Authorization', `Bearer ${login.body.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(created.body.id);
   });
 
   it('IT-015: the list endpoint returns only the caller own intakes', async () => {

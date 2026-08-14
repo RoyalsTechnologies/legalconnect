@@ -23,8 +23,9 @@ priorities, MVP scope, effort estimate, chosen stack.
 **Gate B — before a feature is complete:** acceptance criteria, working implementation,
 validation and error handling, relevant tests.
 
-**Gate C — before deployment:** core Must requirements working, critical tests passing,
-critical security issues addressed, production configuration prepared.
+**Gate C — before deployment:** core Must requirements working, critical tests passing on
+GitHub Actions (`.github/workflows/ci.yml`), critical security issues addressed,
+production configuration prepared.
 
 **Gate D — before submission:** live app verified, repository verified, documentation
 complete, technical debt plan complete, credentials verified, all links verified.
@@ -82,6 +83,8 @@ debt, reprioritise scope, and only then implement.
 | --- | --- | --- | --- | --- | --- |
 | CH-018 | 2026-08-13 | Product owner: lawyers subscribe monthly; each package is a cap on legal areas of interest | FR-018 (Should) | Schema, matching/directory eligibility, lawyer and admin UI | Smallest version: prepaid month + area cap; recurring billing deferred as TD-026 |
 | CH-019 | 2026-08-13 | Product owner: lawyer can pay monthly or a yearly equivalent | FR-018 (Should) | Payment interval on `SubscriptionPayment`; lawyer and admin UI | Year = 365 days at 12 × current monthly fee; no separate yearly price field |
+| CH-020 | 2026-08-13 | Product owner: lawyer wallet with a saved Ghana MoMo payment account | FR-020 (Should) | LawyerProfile payment fields; `/app/wallet`; subscribe prefill | Saved MoMo identity only — no ledger balance, no NaloPay disbursement (TD-025 stays) |
+| CH-021 | 2026-08-13 | Product owner: hold consultation fee until both confirm, then credit wallet; withdrawals and refunds | FR-021 (Should) | Ledger, dual confirm, payout adapter, Wallet UI | Live disbursement path unverified (TD-028); no commission or disputes |
 
 ## Scope safety rule
 

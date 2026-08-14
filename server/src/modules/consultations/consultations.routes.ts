@@ -67,7 +67,16 @@ consultationsRouter.post(
   }),
 );
 
-// FR-014 — accept, decline, complete, or cancel, depending on who is asking.
+consultationsRouter.post(
+  '/:id/confirm',
+  requireRole(Role.USER, Role.LAWYER),
+  asyncHandler(async (req, res) => {
+    const { id } = consultationIdParamSchema.parse(req.params);
+    res.json(await consultationsService.confirmConsultation(id, req.user!.id, req.user!.role));
+  }),
+);
+
+// FR-014 — accept, decline, or cancel, depending on who is asking. Completing is POST /:id/confirm.
 consultationsRouter.patch(
   '/:id',
   validateBody(updateConsultationSchema),

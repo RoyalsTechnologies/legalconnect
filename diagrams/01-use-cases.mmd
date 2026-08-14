@@ -1,0 +1,28 @@
+flowchart LR
+  visitor[Visitor]
+  citizen[Citizen]
+  lawyer[Lawyer]
+  admin[Admin]
+
+  visitor --> ucBrowse["Browse lawyer directory"]
+  visitor --> ucRegister["Register as citizen or lawyer"]
+  visitor --> ucLogin["Sign in"]
+
+  citizen --> ucIntake["Describe a legal concern"]
+  citizen --> ucMatch["See matched lawyers with reasons"]
+  citizen --> ucBook["Book and pay for a consultation"]
+  citizen --> ucTrack["Track request status"]
+  citizen --> ucConfirmC["Confirm the consultation happened"]
+  citizen --> ucProfile["Update own profile"]
+
+  lawyer --> ucProfileL["Maintain profile and practice areas"]
+  lawyer --> ucPlan["Pay for a subscription plan"]
+  lawyer --> ucInbox["Review incoming requests"]
+  lawyer --> ucDecide["Accept or decline a request"]
+  lawyer --> ucConfirmL["Confirm the consultation happened"]
+  lawyer --> ucWallet["Save MoMo account and withdraw"]
+
+  admin --> ucUsers["Manage users and suspension"]
+  admin --> ucApprove["Approve or reject lawyers"]
+  admin --> ucCats["Maintain legal categories"]
+  admin --> ucPlans["Configure subscription plans"]

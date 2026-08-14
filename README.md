@@ -23,7 +23,8 @@ web interface: registration and login, AI-assisted intake with a safe fallback,
 deterministic lawyer matching with visible reasons, a filterable lawyer directory, the
 consultation request workflow, and administration.
 
-Not yet done: deployment to a hosting platform (phase 10) and user acceptance testing.
+Not yet done: deployment to a hosting platform (phase 10). Developer UAT against the local
+stack was run on 2026-08-13; independent participant UAT is not yet completed.
 The AI provider key is unset by default, so triage takes the fallback path until one is
 configured — the intake and consultation flow works either way, which is the point of
 building it that way. See [docs/03-architecture.md](docs/03-architecture.md) for the phase
@@ -153,9 +154,13 @@ Send the returned `token` as `authorization: Bearer <token>`.
 | Dev client | `client/` | `npm run dev` |
 | Migrate | `server/` | `npm run prisma:migrate` |
 | Seed | `server/` | `npm run prisma:seed` |
-| Test | `server/` | `npm test` |
+| Test | `server/` | `npm test` (unit then integration) |
+| Unit tests | `server/` | `npm run test:unit` |
+| Integration tests | `server/` | `npm run test:integration` |
+| Frontend E2E | root or `client/` | `npm run test:e2e` |
 | Typecheck | either | `npm run typecheck` |
 | Build | either | `npm run build` |
+| CI | GitHub | `.github/workflows/ci.yml` |
 
 ### Code quality
 
@@ -164,15 +169,29 @@ Run from the repo root. `npm install` once at the root to get Biome.
 | Task | Command |
 | --- | --- |
 | **Everything** | `npm run verify` |
+| Unit tests | `npm run test:unit` |
+| Integration tests | `npm run test:integration` |
+| Frontend E2E | `npm run test:e2e` |
 | Lint + format check | `npm run check` |
 | Lint + format, applying fixes | `npm run check:fix` |
 | Format only | `npm run format` |
 | Typecheck both packages | `npm run typecheck` |
 | Dependency audit | `npm run audit` |
 
-`npm run verify` runs Biome, both typechecks, the test suite, and the dependency audit,
-failing on the first problem. The tests need PostgreSQL running (`docker compose up -d
-postgres`); nothing else does.
+`npm run verify` runs Biome, both typechecks, the test suite (unit then integration), and
+the dependency audit, failing on the first problem. Unit tests do not need a database.
+Integration tests need PostgreSQL (`docker compose up -d postgres`).
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint/typecheck/audit/builds, then
+**unit tests**, **integration tests**, and **coverage** as separate jobs.
+Integration starts its own Postgres 16 service. Frontend E2E is local-only
+(`npm run test:e2e`).
+
+Hosting is Vercel (`vercel.json`): the Vite build is served from `public/`, Express
+handles `/api/*`. Create a hosted Postgres (Neon pooled URL recommended), set the
+variables in `docs/06-deployment.md`, then deploy. The live URL is not yet deployed.
+
+Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 
 Inside Docker the API reaches the database at `postgres:5432` and the client proxies
 `/api` to `server:4000`; `docker-compose.yml` overrides `DATABASE_URL` accordingly, so

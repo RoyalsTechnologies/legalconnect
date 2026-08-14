@@ -54,8 +54,8 @@ Decided — do not substitute or introduce alternatives without asking.
 No microservices, message brokers, Redis, Kubernetes, vector databases, or additional
 datastores. If you believe one is genuinely required, raise it before adding it.
 
-Deployment target is not yet fixed. See `docs/06-deployment.md`; confirm with the user
-before writing platform-specific configuration.
+Deployment target is **Vercel** (static Vite build + one Express Function) plus hosted
+PostgreSQL. See `docs/06-deployment.md`. A live URL is not yet deployed.
 
 ## Repository layout
 
@@ -92,11 +92,15 @@ not run.
 | Dev — frontend | `npm run dev` in `client/` (port 5173) |
 | Migrate | `npm run prisma:migrate` in `server/` |
 | Seed | `npm run prisma:seed` in `server/` |
-| Test | `npm test` in `server/` |
+| Test | `npm test` in `server/` (unit then integration) |
+| Unit tests | `npm run test:unit` |
+| Integration tests | `npm run test:integration` |
+| Frontend E2E | `npm run test:e2e` (Playwright; mocks `/api/v1`, no live NaloPay) |
 | Typecheck | `npm run typecheck` |
 | Build | `npm run build` |
 | Lint + format | `npm run check:fix` (repo root, Biome) |
 | Full quality gate | `npm run verify` (repo root) |
+| CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit, integration, coverage) |
 
 Run `npm run verify` from the root before considering a phase complete — it runs Biome,
 both typechecks, the tests, and the dependency audit.

@@ -1,6 +1,6 @@
 # Testing
 
-Status: strategy defined, no tests executed yet.
+Status: automated suite in place; coverage measured 2026-08-13.
 
 **Do not record a test as executed or passing unless it actually ran.** Paste real output.
 
@@ -20,7 +20,19 @@ Runner: Vitest (unit), Supertest (API integration). Postman may be used for manu
 integration evidence. The AI provider is mocked in automated tests — never call the live
 provider from a test suite.
 
-*Environment details to be recorded once the project is scaffolded.*
+Local: Node.js 22 and PostgreSQL 16 (`docker compose up -d postgres`). `npm test` in
+`server/` applies committed migrations to a dedicated `test` schema
+(`tests/global-setup.ts`) so development data is not truncated.
+
+CI: GitHub Actions workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+runs three jobs on every push and pull request:
+
+- **lint, types, audit, build** — `npm run check`, both typechecks, `npm run audit`, production builds
+- **unit tests** — `npm run test:unit` (no database)
+- **integration tests** — `npm run test:integration` against a Postgres 16 service
+- **coverage** — `npm run test:coverage` against Postgres; fails the job if server `src/` drops below the Vitest thresholds (95% statements/lines/functions, 88% branches)
+
+First Actions run: not yet completed.
 
 ## ID scheme
 
@@ -128,17 +140,79 @@ wherever feasible.
 ## User acceptance testing
 
 Tie UAT to real user goals and demonstrate that implemented Must requirements solve the
-intended problem.
+intended problem. Independent external participants have **not yet completed** a session.
+The cases below were executed on **2026-08-13** by the developer against the local Docker
+stack (`http://localhost:5173`, `http://localhost:4000`) using the gated demo accounts in
+`README.md`. That is a walkthrough, not a claim of third-party UAT.
 
 ```
 UAT-001
-Actor:
-Scenario:
-Acceptance criterion:
-Expected outcome:
-Actual outcome:
-Status:
+Actor: Citizen (demo Ama Mensah)
+Scenario: Describe an unpaid-salary dismissal in Accra in everyday language and reach lawyers.
+Acceptance criterion: Original words are stored; the user is not blocked when AI fails; lawyers remain reachable (NFR-004, FR-006, FR-010, FR-012).
+Expected outcome: An organised result or a controlled fallback, then recommendations or the directory.
+Actual outcome: POST /api/v1/intakes returned 201 after ~124s with aiStatus FAILED_FALLBACK, needsHumanReview true, category Other / Needs Review. originalDescription (152 characters) was unchanged. GET .../recommendations returned note "This enquiry has not been categorised yet, so no recommendation can be made. You can still browse the lawyer directory and contact someone directly." GET /lawyers listed the five seeded lawyers.
+Status: Pass on the fallback path. Live AI classification was not observed in this run.
 ```
+
+```
+UAT-002
+Actor: Visitor (not signed in)
+Scenario: Open the lawyer directory before creating an account (ADR-009, FR-012).
+Acceptance criterion: Approved lawyers are visible; payment-account fields are not; writes still require a session.
+Expected outcome: A filterable list with names, fees, and View profile.
+Actual outcome: Browser at http://localhost:5173/lawyers showed heading "Find a legal professional", search "e.g. unpaid salary", and five cards: Abena Sarpong, Akua Owusu, Efua Danso, Kwame Asante, Yaw Boakye, with GH₵ fees and regions. Sign in / Get started remained available. JSON for a directory lawyer had no paymentPhone or wallet keys.
+Status: Pass
+```
+
+```
+UAT-003
+Actor: Citizen
+Scenario: Book a consultation from the directory after the fallback intake, including the fee (FR-013, FR-017, FR-019).
+Acceptance criterion: A future slot is stored; unpaid bookings stay AWAITING_PAYMENT and hidden from the lawyer until pay succeeds.
+Expected outcome: 201 booking; pay prompt or local capture; lawyer then sees the request.
+Actual outcome: POST /consultations returned 201, status AWAITING_PAYMENT, feePesewas 25000, matchReason "Chosen by the client from the lawyer directory rather than from a recommendation.", googleCalendarUrl present. POST .../pay with 0244123456 / MTN returned 503; lawyer GET /consultations was empty (correct while unpaid).
+Status: Fail — booking succeeded; payment did not complete in this environment (NaloPay 503). Independent retry after payment credentials work is not yet completed.
+```
+
+```
+UAT-004
+Actor: Lawyer (demo Akua Owusu)
+Scenario: Read the structured intake and accept or decline (FR-014).
+Acceptance criterion: The lawyer sees the citizen's own words and can accept with a Google Meet URL.
+Expected outcome: Inbox shows the paid request; accept stores meetUrl.
+Actual outcome: Not reached — the booking from UAT-003 never left AWAITING_PAYMENT.
+Status: not yet completed
+```
+
+```
+UAT-005
+Actor: Administrator
+Scenario: Open the admin overview and lawyer approval queue (FR-015).
+Acceptance criterion: Admin-only screens load; USER/LAWYER callers cannot use them.
+Expected outcome: Overview with pending lawyers and platform counts.
+Actual outcome: not yet completed (admin password is generated at first seed and is not recorded in the repository).
+Status: not yet completed
+```
+
+```
+UAT-006
+Actor: Visitor
+Scenario: Read the public home page and judge whether the product claims to give legal advice (CON-003, NFR-004).
+Acceptance criterion: Copy tells people they can describe a concern in their own words and that a lawyer remains responsible for advice.
+Expected outcome: Plain-language steps; no verdict or prediction.
+Actual outcome: http://localhost:5173/ heading "We help you reach the right lawyer — they remain responsible for professional advice." Steps: "Tell us what happened", "We organise your request", "Connect with a lawyer."
+Status: Pass for the public home page. Signed-in intake screen disclaimer was not opened in the browser in this run.
+```
+
+| ID | Actor | Goal | Result |
+| --- | --- | --- | --- |
+| UAT-001 | Citizen | Describe a concern and still reach lawyers if AI fails | Pass (fallback path) |
+| UAT-002 | Visitor | Browse the directory without an account | Pass |
+| UAT-003 | Citizen | Book and pay | Fail — booking 201; pay 503 |
+| UAT-004 | Lawyer | Accept a paid request | not yet completed (blocked by UAT-003) |
+| UAT-005 | Admin | Use the admin overview | not yet completed |
+| UAT-006 | Visitor | See that the product is not legal advice | Pass (home page) |
 
 ## Defect log
 
@@ -370,7 +444,7 @@ choice of filtering them out.
 | IT-032 | FR-014 | A lawyer sees requests addressed to them, with the structured intake | Pass |
 | IT-033 | FR-014 | A lawyer accepts a pending request | Pass |
 | IT-034 | FR-014 | A lawyer declines a pending request | Pass |
-| IT-035 | FR-014 | A lawyer completes an accepted request | Pass |
+| IT-035 | FR-014, FR-021 | A lawyer cannot mark an accepted request completed alone — `403` | Pass |
 | IT-036 | FR-014 | A citizen cancels their own pending request | Pass |
 | IT-037 | FR-014 | A declined request cannot be revived — `400` | Pass |
 | IT-038 | FR-014 | Requests can be filtered by status | Pass |
@@ -534,11 +608,103 @@ covered (UT-013, UT-014). Signed-in change is new.
 | IT-068 | FR-019 | Accept without a Google Meet URL returns `422` | Pass |
 | IT-033 | FR-014, FR-019 | Accept stores the Meet URL and a Calendar template link | Pass |
 
+## Lawyer payment account / Wallet (2026-08-13)
+
+`npx vitest run tests/lawyers.test.ts tests/subscriptions.test.ts` — **2 files, 62 passed**.
+That run covered the saved MoMo identity only (FR-020). Ledger, credit, and withdrawals are IT-076…083 below (FR-021).
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| IT-069 | FR-020 | A lawyer can save and read back their payment account on `/lawyers/me` | Pass |
+| IT-070 | FR-020, FR-021 | Public directory list and detail omit `paymentPhone`, the number itself, and `wallet` | Pass |
+| IT-071 | FR-020 | A half-filled payment account returns `422` | Pass |
+| IT-072 | FR-020 | Subscribing without `phone` uses the saved payment account | Pass |
+| IT-073 | FR-020 | Paying with a new number persists it onto the payment account | Pass |
+| IT-074 | FR-020 | Sending `null` on all three payment fields clears the account | Pass |
+| IT-075 | FR-020 | A pay-from number without network is stored with the inferred network | Pass |
+
+## Frontend E2E (2026-08-14)
+
+Playwright drives the Vite client at `http://127.0.0.1:5173`. `/api/v1` is mocked in
+`client/e2e/mock-api.ts` so the suite does not need Postgres, seed data, or NaloPay.
+`npm run test:e2e` — **5 passed (10.1s)**.
+
+```
+Running 5 tests using 5 workers
+  ✓  FT-001: a visitor can open the landing page and browse the directory (FR-012) (5.1s)
+  ✓  FT-005: an expired session signs the citizen out and returns them to sign-in (FR-002) (5.9s)
+  ✓  FT-002: a citizen signs in, describes an issue, and sees the organised request (FR-001, FR-006) (6.3s)
+  ✓  FT-004: a rejected collection shows the gateway message on the plan form (FR-018) (6.4s)
+  ✓  FT-003: a lawyer pays for a plan and the UI shows the MoMo prompt then the active plan (FR-018) (6.7s)
+  5 passed (10.1s)
+```
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| FT-001 | FR-012 | Visitor opens landing, browses directory, sees a lawyer card | Pass |
+| FT-002 | FR-001, FR-006 | Citizen signs in, submits an intake, sees the organised request and original words | Pass |
+| FT-003 | FR-018 | Lawyer signs in, pays for Starter, UI reaches an active plan | Pass |
+| FT-004 | FR-018 | Mocked `PAY-INVAL` / Invalid reference appears on the plan form | Pass |
+| FT-005 | FR-002 | Expired JWT (`401 Session expired`) clears the session and returns to sign-in | Pass |
+
+First time locally: `npx --prefix client playwright install chromium`. Not part of
+GitHub Actions CI (browsers are large); run `npm run test:e2e` on a developer machine.
+
+## NaloPay collection contract (2026-08-14)
+
+Live gateway calls are mocked (`fetch` in unit tests; `startPayment` / `verifyPayment` on
+the HTTP paths). The suite never calls `nalopaytest.nalosolutions.com`.
+
+`npm run test:unit -- --run tests/nalopay.test.ts tests/nalopay-live.test.ts` — **2 files, 38 passed**.
+`npm --prefix server run test:integration -- tests/nalopay-http.test.ts` — **1 file, 4 passed**.
+
+```
+ Test Files  2 passed (2)
+      Tests  38 passed (38)
+ Duration  362ms
+```
+
+```
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+ Duration  6.54s
+```
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| UT-019 | FR-017 | Collection body uses local MSISDN, `trans_hash`, HTTPS `callback`, no `extra_data`, ASCII description | Pass |
+| IT-084 | FR-018 | Subscribe stays pending when the mocked gateway does not capture; reference is `LCP` + 20 hex | Pass |
+| IT-085 | FR-018 | Adapter `PAY-INVAL` / `Invalid reference` is `422` on `POST /lawyers/me/subscription` | Pass |
+| IT-086 | FR-018 | Confirm calls `verifyPayment` with the stored order id and activates the plan | Pass |
+| IT-087 | FR-017 | Booking pay stays `AWAITING_PAYMENT` until mocked `verify-payment` succeeds | Pass |
+
+A local Docker subscribe against the real test merchant (2026-08-14) returned
+`PAY-INVAL-0060` `{ cause: "reference", description: "Invalid reference" }` for
+`lc_<cuid>_<hex>` (45 characters, underscores). References are now `LCP`/`LCW`/`LCR` plus
+20 hex characters.
+
+## Consultation escrow, wallet credit, and withdrawals (2026-08-13)
+
+`npx vitest run tests/consultations.test.ts tests/lawyers.test.ts tests/nalopay.test.ts` — **3 files, 87 passed**.
+Live NaloPay disbursement URL is not confirmed (TD-028); tests capture immediately.
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| IT-076 | FR-021 | Both parties confirming credits the lawyer wallet (`20000`) and sets `COMPLETED` | Pass |
+| IT-077 | FR-021 | One confirmation leaves the request `ACCEPTED` and the wallet at `0` | Pass |
+| IT-078 | FR-021 | Cancel after payment records a REFUND payout and does not credit the lawyer | Pass |
+| IT-079 | FR-021 | Decline after payment records a REFUND payout | Pass |
+| IT-080 | FR-021 | Confirming twice does not insert a second CREDIT | Pass |
+| IT-081 | FR-021 | Withdrawal within balance debits the ledger (`50` GHS leaves `15000`) | Pass |
+| IT-082 | FR-021 | Withdrawal over the available balance returns `422` | Pass |
+| IT-083 | FR-021 | Withdrawal without a saved payment account returns `422` | Pass |
+
 ## Known issues and testing limitations
 
 Classification quality is unmeasured — see TD-011. The suite proves the AI contract is
 enforced and every failure mode degrades safely, not that the categories it returns are
-right. Frontend component tests do not exist yet (TD-008).
+right. Frontend component tests do not exist yet (TD-008). Playwright E2E covers four
+browser flows against a mocked API (FT-001…005).
 
 **The suite cannot be run twice concurrently.** Every run shares one `test` schema, so
 overlapping runs truncate and re-seed underneath each other. Observed on 2026-08-12: a
@@ -548,3 +714,27 @@ failures against 0 for either run alone. The symptoms are misleading, surfacing 
 authorization and validation failures rather than as the data race they are. The
 ownership queries were re-read afterwards and are unconditionally scoped by `clientId`
 for non-admin callers, and all 131 tests pass on every isolated run. Recorded as TD-009.
+
+## Server coverage (2026-08-13)
+
+`npm run test:coverage` in `server/` — **31 files, 358 tests, all passing**, then v8
+report for `server/src` (excludes `src/server.ts`, the process entrypoint). Coverage
+runs unit files that mock `env.js` in a separate Vitest project from the integration
+suite so `isTest` cannot leak.
+
+```
+ Test Files  31 passed (31)
+      Tests  358 passed (358)
+ Duration  129.50s
+
+Statements   : 96.3% ( 1224/1271 )
+Branches     : 89.42% ( 837/936 )
+Functions    : 99.61% ( 256/257 )
+Lines        : 97.48% ( 1123/1152 )
+```
+
+Thresholds enforced in `server/vitest.coverage.config.ts` and the CI **coverage** job:
+95% statements, lines, and functions; 88% branches. Branches sit below 95% because
+several remaining paths are environment-gated (email send outside `NODE_ENV=test`,
+`env.ts` parse failure at process start) or defensive catches (non-P2002 rethrows,
+concurrent update races). Frontend component tests still do not exist (TD-008).

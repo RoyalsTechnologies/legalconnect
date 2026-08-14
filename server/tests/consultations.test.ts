@@ -55,6 +55,7 @@ async function seedLawyer(email = 'akua@example.com', displayName = 'Akua Owusu'
       city: 'Accra',
       region: 'Greater Accra',
       approvalStatus: ApprovalStatus.APPROVED,
+      consultationFeePesewas: 20000,
       practiceAreas: { create: [{ legalCategoryId: employmentId }] },
     },
   });
@@ -116,7 +117,8 @@ function setStatus(
 function payRequest(token: string, id: string) {
   return request(app)
     .post(`/api/v1/consultations/${id}/pay`)
-    .set('Authorization', `Bearer ${token}`);
+    .set('Authorization', `Bearer ${token}`)
+    .send({ phone: '0244123456', network: 'MTN' });
 }
 
 beforeEach(async () => {
@@ -272,13 +274,15 @@ describe('Consultation management (FR-014)', () => {
     expect(res.body.status).toBe(ConsultationStatus.DECLINED);
   });
 
-  it('IT-035: a lawyer completes an accepted request', async () => {
+  it('IT-035: a lawyer cannot mark an accepted request completed alone', async () => {
     const { lawyer, id } = await pendingRequest();
     await setStatus(lawyer.token, id, ConsultationStatus.ACCEPTED);
 
     const res = await setStatus(lawyer.token, id, ConsultationStatus.COMPLETED);
 
-    expect(res.body.status).toBe(ConsultationStatus.COMPLETED);
+    expect(res.status).toBe(403);
+    const stored = await prisma.consultationRequest.findUniqueOrThrow({ where: { id } });
+    expect(stored.status).toBe(ConsultationStatus.ACCEPTED);
   });
 
   it('IT-036: a citizen cancels their own pending request', async () => {
@@ -484,5 +488,349 @@ describe('Consultation payment (FR-017)', () => {
 
     const res = await setStatus(client, created.body.id as string, ConsultationStatus.CANCELLED);
     expect(res.body.status).toBe(ConsultationStatus.CANCELLED);
+    const refund = await prisma.payout.findFirst({
+      where: { consultationId: created.body.id as string },
+    });
+    expect(refund).toBeNull();
+  });
+});
+
+describe('Consultation fee escrow (FR-021)', () => {
+  async function acceptedRequest() {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    const id = created.body.id as string;
+    await payRequest(client, id);
+    await setStatus(lawyer.token, id, ConsultationStatus.ACCEPTED);
+    return { client, lawyer, id };
+  }
+
+  function confirm(token: string, id: string) {
+    return request(app)
+      .post(`/api/v1/consultations/${id}/confirm`)
+      .set('Authorization', `Bearer ${token}`);
+  }
+
+  it('IT-076: both parties confirming credits the lawyer wallet and completes the request', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+
+    const first = await confirm(lawyer.token, id);
+    expect(first.status).toBe(200);
+    expect(first.body.status).toBe(ConsultationStatus.ACCEPTED);
+    expect(first.body.lawyerConfirmedAt).toBeTruthy();
+
+    const meAfterOne = await request(app)
+      .get('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    expect(meAfterOne.body.wallet.availablePesewas).toBe(0);
+
+    const second = await confirm(client, id);
+    expect(second.status).toBe(200);
+    expect(second.body.status).toBe(ConsultationStatus.COMPLETED);
+
+    const me = await request(app)
+      .get('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    expect(me.body.wallet.availablePesewas).toBe(20000);
+    expect(me.body.wallet.entries).toHaveLength(1);
+    expect(me.body.wallet.entries[0].type).toBe('CREDIT');
+  });
+
+  it('IT-077: one confirmation does not credit the wallet', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    const res = await confirm(client, id);
+    expect(res.body.status).toBe(ConsultationStatus.ACCEPTED);
+    expect(res.body.clientConfirmedAt).toBeTruthy();
+    expect(res.body.lawyerConfirmedAt).toBeNull();
+
+    const me = await request(app)
+      .get('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    expect(me.body.wallet.availablePesewas).toBe(0);
+  });
+
+  it('IT-078: cancelling after payment refunds the client and does not credit the lawyer', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    const res = await setStatus(client, id, ConsultationStatus.CANCELLED);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe(ConsultationStatus.CANCELLED);
+
+    const refund = await prisma.payout.findFirst({ where: { consultationId: id } });
+    expect(refund?.type).toBe('REFUND');
+    expect(refund?.status).toBe('PAID');
+    expect(refund?.destinationPhone).toBe('0244123456');
+
+    const me = await request(app)
+      .get('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    expect(me.body.wallet.availablePesewas).toBe(0);
+  });
+
+  it('IT-079: declining after payment refunds the client', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    const id = created.body.id as string;
+    await payRequest(client, id);
+
+    const res = await setStatus(lawyer.token, id, ConsultationStatus.DECLINED);
+    expect(res.body.status).toBe(ConsultationStatus.DECLINED);
+    const refund = await prisma.payout.findFirst({ where: { consultationId: id } });
+    expect(refund?.type).toBe('REFUND');
+    expect(refund?.status).toBe('PAID');
+  });
+
+  it('IT-080: confirming twice does not double-credit', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    await confirm(lawyer.token, id);
+    await confirm(client, id);
+    const again = await confirm(client, id);
+    expect(again.status).toBe(200);
+    expect(again.body.status).toBe(ConsultationStatus.COMPLETED);
+
+    const credits = await prisma.walletLedger.count({
+      where: { consultationId: id, type: 'CREDIT' },
+    });
+    expect(credits).toBe(1);
+  });
+
+  it('refuses cancel after both parties have confirmed', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    await confirm(lawyer.token, id);
+    await confirm(client, id);
+
+    const res = await setStatus(client, id, ConsultationStatus.CANCELLED);
+    expect(res.status).toBe(400);
+
+    const stored = await prisma.consultationRequest.findUniqueOrThrow({ where: { id } });
+    expect(stored.status).toBe(ConsultationStatus.COMPLETED);
+    expect(stored.settledAt).toBeTruthy();
+  });
+
+  it('IT-081: a lawyer can withdraw available credit to a saved payment account', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    await confirm(lawyer.token, id);
+    await confirm(client, id);
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ amountGhs: 50 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('PAID');
+    expect(res.body.amountPesewas).toBe(5000);
+
+    const me = await request(app)
+      .get('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    expect(me.body.wallet.availablePesewas).toBe(15000);
+  });
+
+  it('IT-082: withdrawing more than the balance returns 422', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    await confirm(lawyer.token, id);
+    await confirm(client, id);
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ amountGhs: 500 });
+
+    expect(res.status).toBe(422);
+  });
+
+  it('IT-083: withdrawing without a payment account returns 422', async () => {
+    const { client, lawyer, id } = await acceptedRequest();
+    await confirm(lawyer.token, id);
+    await confirm(client, id);
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ amountGhs: 50 });
+
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('Consultation edge paths', () => {
+  it('refuses a booking when the lawyer has not set a fee', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    await prisma.lawyerProfile.update({
+      where: { id: lawyer.profileId },
+      data: { consultationFeePesewas: 50 },
+    });
+
+    const res = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/consultation fee/i);
+  });
+
+  it('requires a paying number when the account has none', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/consultations/${created.body.id as string}/pay`)
+      .set('Authorization', `Bearer ${client}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('hides unpaid bookings when a lawyer filters by AWAITING_PAYMENT', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+
+    const res = await request(app)
+      .get('/api/v1/consultations?status=AWAITING_PAYMENT')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns a paid booking by id to the citizen', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .get(`/api/v1/consultations/${created.body.id as string}`)
+      .set('Authorization', `Bearer ${client}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe(ConsultationStatus.PENDING);
+  });
+
+  it('treats a second pay call as already paid', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const again = await payRequest(client, created.body.id as string);
+    expect(again.status).toBe(200);
+    expect(again.body.consultation.status).toBe(ConsultationStatus.PENDING);
+  });
+
+  it('lists withdrawals for the lawyer after a payout', async () => {
+    const { client, lawyer, id } = await (async () => {
+      const clientToken = await userToken();
+      const seeded = await seedLawyer();
+      const created = await sendRequest(clientToken, {
+        intakeId: await seedIntake(clientToken),
+        lawyerProfileId: seeded.profileId,
+      });
+      const consultationId = created.body.id as string;
+      await payRequest(clientToken, consultationId);
+      await setStatus(seeded.token, consultationId, ConsultationStatus.ACCEPTED);
+      return { client: clientToken, lawyer: seeded, id: consultationId };
+    })();
+
+    await request(app)
+      .patch('/api/v1/lawyers/me')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({
+        paymentAccountName: 'Akua Owusu',
+        paymentPhone: '0244123456',
+        paymentNetwork: 'MTN',
+      });
+    await request(app)
+      .post(`/api/v1/consultations/${id}/confirm`)
+      .set('Authorization', `Bearer ${lawyer.token}`);
+    await request(app)
+      .post(`/api/v1/consultations/${id}/confirm`)
+      .set('Authorization', `Bearer ${client}`);
+
+    await request(app)
+      .post('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ amountGhs: 50 });
+
+    const listed = await request(app)
+      .get('/api/v1/lawyers/me/withdrawals')
+      .set('Authorization', `Bearer ${lawyer.token}`);
+
+    expect(listed.status).toBe(200);
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].amountPesewas).toBe(5000);
+  });
+
+  it('refuses confirm before the lawyer has accepted', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .post(`/api/v1/consultations/${created.body.id as string}/confirm`)
+      .set('Authorization', `Bearer ${client}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an accept with a URL that is not a Google Meet room', async () => {
+    const client = await userToken();
+    const lawyer = await seedLawyer();
+    const created = await sendRequest(client, {
+      intakeId: await seedIntake(client),
+      lawyerProfileId: lawyer.profileId,
+    });
+    await payRequest(client, created.body.id as string);
+
+    const res = await request(app)
+      .patch(`/api/v1/consultations/${created.body.id as string}`)
+      .set('Authorization', `Bearer ${lawyer.token}`)
+      .send({ status: ConsultationStatus.ACCEPTED, meetUrl: 'https://zoom.us/j/123' });
+
+    expect(res.status).toBe(422);
   });
 });

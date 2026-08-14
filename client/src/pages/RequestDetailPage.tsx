@@ -44,7 +44,6 @@ const ACTIONS: Record<
       { status: 'ACCEPTED', label: 'Accept request' },
       { status: 'DECLINED', label: 'Decline' },
     ],
-    ACCEPTED: [{ status: 'COMPLETED', label: 'Mark as completed' }],
   },
   ADMIN: {},
 };
@@ -64,13 +63,15 @@ function StatusExplanation({
       ? 'This enquiry is waiting for your response.'
       : 'Your request has been sent. The lawyer will accept or decline it.',
     ACCEPTED: asLawyer
-      ? 'You accepted this enquiry. Contact details are shown below so you can reach the client. The Google Meet link is on this page.'
-      : 'The lawyer accepted. Add the time to Google Calendar and join with Google Meet when the call starts.',
+      ? 'You accepted this enquiry. After you meet, both of you must confirm it happened — the fee is held until then. If the client cancels, the fee is returned to them.'
+      : 'The lawyer accepted. After you meet, both of you must confirm it happened. The fee is held until then; cancelling returns it to the number you paid from.',
     DECLINED: asLawyer
-      ? 'You declined this enquiry.'
-      : 'This lawyer declined. That is not a judgement on your situation — you can send the same enquiry to someone else.',
-    COMPLETED: 'This consultation has been marked as completed.',
-    CANCELLED: 'This request was cancelled.',
+      ? 'You declined this enquiry. If the client had paid, the fee is returned to them.'
+      : 'This lawyer declined. If you had paid, the fee is returned to the number you paid from. That is not a judgement on your situation — you can send the same enquiry to someone else.',
+    COMPLETED:
+      'Both of you confirmed the consultation. The fee has been credited to the lawyer’s wallet.',
+    CANCELLED:
+      'This request was cancelled. If a fee had been paid, it is returned to the client’s paying number.',
   };
 
   return <Alert type="info" showIcon message={text[request.status]} role="status" />;
@@ -92,6 +93,7 @@ export function RequestDetailPage() {
   const [meetForm] = Form.useForm<{ meetUrl: string }>();
   const [paying, setPaying] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [sessionConfirming, setSessionConfirming] = useState(false);
   const [paymentHint, setPaymentHint] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [payForm] = Form.useForm<MomoPayValues>();
@@ -151,6 +153,19 @@ export function RequestDetailPage() {
       return false;
     }
   });
+
+  async function confirmSession() {
+    setActionError(null);
+    setSessionConfirming(true);
+    try {
+      await consultationsApi.confirm(id ?? '');
+      request.refresh();
+    } catch (err) {
+      setActionError(messageFor(err, 'Could not confirm this consultation.'));
+    } finally {
+      setSessionConfirming(false);
+    }
+  }
 
   async function act(status: ConsultationStatus, extra: { meetUrl?: string } = {}) {
     setActionError(null);
@@ -217,14 +232,23 @@ export function RequestDetailPage() {
                 <Text strong>{formatGhs(data.feePesewas)}</Text>
                 {data.status === 'AWAITING_PAYMENT'
                   ? ' — pay by mobile money to send this to the lawyer'
-                  : ' — paid'}
+                  : data.status === 'COMPLETED'
+                    ? ' — credited to the lawyer’s wallet'
+                    : data.status === 'CANCELLED' || data.status === 'DECLINED'
+                      ? ' — returned to the paying number if it had been paid'
+                      : ' — held until both of you confirm the consultation happened'}
               </Paragraph>
             </Card>
           ) : (
             <Card>
-              <Text type="secondary">Consultation fee paid</Text>
+              <Text type="secondary">Consultation fee</Text>
               <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
                 <Text strong>{formatGhs(data.feePesewas)}</Text>
+                {data.status === 'COMPLETED'
+                  ? ' — credited to your wallet'
+                  : data.status === 'CANCELLED' || data.status === 'DECLINED'
+                    ? ' — returned to the client if they had paid'
+                    : ' — held until both of you confirm the consultation happened'}
               </Paragraph>
             </Card>
           )}
@@ -325,11 +349,7 @@ export function RequestDetailPage() {
                   <Button href="https://meet.google.com/new" target="_blank" rel="noreferrer">
                     Open Google Meet
                   </Button>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={pendingStatus === 'ACCEPTED'}
-                  >
+                  <Button type="primary" htmlType="submit" loading={pendingStatus === 'ACCEPTED'}>
                     Accept and share Meet link
                   </Button>
                   <Button onClick={() => setAccepting(false)}>Cancel</Button>
@@ -358,6 +378,30 @@ export function RequestDetailPage() {
                 </Button>
               ))}
             </Space>
+          ) : null}
+
+          {data.status === 'ACCEPTED' ? (
+            <Card>
+              <Text type="secondary">Confirm the consultation happened</Text>
+              <Paragraph type="secondary" style={{ marginTop: 8 }}>
+                {asLawyer
+                  ? data.lawyerConfirmedAt
+                    ? 'You have confirmed. Waiting for the client.'
+                    : 'After you have met, confirm so the fee can be credited to your wallet. Both of you must confirm.'
+                  : data.clientConfirmedAt
+                    ? 'You have confirmed. Waiting for the lawyer.'
+                    : 'After you have met, confirm so the fee can be released to the lawyer. Both of you must confirm.'}
+              </Paragraph>
+              {!(asLawyer ? data.lawyerConfirmedAt : data.clientConfirmedAt) ? (
+                <Button
+                  type="primary"
+                  loading={sessionConfirming}
+                  onClick={() => void confirmSession()}
+                >
+                  Confirm consultation happened
+                </Button>
+              ) : null}
+            </Card>
           ) : null}
 
           {/* Contact details are withheld until the lawyer has accepted, so the

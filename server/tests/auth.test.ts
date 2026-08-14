@@ -292,10 +292,43 @@ describe('email verification and password reset', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects a password change that repeats the current password', async () => {
+    const registered = await registerUser();
+    const token = registered.body.token as string;
+
+    const res = await request(app)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: validUser.password, newPassword: validUser.password });
+
+    expect(res.status).toBe(422);
+  });
+
   it('UT-015: resend-verification always returns 204', async () => {
     const res = await request(app)
       .post('/api/v1/auth/resend-verification')
       .send({ email: 'unknown@example.com' });
+    expect(res.status).toBe(204);
+  });
+
+  it('verify-email rejects an invalid token', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/verify-email')
+      .send({ token: 'not-a-real-token-value' });
+    expect(res.status).toBe(400);
+  });
+
+  it('resend-verification is 204 for an unverified account', async () => {
+    await registerUser();
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: validUser.email } });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerifiedAt: null },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/auth/resend-verification')
+      .send({ email: validUser.email });
     expect(res.status).toBe(204);
   });
 });
@@ -326,6 +359,11 @@ describe('FR-003 profile, NFR-001 access control', () => {
       .get('/api/v1/users/me')
       .set('Authorization', 'Bearer not-a-real-token');
 
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a Bearer header with no token', async () => {
+    const res = await request(app).get('/api/v1/users/me').set('Authorization', 'Bearer ');
     expect(res.status).toBe(401);
   });
 
@@ -360,6 +398,18 @@ describe('FR-003 profile, NFR-001 access control', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.fullName).toBe('Ama K. Mensah');
+  });
+
+  it('updates only the phone when that is the field sent', async () => {
+    const token = await authenticatedToken();
+
+    const res = await request(app)
+      .patch('/api/v1/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ phone: '0274123456' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.phone).toBe('0274123456');
   });
 
   it('SEC-LG-010: cannot escalate role or change status through the profile endpoint', async () => {

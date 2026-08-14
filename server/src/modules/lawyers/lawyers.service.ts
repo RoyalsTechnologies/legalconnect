@@ -5,6 +5,8 @@ import { notifyLawyerApprovalDecision, notifyLawyerWelcome } from '../../email/n
 import { badRequest, conflict, notFound } from '../../lib/errors.js';
 import { ghsToPesewas } from '../../lib/money.js';
 import { prisma } from '../../lib/prisma.js';
+import { inferMomoNetwork } from '../../payments/nalopay.js';
+import { getWallet, type WalletView } from '../wallet/wallet.service.js';
 import { assertAreaCount, hasActiveSubscription, publicLawyerWhere } from './eligibility.js';
 import type {
   AdminUpdateLawyerInput,
@@ -49,12 +51,29 @@ const lawyerFields = {
 
 type LawyerRow = Prisma.LawyerProfileGetPayload<{ select: typeof lawyerFields }>;
 
+const ownLawyerFields = {
+  ...lawyerFields,
+  paymentAccountName: true,
+  paymentPhone: true,
+  paymentNetwork: true,
+} satisfies Prisma.LawyerProfileSelect;
+
+type OwnLawyerRow = Prisma.LawyerProfileGetPayload<{ select: typeof ownLawyerFields }>;
+
+export type PaymentAccountView = {
+  accountName: string;
+  phone: string;
+  network: 'MTN' | 'AT' | 'TELECEL';
+};
+
 export type LawyerView = Omit<LawyerRow, 'subscriptionPackage' | 'subscriptionPeriodEnd'> & {
   subscription: {
     active: boolean;
     periodEnd: Date | null;
     package: LawyerRow['subscriptionPackage'];
   };
+  paymentAccount?: PaymentAccountView | null;
+  wallet?: WalletView;
 };
 
 export function presentLawyer(row: LawyerRow): LawyerView {
@@ -69,6 +88,28 @@ export function presentLawyer(row: LawyerRow): LawyerView {
       periodEnd: subscriptionPeriodEnd,
       package: subscriptionPackage,
     },
+  };
+}
+
+function paymentAccountFrom(row: OwnLawyerRow): PaymentAccountView | null {
+  if (!row.paymentAccountName || !row.paymentPhone || !row.paymentNetwork) return null;
+  return {
+    accountName: row.paymentAccountName,
+    phone: row.paymentPhone,
+    network: row.paymentNetwork,
+  };
+}
+
+export function presentOwnLawyer(row: OwnLawyerRow): LawyerView {
+  const {
+    paymentAccountName: _name,
+    paymentPhone: _phone,
+    paymentNetwork: _network,
+    ...rest
+  } = row;
+  return {
+    ...presentLawyer(rest),
+    paymentAccount: paymentAccountFrom(row),
   };
 }
 
@@ -209,6 +250,15 @@ export async function listLawyers(role: Role | null, filters: LawyerFilters): Pr
  * should be able to confirm.
  */
 export async function getLawyer(id: string, role: Role | null): Promise<LawyerView> {
+  if (role === Role.ADMIN) {
+    const lawyer = await prisma.lawyerProfile.findFirst({
+      where: { id },
+      select: ownLawyerFields,
+    });
+    if (!lawyer) throw notFound('Lawyer not found');
+    return presentOwnLawyer(lawyer);
+  }
+
   const lawyer = await prisma.lawyerProfile.findFirst({
     where: { id, ...scopeFor(role) },
     select: lawyerFields,
@@ -221,11 +271,14 @@ export async function getLawyer(id: string, role: Role | null): Promise<LawyerVi
 export async function getOwnProfile(userId: string): Promise<LawyerView> {
   const lawyer = await prisma.lawyerProfile.findUnique({
     where: { userId },
-    select: lawyerFields,
+    select: ownLawyerFields,
   });
 
   if (!lawyer) throw notFound('You do not have a lawyer profile');
-  return presentLawyer(lawyer);
+  return {
+    ...presentOwnLawyer(lawyer),
+    wallet: await getWallet(lawyer.id),
+  };
 }
 
 export async function updateOwnProfile(
@@ -269,7 +322,10 @@ export async function adminUpdateLawyer(
   return updated;
 }
 
-async function applyUpdate(profileId: string, input: AdminUpdateLawyerInput): Promise<LawyerView> {
+async function applyUpdate(
+  profileId: string,
+  input: AdminUpdateLawyerInput | UpdateOwnLawyerProfileInput,
+): Promise<LawyerView> {
   if (input.practiceAreaIds) {
     await assertPracticeAreas(input.practiceAreaIds);
 
@@ -312,7 +368,8 @@ async function applyUpdate(profileId: string, input: AdminUpdateLawyerInput): Pr
       ...(input.consultationFeeGhs !== undefined && {
         consultationFeePesewas: ghsToPesewas(input.consultationFeeGhs),
       }),
-      ...(input.approvalStatus !== undefined && { approvalStatus: input.approvalStatus }),
+      ...('approvalStatus' in input &&
+        input.approvalStatus !== undefined && { approvalStatus: input.approvalStatus }),
 
       // Replace rather than merge: the client sends the full set it wants, which
       // makes removing an area possible without a separate endpoint.
@@ -322,11 +379,46 @@ async function applyUpdate(profileId: string, input: AdminUpdateLawyerInput): Pr
           create: input.practiceAreaIds.map((legalCategoryId) => ({ legalCategoryId })),
         },
       }),
+      ...('paymentPhone' in input && input.paymentPhone !== undefined
+        ? {
+            paymentAccountName: input.paymentAccountName ?? null,
+            paymentPhone: input.paymentPhone ?? null,
+            paymentNetwork: input.paymentNetwork ?? null,
+          }
+        : {}),
     },
-    select: lawyerFields,
+    select: ownLawyerFields,
   });
 
-  return presentLawyer(updated);
+  return presentOwnLawyer(updated);
+}
+
+/** Stores the MoMo number used to pay a plan so the next payment can reuse it. */
+export async function rememberPaymentAccount(
+  profileId: string,
+  input: {
+    accountName?: string | null;
+    phone: string;
+    network?: 'MTN' | 'AT' | 'TELECEL' | null;
+  },
+): Promise<void> {
+  const current = await prisma.lawyerProfile.findUnique({
+    where: { id: profileId },
+    select: { paymentAccountName: true, paymentNetwork: true },
+  });
+  if (!current) return;
+
+  const network = input.network ?? inferMomoNetwork(input.phone);
+  await prisma.lawyerProfile.update({
+    where: { id: profileId },
+    data: {
+      paymentPhone: input.phone,
+      ...(network ? { paymentNetwork: network } : {}),
+      ...(!current.paymentAccountName && input.accountName
+        ? { paymentAccountName: input.accountName }
+        : {}),
+    },
+  });
 }
 
 // Checked up front so a bad id produces a clear 400 naming the problem, rather than

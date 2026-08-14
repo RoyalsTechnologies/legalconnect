@@ -1,5 +1,6 @@
 import type { ApprovalStatus, ConsultationStatus } from '@prisma/client';
 import { formatAccraSlot } from '../lib/google-calendar.js';
+import { log } from '../lib/logger.js';
 import { sendSms } from '../sms/sms-client.js';
 import { consultationNewRequestSms, consultationStatusSms } from '../sms/sms-messages.js';
 import { appUrl, sendEmail } from './mailer.js';
@@ -14,7 +15,7 @@ import {
 /** Fire-and-forget: never throws to the caller. */
 function notify(task: Promise<unknown>): void {
   void task.catch((error: unknown) => {
-    console.error('[notify] alert failed', error);
+    log.notification.error('alert failed', error);
   });
 }
 

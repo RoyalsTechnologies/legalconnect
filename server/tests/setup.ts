@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { afterAll, beforeEach } from 'vitest';
-import { buildTestDatabaseUrl } from './global-setup.js';
+import { afterAll, beforeAll, beforeEach } from 'vitest';
+import { buildTestDatabaseUrl, TEST_SCHEMA } from './global-setup.js';
 
 // Point this worker at the test schema before the Prisma client is constructed.
 process.env.DATABASE_URL = buildTestDatabaseUrl();
@@ -8,23 +8,33 @@ process.env.NODE_ENV = 'test';
 
 const { prisma } = await import('../src/lib/prisma.js');
 
-beforeEach(async () => {
-  // Order matters: children before parents. TRUNCATE ... CASCADE handles the
-  // rest, but listing them keeps the intent explicit.
+function qualify(table: string): string {
+  return `"${TEST_SCHEMA}"."${table}"`;
+}
+
+export async function resetTestDatabase(): Promise<void> {
+  // Schema-qualify every table. Unqualified TRUNCATE follows search_path and can
+  // miss `test` (or hit `public`) when two Prisma clients disagree on the path.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
-      "consultation_requests",
-      "legal_intakes",
-      "subscription_payments",
-      "lawyer_practice_areas",
-      "lawyer_profiles",
-      "subscription_packages",
-      "legal_categories",
-      "email_tokens",
-      "users"
+      ${qualify('payouts')},
+      ${qualify('wallet_ledger')},
+      ${qualify('withdrawal_requests')},
+      ${qualify('consultation_requests')},
+      ${qualify('legal_intakes')},
+      ${qualify('subscription_payments')},
+      ${qualify('lawyer_practice_areas')},
+      ${qualify('lawyer_profiles')},
+      ${qualify('subscription_packages')},
+      ${qualify('legal_categories')},
+      ${qualify('email_tokens')},
+      ${qualify('users')}
     RESTART IDENTITY CASCADE
   `);
-});
+}
+
+beforeAll(resetTestDatabase);
+beforeEach(resetTestDatabase);
 
 afterAll(async () => {
   await prisma.$disconnect();

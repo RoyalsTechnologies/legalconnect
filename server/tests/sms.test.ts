@@ -14,7 +14,12 @@ describe('normalizeMsisdn', () => {
 
   it('rejects unusable values', () => {
     expect(normalizeMsisdn(null)).toBeNull();
+    expect(normalizeMsisdn(undefined)).toBeNull();
     expect(normalizeMsisdn('')).toBeNull();
     expect(normalizeMsisdn('123')).toBeNull();
+  });
+
+  it('accepts other E.164 lengths so non-Ghana numbers can still be sent', () => {
+    expect(normalizeMsisdn('+14155552671')).toBe('14155552671');
   });
 });
