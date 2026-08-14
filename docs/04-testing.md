@@ -623,6 +623,66 @@ That run covered the saved MoMo identity only (FR-020). Ledger, credit, and with
 | IT-074 | FR-020 | Sending `null` on all three payment fields clears the account | Pass |
 | IT-075 | FR-020 | A pay-from number without network is stored with the inferred network | Pass |
 
+## Frontend E2E (2026-08-14)
+
+Playwright drives the Vite client at `http://127.0.0.1:5173`. `/api/v1` is mocked in
+`client/e2e/mock-api.ts` so the suite does not need Postgres, seed data, or NaloPay.
+`npm run test:e2e` — **5 passed (10.1s)**.
+
+```
+Running 5 tests using 5 workers
+  ✓  FT-001: a visitor can open the landing page and browse the directory (FR-012) (5.1s)
+  ✓  FT-005: an expired session signs the citizen out and returns them to sign-in (FR-002) (5.9s)
+  ✓  FT-002: a citizen signs in, describes an issue, and sees the organised request (FR-001, FR-006) (6.3s)
+  ✓  FT-004: a rejected collection shows the gateway message on the plan form (FR-018) (6.4s)
+  ✓  FT-003: a lawyer pays for a plan and the UI shows the MoMo prompt then the active plan (FR-018) (6.7s)
+  5 passed (10.1s)
+```
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| FT-001 | FR-012 | Visitor opens landing, browses directory, sees a lawyer card | Pass |
+| FT-002 | FR-001, FR-006 | Citizen signs in, submits an intake, sees the organised request and original words | Pass |
+| FT-003 | FR-018 | Lawyer signs in, pays for Starter, UI reaches an active plan | Pass |
+| FT-004 | FR-018 | Mocked `PAY-INVAL` / Invalid reference appears on the plan form | Pass |
+| FT-005 | FR-002 | Expired JWT (`401 Session expired`) clears the session and returns to sign-in | Pass |
+
+First time locally: `npx --prefix client playwright install chromium`. Not part of
+GitHub Actions CI (browsers are large); run `npm run test:e2e` on a developer machine.
+
+## NaloPay collection contract (2026-08-14)
+
+Live gateway calls are mocked (`fetch` in unit tests; `startPayment` / `verifyPayment` on
+the HTTP paths). The suite never calls `nalopaytest.nalosolutions.com`.
+
+`npm run test:unit -- --run tests/nalopay.test.ts tests/nalopay-live.test.ts` — **2 files, 38 passed**.
+`npm --prefix server run test:integration -- tests/nalopay-http.test.ts` — **1 file, 4 passed**.
+
+```
+ Test Files  2 passed (2)
+      Tests  38 passed (38)
+ Duration  362ms
+```
+
+```
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+ Duration  6.54s
+```
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| UT-019 | FR-017 | Collection body uses local MSISDN, `trans_hash`, HTTPS `callback`, no `extra_data`, ASCII description | Pass |
+| IT-084 | FR-018 | Subscribe stays pending when the mocked gateway does not capture; reference is `LCP` + 20 hex | Pass |
+| IT-085 | FR-018 | Adapter `PAY-INVAL` / `Invalid reference` is `422` on `POST /lawyers/me/subscription` | Pass |
+| IT-086 | FR-018 | Confirm calls `verifyPayment` with the stored order id and activates the plan | Pass |
+| IT-087 | FR-017 | Booking pay stays `AWAITING_PAYMENT` until mocked `verify-payment` succeeds | Pass |
+
+A local Docker subscribe against the real test merchant (2026-08-14) returned
+`PAY-INVAL-0060` `{ cause: "reference", description: "Invalid reference" }` for
+`lc_<cuid>_<hex>` (45 characters, underscores). References are now `LCP`/`LCW`/`LCR` plus
+20 hex characters.
+
 ## Consultation escrow, wallet credit, and withdrawals (2026-08-13)
 
 `npx vitest run tests/consultations.test.ts tests/lawyers.test.ts tests/nalopay.test.ts` — **3 files, 87 passed**.
@@ -643,7 +703,8 @@ Live NaloPay disbursement URL is not confirmed (TD-028); tests capture immediate
 
 Classification quality is unmeasured — see TD-011. The suite proves the AI contract is
 enforced and every failure mode degrades safely, not that the categories it returns are
-right. Frontend component tests do not exist yet (TD-008).
+right. Frontend component tests do not exist yet (TD-008). Playwright E2E covers four
+browser flows against a mocked API (FT-001…005).
 
 **The suite cannot be run twice concurrently.** Every run shares one `test` schema, so
 overlapping runs truncate and re-seed underneath each other. Observed on 2026-08-12: a

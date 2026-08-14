@@ -1,4 +1,5 @@
 import type { Urgency } from '@prisma/client';
+import { log } from '../lib/logger.js';
 import { type AiClient, getAiClient } from './ai-client.js';
 import { buildTriageUserPrompt, type PromptCategory, TRIAGE_SYSTEM_PROMPT } from './prompts.js';
 import { parseTriageResponse } from './schemas.js';
@@ -59,7 +60,7 @@ function fallback(description: string, note: string): TriageResult {
 // involved. That is enough to debug a provider problem without putting someone's
 // legal issue in a log aggregator (NFR-002).
 function logFailure(note: string, descriptionLength: number): void {
-  console.warn('[ai-triage] falling back', { reason: note, descriptionChars: descriptionLength });
+  log.sys.warn('ai-triage falling back', { reason: note, descriptionChars: descriptionLength });
 }
 
 /**

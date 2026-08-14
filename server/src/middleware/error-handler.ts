@@ -2,6 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { isProduction } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
+import { log } from '../lib/logger.js';
 
 export const notFoundHandler: RequestHandler = (req, res) => {
   res.status(404).json({
@@ -31,6 +32,32 @@ const BODY_PARSER_ERRORS: Record<string, { status: number; code: string; message
   },
 };
 
+/** Statuses AppError uses. A duck-typed 500 must not bypass the INTERNAL_ERROR hide. */
+const APP_ERROR_STATUSES = new Set([400, 401, 403, 404, 409, 422, 503]);
+
+function asAppError(err: unknown): AppError | undefined {
+  if (err instanceof AppError) return err;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'statusCode' in err &&
+    'code' in err &&
+    typeof (err as { statusCode: unknown }).statusCode === 'number' &&
+    typeof (err as { code: unknown }).code === 'string' &&
+    typeof (err as { message: unknown }).message === 'string'
+  ) {
+    const shaped = err as {
+      statusCode: number;
+      code: string;
+      message: string;
+      details?: unknown;
+    };
+    if (!APP_ERROR_STATUSES.has(shaped.statusCode)) return undefined;
+    return new AppError(shaped.statusCode, shaped.message, shaped.code, shaped.details);
+  }
+  return undefined;
+}
+
 function bodyParserFailure(err: unknown) {
   if (typeof err !== 'object' || err === null || !('type' in err)) return undefined;
   const { type } = err as { type?: unknown };
@@ -39,7 +66,7 @@ function bodyParserFailure(err: unknown) {
 
 // Single consistent error shape for the whole API. Internal detail never crosses
 // the boundary in production (NFR-001).
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const parseFailure = bodyParserFailure(err);
   if (parseFailure) {
     res.status(parseFailure.status).json({
@@ -64,14 +91,27 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
-  if (err instanceof AppError) {
-    res.status(err.statusCode).json({
-      error: { code: err.code, message: err.message, details: err.details },
+  const appError = asAppError(err);
+  if (appError) {
+    if (appError.statusCode === 401 || appError.statusCode === 403) {
+      log.security.warn(appError.message, {
+        method: req.method,
+        path: req.path,
+        code: appError.code,
+        status: appError.statusCode,
+      });
+    }
+    res.status(appError.statusCode).json({
+      error: { code: appError.code, message: appError.message, details: appError.details },
     });
     return;
   }
 
-  console.error('[unhandled]', err);
+  try {
+    log.sys.error('unhandled', err);
+  } catch {
+    console.error('[sys] unhandled (logger failed)');
+  }
 
   res.status(500).json({
     error: {

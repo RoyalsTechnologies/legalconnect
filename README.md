@@ -157,6 +157,7 @@ Send the returned `token` as `authorization: Bearer <token>`.
 | Test | `server/` | `npm test` (unit then integration) |
 | Unit tests | `server/` | `npm run test:unit` |
 | Integration tests | `server/` | `npm run test:integration` |
+| Frontend E2E | root or `client/` | `npm run test:e2e` |
 | Typecheck | either | `npm run typecheck` |
 | Build | either | `npm run build` |
 | CI | GitHub | `.github/workflows/ci.yml` |
@@ -170,6 +171,7 @@ Run from the repo root. `npm install` once at the root to get Biome.
 | **Everything** | `npm run verify` |
 | Unit tests | `npm run test:unit` |
 | Integration tests | `npm run test:integration` |
+| Frontend E2E | `npm run test:e2e` |
 | Lint + format check | `npm run check` |
 | Lint + format, applying fixes | `npm run check:fix` |
 | Format only | `npm run format` |
@@ -181,8 +183,11 @@ the dependency audit, failing on the first problem. Unit tests do not need a dat
 Integration tests need PostgreSQL (`docker compose up -d postgres`).
 
 GitHub Actions (`.github/workflows/ci.yml`) runs lint/typecheck/audit/builds, then
-**unit tests** and **integration tests** as separate jobs. Integration starts its own
-Postgres 16 service.
+**unit tests**, **integration tests**, **coverage**, and **frontend E2E** as separate jobs.
+Integration starts its own Postgres 16 service. E2E starts the Vite client and mocks
+`/api/v1` — it does not call NaloPay or need the database.
+
+Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 
 Inside Docker the API reaches the database at `postgres:5432` and the client proxies
 `/api` to `server:4000`; `docker-compose.yml` overrides `DATABASE_URL` accordingly, so

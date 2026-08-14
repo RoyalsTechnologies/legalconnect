@@ -13,6 +13,7 @@ export const unitTestFiles = [
   'tests/health-degraded.test.ts',
   'tests/env-invalid.test.ts',
   'tests/lib-helpers.test.ts',
+  'tests/logger.test.ts',
   'tests/nalopay-dev.test.ts',
   'tests/nalopay-live.test.ts',
   'tests/nalopay.test.ts',

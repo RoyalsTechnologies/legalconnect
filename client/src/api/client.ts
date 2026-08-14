@@ -1,3 +1,5 @@
+import { isSessionEndedMessage } from '../auth/session';
+
 const API_BASE = '/api/v1';
 
 export type ApiErrorBody = {
@@ -22,13 +24,54 @@ export class ApiError extends Error {
   }
 }
 
-function getToken(): string | null {
+type SessionListener = () => void;
+const sessionListeners = new Set<SessionListener>();
+
+/** Auth endpoints that return 401 for credential problems, not a dead session. */
+const CREDENTIAL_AUTH_PATHS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+  '/auth/logout',
+]);
+
+export function getToken(): string | null {
   return localStorage.getItem('lc_token');
 }
 
 export function setToken(token: string | null): void {
   if (token) localStorage.setItem('lc_token', token);
   else localStorage.removeItem('lc_token');
+}
+
+/** Subscribe to a stored JWT that the API has rejected as expired or invalid. */
+export function onSessionInvalid(listener: SessionListener): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+function notifySessionInvalid(): void {
+  setToken(null);
+  for (const listener of sessionListeners) listener();
+}
+
+function shouldEndSession(
+  path: string,
+  status: number,
+  message: string,
+  sentToken: boolean,
+): boolean {
+  return (
+    status === 401 &&
+    sentToken &&
+    !CREDENTIAL_AUTH_PATHS.has(path) &&
+    isSessionEndedMessage(message)
+  );
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -51,10 +94,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (!response.ok) {
     const body = data as ApiErrorBody | null;
-    throw new ApiError(
-      response.status,
-      body?.error ?? { code: 'UNKNOWN', message: `Request failed (${response.status})` },
-    );
+    const errorBody = body?.error ?? {
+      code: 'UNKNOWN',
+      message: `Request failed (${response.status})`,
+    };
+    if (shouldEndSession(path, response.status, errorBody.message, Boolean(token))) {
+      notifySessionInvalid();
+    }
+    throw new ApiError(response.status, errorBody);
   }
 
   return data as T;

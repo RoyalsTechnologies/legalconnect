@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError, fieldErrorsFromApi } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
@@ -17,6 +17,10 @@ type LoginValues = {
 export function LoginPage() {
   const { login, isAuthenticated, state } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired =
+    searchParams.get('expired') === '1' ||
+    (state.status === 'anonymous' && state.reason === 'expired');
   const [form] = Form.useForm<LoginValues>();
   const [formError, setFormError] = useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = useState(false);
@@ -88,7 +92,16 @@ export function LoginPage() {
           taken to the right place for your account.
         </Paragraph>
 
-        <Card style={{ marginTop: 28 }}>
+        {sessionExpired ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Your session expired. Please sign in again."
+            style={{ marginTop: 28, marginBottom: 0 }}
+          />
+        ) : null}
+
+        <Card style={{ marginTop: sessionExpired ? 16 : 28 }}>
           <Form
             form={form}
             layout="vertical"

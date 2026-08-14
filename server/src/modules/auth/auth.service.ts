@@ -5,6 +5,7 @@ import { appUrl, consumeEmailToken, issueEmailToken, sendEmail } from '../../ema
 import { passwordResetEmail, verificationEmail } from '../../email/templates.js';
 import { badRequest, conflict, forbidden, unauthorized } from '../../lib/errors.js';
 import { signToken } from '../../lib/jwt.js';
+import { log } from '../../lib/logger.js';
 import { ghsToPesewas } from '../../lib/money.js';
 import { prisma } from '../../lib/prisma.js';
 import { assertPracticeAreas } from '../lawyers/lawyers.service.js';
@@ -163,7 +164,7 @@ export async function resendVerification(input: EmailOnlyInput): Promise<void> {
   } catch (error) {
     // Do not leak whether the address exists via a 503 on the resend path either —
     // log and swallow. The user can try again.
-    console.error('[auth] resend verification failed', error);
+    log.security.error('resend verification failed', error);
   }
 }
 
@@ -191,6 +192,8 @@ export async function login(input: LoginInput): Promise<AuthResult> {
       'Confirm your email before signing in. Check your inbox, or request a new confirmation link.',
     );
   }
+
+  log.security.info('login succeeded', { userId: user.id, role: user.role });
 
   return {
     user: {
@@ -227,7 +230,7 @@ export async function forgotPassword(input: EmailOnlyInput): Promise<void> {
       true,
     );
   } catch (error) {
-    console.error('[auth] forgot-password send failed', error);
+    log.security.error('forgot-password send failed', error);
   }
 }
 

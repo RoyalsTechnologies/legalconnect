@@ -97,7 +97,8 @@ privacy notice, and evaluate a self-hosted or in-region model.
 **Impact:** Server `src/` is now measured at **96.3% statements / 97.48% lines / 99.61%
 functions / 89.42% branches** (`npm run test:coverage`, 2026-08-13, 358 tests). Remaining
 server gaps are env-gated mail paths and defensive catches. **The React client still has
-no component tests**, so UI regressions would not be caught.
+no component tests**, so isolated UI regressions would not be caught. Playwright E2E
+covers landing, citizen intake, and lawyer plan payment against a mocked `/api/v1`.
 **Priority:** Medium · **Category:** testing · **Status:** Partially mitigated
 **Resolution:** Add frontend component tests. Remaining server branch gaps are listed in
 `docs/04-testing.md`.
@@ -318,8 +319,9 @@ logs and marks paid.
 **Impact:** FR-021 now holds the fee until both parties confirm, credits a wallet ledger,
 refunds on cancel/decline after pay, and accepts withdrawal requests. Live MoMo *push*
 still depends on an unverified disbursement URL (TD-028). Invoices and platform commission
-are not built. NaloPay cannot POST the webhook to `localhost`; the client polls
-`collection-status` so a local booking still completes without a public callback URL.
+are not built. NaloPay cannot POST the webhook to `localhost` and rejects a missing or
+http `callback` (`PAY-INVAL-0069`); the adapter sends an https placeholder locally and
+the client polls `collection-status` so a booking still completes.
 **Priority:** Medium for production · **Category:** functionality · **Status:** Partially repaid
 **Resolution:** Confirm the NaloPay disbursement contract (TD-028); receipts; commission if required.
 **Target:** v1.1 · **Related:** FR-017, FR-021
@@ -362,6 +364,18 @@ clients may fail until the merchant contract is confirmed. Do not add a second P
 **Resolution:** Confirm path and payload with NaloPay; keep test/log capture for local demo.
 **Target:** v1.1 · **Related:** FR-021
 
+### TD-029 — File logs do not persist on Render free instances
+
+**Cause:** FR-style operational logging writes `sys.log`, `security.log`, `payment.log`,
+and `notification.log` under `server/logs/`. Render free web services have no persistent
+disk.
+**Impact:** After a sleep, restart, or redeploy those files are gone. Stdout still carries
+the same lines for the host log viewer.
+**Priority:** Low · **Category:** observability · **Status:** Accepted
+**Resolution:** Ship logs to the platform viewer, or attach a disk / log drain if the
+product outlives the exam.
+**Target:** v1.2 · **Related:** NFR-001, NFR-002
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -394,6 +408,7 @@ clients may fail until the merchant contract is confirmed. Do not add a second P
 | TD-026 | Lawyer plans are prepaid periods, not recurring | Medium (prod) | functionality | Accepted |
 | TD-027 | Calendar template + pasted Meet link, not OAuth sync | Medium (prod) | integration | Accepted |
 | TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
+| TD-029 | File logs ephemeral on Render free | Low | observability | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

@@ -95,11 +95,12 @@ not run.
 | Test | `npm test` in `server/` (unit then integration) |
 | Unit tests | `npm run test:unit` |
 | Integration tests | `npm run test:integration` |
+| Frontend E2E | `npm run test:e2e` (Playwright; mocks `/api/v1`, no live NaloPay) |
 | Typecheck | `npm run typecheck` |
 | Build | `npm run build` |
 | Lint + format | `npm run check:fix` (repo root, Biome) |
 | Full quality gate | `npm run verify` (repo root) |
-| CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit tests, integration tests) |
+| CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit, integration, coverage) |
 
 Run `npm run verify` from the root before considering a phase complete — it runs Biome,
 both typechecks, the tests, and the dependency audit.

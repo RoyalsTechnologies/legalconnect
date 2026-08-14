@@ -97,9 +97,10 @@ The fee is held until both of you confirm the consultation happened; it then cre
 lawyer’s wallet. Cancel or decline after payment returns the fee to the number you paid from.
 
 NaloPay's webhook (`POST /api/v1/payments/callback`) cannot reach `localhost` from their
-servers. Confirmation uses the collection-status poll, so local booking still completes
-without a public URL. Set `NALOPAY_CALLBACK_URL` to a public HTTPS URL in a deployed
-environment so NaloPay can also push updates.
+servers, and the collection API rejects a missing or http callback (`PAY-INVAL-0069`).
+Locally the adapter still sends an https placeholder so the MoMo prompt can start.
+Confirmation uses the collection-status poll. Set `NALOPAY_CALLBACK_URL` to a public
+HTTPS URL in a deployed environment so NaloPay can also push updates.
 
 ## Paying for a lawyer plan
 

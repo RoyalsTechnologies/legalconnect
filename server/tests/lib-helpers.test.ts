@@ -171,6 +171,19 @@ describe('errorHandler', () => {
     });
   });
 
+  it('treats a duck-typed AppError as 422 instead of 500', () => {
+    const { status, json } = invoke({
+      statusCode: 422,
+      code: 'UNPROCESSABLE_ENTITY',
+      message: 'Invalid value for callback URL',
+    });
+    expect(status).toHaveBeenCalledWith(422);
+    expect(json.mock.calls[0]?.[0].error).toMatchObject({
+      code: 'UNPROCESSABLE_ENTITY',
+      message: 'Invalid value for callback URL',
+    });
+  });
+
   it('maps an unsupported encoding body-parser error to 415', () => {
     const { status, json } = invoke({ type: 'encoding.unsupported' });
     expect(status).toHaveBeenCalledWith(415);
@@ -180,6 +193,17 @@ describe('errorHandler', () => {
         message: 'Request body encoding is not supported',
       },
     });
+  });
+
+  it('does not promote a duck-typed 500 into a client-visible AppError', () => {
+    const { status, json } = invoke({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'db password is hunter2',
+    });
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json.mock.calls[0]?.[0].error.code).toBe('INTERNAL_ERROR');
+    expect(json.mock.calls[0]?.[0].error.message).toBe('Unknown error');
   });
 
   it('hides unexpected errors behind INTERNAL_ERROR', () => {

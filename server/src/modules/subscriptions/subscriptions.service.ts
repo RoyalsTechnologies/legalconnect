@@ -1,6 +1,7 @@
 import { Prisma, Role, SubscriptionPaymentStatus } from '@prisma/client';
 import { isNaloPayConfigured, isTest } from '../../config/env.js';
 import { badRequest, conflict, notFound } from '../../lib/errors.js';
+import { log } from '../../lib/logger.js';
 import { ghsToPesewas } from '../../lib/money.js';
 import { prisma } from '../../lib/prisma.js';
 import {
@@ -372,7 +373,7 @@ export async function capturePaidCallback(payload: {
 
   const paidPesewas = pesewasFromAmount(payload.amount ?? NaN);
   if (paidPesewas !== payment.feePesewas) {
-    console.error('[payments] subscription callback amount mismatch', payment.id);
+    log.payment.error('subscription callback amount mismatch', { paymentId: payment.id });
     return true;
   }
 

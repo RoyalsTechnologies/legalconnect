@@ -57,10 +57,20 @@ met — do not assume CI is green from the workflow file existing.
 
 ## Logging and observability
 
-Log enough to diagnose critical failures: startup errors, database connection errors,
-failed external calls, unexpected exceptions, and important state changes. Never log
-passwords, access tokens, secret keys, full sensitive records, or full legal-intake text.
-Avoid building monitoring infrastructure that the project does not need.
+The API writes four files under `server/logs/` and also prints the same lines to stdout
+so a host such as Render still shows them:
+
+| File | Contents |
+| --- | --- |
+| `sys.log` | Process start/stop, unhandled errors, AI fallback (length only, not intake text) |
+| `security.log` | Login success, 401/403, auth mail failures — no passwords or tokens |
+| `payment.log` | NaloPay collection/payout and callbacks — phone last-4 only |
+| `notification.log` | Email and SMS send/skip — masked email, subject, SMS last-4; never message bodies |
+
+Never log passwords, access tokens, secret keys, full email addresses, full phone
+numbers, names, full sensitive records, or full legal-intake text. The logger masks
+those fields and any email or Ghana MSISDN that appears in a message (NFR-002). On Render's free web service the disk is ephemeral (TD-029); stdout
+is the durable view there.
 
 ## Submission links
 
