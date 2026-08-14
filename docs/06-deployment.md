@@ -4,12 +4,11 @@ Status: Vercel configuration is in the repository. A live URL is **not yet deplo
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build from `public/` (CDN) and runs Express as one Function
-(`index.ts` must `import express` then `export default createApp()` — Vercel’s Express
-preset rejects the file otherwise). The root `tsconfig.json` is for that Vercel typecheck (`noCheck`); CJS packages
-(helmet, cors, bcrypt, jwt, nodemailer) load through `server/src/lib/cjs-default.ts`
-because Vercel types their default export as a non-callable namespace. Local Docker
-still starts from `server/src/server.ts`.
-`express.static()` is ignored on Vercel; do not rely on it.
+(`index.js` imports `express` and `createApp` from `server/dist`, which `vercel-build`
+compiles with the server tsconfig). Vercel must not typecheck `server/src` — its
+Express preset treats helmet/cors default exports as non-callable. Local Docker still
+starts from `server/src/server.ts`. `express.static()` is ignored on Vercel; do not
+rely on it.
 `outputDirectory` is intentionally unset so Vercel does not treat the project as a
 static site.
 
@@ -49,7 +48,9 @@ Defined in `vercel.json` and the root `vercel-build` script:
    `prisma` are devDependencies; a production-only install would fail the build)
 2. `prisma generate` and `prisma migrate deploy` via the server npm scripts (so the
    working directory is `server/`, where `prisma/schema.prisma` lives)
-3. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
+3. `tsc` compiles `server/src` to `server/dist` (the Function loads that JS, not the
+   TypeScript sources)
+4. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
    `outputDirectory` or the project is treated as static-only and `/api` disappears)
 
 SPA routes (`/login`, `/app`, …) rewrite to `/index.html`. `/api/*` and `/assets/*` are
