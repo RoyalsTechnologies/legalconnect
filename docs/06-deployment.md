@@ -143,8 +143,8 @@ Keep the template below in step with `submission.json`. **Keep real passwords ou
 repository** — put them into the generated file only, and never invent a missing value.
 
 ```
-Student Name:            <not yet recorded>
-Student ID:              <not yet recorded>
+Student Name:            Alexander Adade
+Student ID:              22424693
 Project Title:           LegalConnect Ghana — An AI-Powered Platform for Improving
                          Access to Legal Services
 Live Application:        https://legalconnect-beryl.vercel.app
