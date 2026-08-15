@@ -741,6 +741,33 @@ Live NaloPay disbursement URL is not confirmed (TD-028); tests capture immediate
 | IT-082 | FR-021 | Withdrawal over the available balance returns `422` | Pass |
 | IT-083 | FR-021 | Withdrawal without a saved payment account returns `422` | Pass |
 
+## Live deployment verification (2026-08-15)
+
+Run against <https://legalconnect-beryl.vercel.app> after seeding the hosted database, because
+a green local suite says nothing about the deployed environment. Expected against actual:
+
+| Check | Expected | Actual | Result |
+| --- | --- | --- | --- |
+| `prisma migrate status` on the hosted database | All migrations applied | 11 of 11 applied, schema up to date | Pass |
+| `GET /api/health` | `{"status":"ok","database":"connected"}` | As expected | Pass |
+| `GET /api/v1/categories` | 9 seeded categories | `200`, 9 returned | Pass |
+| `GET /api/v1/packages` | 3 plans | `200`, 3 returned | Pass |
+| `GET /api/v1/lawyers` | 5 approved lawyers across 4 cities | `200`, `total=5` — Accra ×2, Kumasi, Takoradi, Tamale | Pass |
+| `POST /api/v1/auth/login` as admin | `200` with `role=ADMIN` | As expected | Pass |
+| `GET /api/v1/admin/stats` with that token | Admin-only route answers | `200` — 5 approved, 5 subscribed, 9 active categories | Pass |
+| `POST /api/v1/auth/login` as demo citizen | `200` with `role=USER` | As expected | Pass |
+| `POST /api/v1/auth/login` as demo lawyer | `200` with `role=LAWYER` | As expected | Pass |
+| CORS preflight from the live origin | Origin echoed back | `access-control-allow-origin` returns the live host | Pass |
+| CORS preflight from `http://localhost:5173` | No allow-origin header | No header returned | Pass |
+| SPA deep link `/lawyers` | Application shell, not a JSON 404 | `200` HTML identical to `/` | Pass |
+
+`/admin/stats` reported 8 users where the seed creates 7, so one account on the hosted
+database predates the seed — consistent with a registration made while investigating DEF-010.
+
+Not covered by this run: a paid consultation end to end, because the test merchant refuses
+amounts at real fee levels (TD-031), and a live registration confirming an emailed link
+resolves (DEF-010, still partial).
+
 ## Known issues and testing limitations
 
 Classification quality is unmeasured — see TD-011. The suite proves the AI contract is

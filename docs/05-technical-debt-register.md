@@ -418,6 +418,27 @@ URL, and one end-to-end capture approved on a real handset. Until then do not de
 payment as verified.
 **Target:** v1.1 · **Related:** FR-017, TD-025, UAT-003
 
+### TD-032 — Fictional practitioners are published on the public deployment
+
+**Cause:** The examination requires a deployed application an examiner can walk through, and
+the directory, matching, and consultation flows are empty without lawyers. The hosted
+database was therefore seeded on 2026-08-15 with `SEED_DEMO_DATA=true`, creating five
+`APPROVED` fictional lawyer profiles with a shared, known password — the exact thing the
+seed script's own comment warns against doing outside local demonstration.
+**Impact:** The live URL is public. A member of the public who finds it sees five invented
+practitioners presented the same way a real one would be, and could send a consultation
+request that no lawyer will ever read. The shared demo password also means any visitor who
+guesses it can sign in as one of those lawyers. This is a deliberate trade-off for
+assessability, not an oversight, and it is the one place where the deployed system is
+knowingly misleading.
+**Priority:** Medium · **Category:** data · **Status:** Accepted for the examination window
+**Resolution:** Three options in order of preference. Take the deployment down or restrict it
+once assessed; or replace the demo seed with real, verified practitioners who have consented;
+or mark demonstration profiles with a flag the interface renders as a visible notice, so no
+visitor can mistake one for a real lawyer. Do not leave it as it stands beyond assessment.
+**Target:** immediately after assessment · **Related:** FR-004, FR-011, CON-003,
+`server/prisma/seed.ts`
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -453,6 +474,7 @@ payment as verified.
 | TD-029 | File logs ephemeral on serverless hosts | Low | observability | Accepted |
 | TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
 | TD-031 | Live MoMo capture unverified at real fees (test merchant caps the amount) | High (prod) | integration | Accepted |
+| TD-032 | Fictional practitioners published on the public deployment | Medium | data | Accepted for the examination window |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

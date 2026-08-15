@@ -127,8 +127,11 @@ a generic caveat, and each names where it is tracked.
   administrator approved them. Nothing checks a licence number against the General Legal
   Council or any regulator, so the directory's trustworthiness rests entirely on manual
   approval.
-- **Seed data is fictional.** Demo practitioners are invented for demonstration and do not
-  represent real lawyers.
+- **Seed data is fictional, and it is live.** The five practitioners on the deployed site are
+  invented and do not represent real lawyers, yet the URL is public and presents them exactly
+  as it would present a real profile. This was a deliberate trade-off so the application could
+  be assessed end to end, and it is recorded as TD-032 with the steps needed to undo it once
+  assessment is over.
 - **No retention or deletion policy.** Data minimisation is applied at collection, but there
   is no automated retention window, no user-initiated account deletion, and no export.
 - **Accessibility is not audited.** No screen-reader or contrast testing was performed, and

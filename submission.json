@@ -9,12 +9,12 @@
   "adminUrl": "https://legalconnect-beryl.vercel.app/app/admin",
   "repositoryUrl": "https://github.com/RoyalsTechnologies/legalconnect",
   "credentials": {
-    "note": "Passwords are deliberately absent from the repository. Fill them into the generated Deployment_and_Source_Links.txt before submitting, or leave the placeholders if the hosted database is not seeded.",
-    "citizenEmail": "<not yet created — hosted database not seeded>",
-    "citizenPassword": "<supply in the submission file only>",
-    "lawyerEmail": "<not yet created — hosted database not seeded>",
-    "lawyerPassword": "<supply in the submission file only>",
-    "adminEmail": "<not yet created — hosted database not seeded>",
-    "adminPassword": "<supply in the submission file only>"
+    "note": "These accounts exist on the live deployment and were verified by signing in on 2026-08-15. Passwords are never stored here: ${...} is resolved from server/.env when the package is built, so the value reaches only the generated file, which is gitignored.",
+    "citizenEmail": "ama.mensah@example.com",
+    "citizenPassword": "${SEED_DEMO_PASSWORD}",
+    "lawyerEmail": "akua.owusu@example.com",
+    "lawyerPassword": "${SEED_DEMO_PASSWORD}",
+    "adminEmail": "admin@legalconnect.local",
+    "adminPassword": "${SEED_ADMIN_PASSWORD}"
   }
 }

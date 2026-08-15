@@ -1,10 +1,15 @@
 # Deployment
 
-Status: live at <https://legalconnect-beryl.vercel.app> (verified 15 Aug 2026 — landing page,
-hashed assets, and `/api/health` all serve). Migrations are applied on the hosted database
-but the one-off seed has **not** been run, so there are no legal categories, no lawyers, and
-no demo accounts there yet; triage, matching, and sign-in cannot be demonstrated on the live
-URL until it is.
+Status: live at <https://legalconnect-beryl.vercel.app>, migrated and **seeded** on
+15 Aug 2026. Verified the same day against the live URL: the landing page and hashed assets
+serve, `/api/health` returns `{"status":"ok","database":"connected"}`, the API returns nine
+legal categories, three subscription packages, and five approved lawyers, and all three
+roles sign in — admin (`role=ADMIN`, `/admin/stats` answers), citizen (`USER`), and lawyer
+(`LAWYER`). The directory, matching, and the consultation workflow can therefore be walked
+on the live URL.
+
+The seeded practitioners are **fictional demonstration profiles**, not real lawyers — see
+TD-032 for why that is a deliberate, recorded trade-off on a public deployment.
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build (`outputDirectory: client/dist`) from its CDN and
@@ -96,15 +101,28 @@ tick one without running it.
       header for the localhost origin. The API also falls back to the Vercel host if the
       variable is ever absent again
 - [x] Database connection works — `/api/health` returns `{"status":"ok","database":"connected"}`
-- [x] Migrations applied — table queries return empty result sets rather than errors
-- [x] API endpoints work — `/api/health`, `/api/v1/categories`, `/api/v1/lawyers` all respond
-- [ ] Authentication works — no accounts exist on the hosted database yet
+- [x] Migrations applied — `prisma migrate status` against the hosted database reports all
+      11 migrations applied and the schema up to date
+- [x] Seed run — 15 Aug 2026, from a workstation using the Supabase direct URI. Nine
+      categories, three packages, one admin, one demo citizen, and five approved demo
+      lawyers with a year of subscription each. The seed upserts, so re-running is safe
+- [x] API endpoints work — `/api/health`, `/api/v1/categories` (9), `/api/v1/packages` (3),
+      and `/api/v1/lawyers` (total 5) all respond
+- [x] Authentication works — admin, citizen, and lawyer all returned `200` with the expected
+      role from `POST /api/v1/auth/login` against the live API
 - [x] Static assets load — every `/assets/*` JS and CSS request returns 200 and the SPA
       renders; deep routes such as `/lawyers` fall back to `index.html`
-- [ ] Critical workflows work end to end — blocked until the database is seeded
-- [ ] No secrets exposed in the bundle or in API responses
-- [ ] URLs are stable
-- [ ] Test credentials work — not created yet
+- [x] Critical workflows work end to end — the directory lists five lawyers across four
+      cities, and an admin token reads `/api/v1/admin/stats` (5 approved, 5 subscribed,
+      9 active categories). A paid consultation cannot be completed on the live URL because
+      the test merchant refuses amounts at real fee levels (TD-031)
+- [ ] No secrets exposed in the bundle or in API responses — not yet audited on the
+      deployed bundle
+- [ ] URLs are stable — the project has not been renamed since deployment, but no alias is
+      pinned, so a rename would move the URL
+- [x] Test credentials work — verified by signing in as each role on 15 Aug 2026. The
+      accounts are listed below; the passwords live in `server/.env` and are injected into
+      the generated links file, never committed
 
 Never mark deployment complete on the strength of a successful build. Test the live
 application.
@@ -139,8 +157,10 @@ those fields and any email or Ghana MSISDN that appears in a message (NFR-002).
 `submission/`, which is gitignored precisely because the links file carries live
 credentials once they are filled in.
 
-Keep the template below in step with `submission.json`. **Keep real passwords out of the
-repository** — put them into the generated file only, and never invent a missing value.
+Passwords are never written into `submission.json`, because that file is tracked. The
+config holds `${SEED_ADMIN_PASSWORD}` and `${SEED_DEMO_PASSWORD}`, which the build resolves
+from `server/.env`, so the value only ever reaches the generated file. The build reports any
+token it could not resolve rather than emitting it silently.
 
 ```
 Student Name:            Alexander Adade
@@ -149,9 +169,12 @@ Project Title:           LegalConnect Ghana — An AI-Powered Platform for Impro
                          Access to Legal Services
 Live Application:        https://legalconnect-beryl.vercel.app
 Admin URL:               https://legalconnect-beryl.vercel.app/app/admin
-Test Username:           <not yet created — hosted database not seeded>
-Test Password:           <supply in submission file only, not in the repository>
-Admin Username:          <not yet created — hosted database not seeded>
-Admin Password:           <supply in submission file only, not in the repository>
+Citizen Username:        ama.mensah@example.com
+Lawyer Username:         akua.owusu@example.com
+Admin Username:          admin@legalconnect.local
+Passwords:               resolved from server/.env at build time — see the generated file
 Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 ```
+
+All three accounts were verified against the live API on 15 Aug 2026 and returned their
+expected roles.

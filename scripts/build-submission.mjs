@@ -17,6 +17,39 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = join(root, 'docs');
 const config = JSON.parse(await readFile(join(root, 'submission.json'), 'utf8'));
 
+/**
+ * Credentials live in server/.env, never in submission.json, because that file is tracked.
+ * A `${NAME}` in the config is resolved here so the password only ever reaches the
+ * generated links file, which is gitignored.
+ */
+async function readEnvFile() {
+  const contents = await readFile(join(root, 'server', '.env'), 'utf8').catch(() => '');
+  const values = {};
+  for (const line of contents.split('\n')) {
+    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
+    if (!match) continue;
+    values[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
+  }
+  return values;
+}
+
+const secrets = await readEnvFile();
+const unresolved = new Set();
+
+function resolveSecrets(value) {
+  return value.replace(/\$\{([A-Z0-9_]+)\}/g, (token, name) => {
+    if (!secrets[name]) {
+      unresolved.add(name);
+      return token;
+    }
+    return secrets[name];
+  });
+}
+
+for (const [key, value] of Object.entries(config.credentials)) {
+  if (typeof value === 'string') config.credentials[key] = resolveSecrets(value);
+}
+
 const CHAPTERS = [
   ['10-srs.md', 'Software Requirements Specification'],
   ['01-requirements.md', 'Requirements Register, Acceptance Criteria, and Traceability'],
@@ -265,5 +298,11 @@ console.log('  Deployment_and_Source_Links.txt');
 if (placeholders.length > 0) {
   console.log(
     `\nStill placeholder in submission.json: ${placeholders.join(', ')}. The PDF was built, but do not submit it until these are real.`,
+  );
+}
+
+if (unresolved.size > 0) {
+  console.log(
+    `\nNot found in server/.env, so the links file still shows the token: ${[...unresolved].join(', ')}.`,
   );
 }
