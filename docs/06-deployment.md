@@ -1,6 +1,10 @@
 # Deployment
 
-Status: Vercel configuration is in the repository. A live URL is **not yet deployed**.
+Status: live at <https://legalconnect-beryl.vercel.app> (verified 15 Aug 2026 — landing page,
+hashed assets, and `/api/health` all serve). Migrations are applied on the hosted database
+but the one-off seed has **not** been run, so there are no legal categories, no lawyers, and
+no demo accounts there yet; triage, matching, and sign-in cannot be demonstrated on the live
+URL until it is.
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build (`outputDirectory: client/dist`) from its CDN and
@@ -61,7 +65,9 @@ rather than being resolved as a file. Everything else falls back to `/index.html
 routes (`/login`, `/app`, …). Static files win before rewrites, so hashed JS and CSS under
 `/assets/` are still served as themselves.
 
-One-off seed against the hosted database (from your machine, not on every deploy):
+One-off seed against the hosted database (from your machine, not on every deploy). **Not yet
+run** — `/api/v1/categories` returns `[]` and `/api/v1/lawyers` returns zero results on the
+live URL:
 
 ```bash
 DATABASE_URL='postgresql://…' SEED_DEMO_DATA=true SEED_DEMO_PASSWORD='…' npm --prefix server run prisma:seed
@@ -71,17 +77,23 @@ Record the printed admin password only in `Deployment_and_Source_Links.txt`, not
 
 ## Pre-deployment verification
 
-- [ ] Production build succeeds
-- [ ] Environment variables configured on the host
-- [ ] Database connection works
-- [ ] Migrations applied
-- [ ] API endpoints work (`/api/health` returns `ok`)
-- [ ] Authentication works
-- [ ] Static assets load
-- [ ] Critical workflows work end to end
+Checked against the live URL on 15 Aug 2026. Unticked items are not yet evidenced — do not
+tick one without running it.
+
+- [x] Production build succeeds — the deployed build serves
+- [x] Environment variables configured on the host — `DATABASE_URL` and `JWT_SECRET` at
+      least; the Function boots and reaches the database. `CLIENT_ORIGIN` and the NaloPay
+      callback URL not re-checked since the hostname was known
+- [x] Database connection works — `/api/health` returns `{"status":"ok","database":"connected"}`
+- [x] Migrations applied — table queries return empty result sets rather than errors
+- [x] API endpoints work — `/api/health`, `/api/v1/categories`, `/api/v1/lawyers` all respond
+- [ ] Authentication works — no accounts exist on the hosted database yet
+- [x] Static assets load — every `/assets/*` JS and CSS request returns 200 and the SPA
+      renders; deep routes such as `/lawyers` fall back to `index.html`
+- [ ] Critical workflows work end to end — blocked until the database is seeded
 - [ ] No secrets exposed in the bundle or in API responses
 - [ ] URLs are stable
-- [ ] Test credentials work
+- [ ] Test credentials work — not created yet
 
 Never mark deployment complete on the strength of a successful build. Test the live
 application.
@@ -121,11 +133,11 @@ Student Name:            <not yet recorded>
 Student ID:              <not yet recorded>
 Project Title:           LegalConnect Ghana — An AI-Powered Platform for Improving
                          Access to Legal Services
-Live Application:        <not yet deployed>
-Admin URL:               <not yet deployed>
-Test Username:           <not yet created>
+Live Application:        https://legalconnect-beryl.vercel.app
+Admin URL:               https://legalconnect-beryl.vercel.app/app/admin
+Test Username:           <not yet created — hosted database not seeded>
 Test Password:           <supply in submission file only, not in the repository>
-Admin Username:          <not yet created>
+Admin Username:          <not yet created — hosted database not seeded>
 Admin Password:           <supply in submission file only, not in the repository>
 Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 ```

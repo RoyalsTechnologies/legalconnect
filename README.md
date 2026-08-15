@@ -189,8 +189,9 @@ Integration starts its own Postgres 16 service. Frontend E2E is local-only
 
 Hosting is Vercel (`vercel.json`): the Vite build in `client/dist` is served from the CDN
 and `/api/*` is rewritten to the Express Function at `api/index.js`. Create a hosted
-Postgres, set the variables in `docs/06-deployment.md`, then deploy. The live URL is not
-yet deployed.
+Postgres, set the variables in `docs/06-deployment.md`, then deploy. Live at
+<https://legalconnect-beryl.vercel.app>; that database is migrated but not yet seeded, so
+sign-in and matching only work locally for now.
 
 Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 
