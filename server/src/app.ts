@@ -1,7 +1,6 @@
-import cors from 'cors';
 import express, { Router } from 'express';
-import helmet from 'helmet';
 import { env } from './config/env.js';
+import { cors, helmet } from './lib/cjs-default.js';
 import { prisma } from './lib/prisma.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
