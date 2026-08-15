@@ -1,5 +1,5 @@
 import { Alert, Button, Card, Form, Input, Result, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { authApi } from '../api/endpoints';
@@ -13,6 +13,10 @@ export function VerifyEmailPage() {
   const token = params.get('token') ?? '';
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  // The token is single-use, so a second POST for the same one always fails. React's
+  // development double-mount would consume it and then report the retry's rejection,
+  // making a good link look expired. Keep the in-flight request and re-read it.
+  const attempt = useRef<{ token: string; request: Promise<{ message: string }> } | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -21,9 +25,12 @@ export function VerifyEmailPage() {
       return;
     }
 
+    if (attempt.current?.token !== token) {
+      attempt.current = { token, request: authApi.verifyEmail({ token }) };
+    }
+
     let cancelled = false;
-    authApi
-      .verifyEmail({ token })
+    attempt.current.request
       .then((result) => {
         if (cancelled) return;
         setMessage(result.message);
