@@ -333,8 +333,11 @@ collects one month or a yearly equivalent (12 × the current monthly fee) when t
 pays; there is no mandate, webhook-driven renewal, or dunning. Admins can grant a period
 for the demo.
 **Impact:** A lapsed plan silently removes the lawyer from the directory and matching.
-Upgrading or downgrading does not credit unused days. There is no yearly discount — a year
-is exactly twelve monthly fees. Platform subscription fees are not invoiced.
+Changing plan carries unused days over — the purchased term is added to whatever is left —
+but their *value* is not prorated, so a lawyer who upgrades gets the larger plan for days
+bought at the smaller price, and one who downgrades keeps the cheaper plan for days bought
+at the dearer price. There is no yearly discount — a year is exactly twelve monthly fees.
+Platform subscription fees are not invoiced.
 **Priority:** Medium for production · **Category:** functionality · **Status:** Accepted
 **Resolution:** Recurring mobile-money or card mandates; reminder before period end;
 proration; receipts; optional yearly discount.
@@ -388,6 +391,28 @@ Do not add another datastore. The exam deploy uses the Supabase direct URI as
 `DATABASE_URL` so migrate and the Function share one connection string.
 **Target:** v1.1 · **Related:** NFR-008, CON-002
 
+### TD-031 — Live mobile-money capture is unverified at real consultation fees
+
+**Cause:** The only NaloPay merchant available is the test merchant on
+`nalopaytest.nalosolutions.com`. Probed on 2026-08-15 from inside the server container, it
+accepts collections of GH₵ 0.10 to GH₵ 5.00 (`201 PAY-CRTD-0055`, with an `order_id`) and
+rejects GH₵ 6.00 and above with `400 PAY-INVAL-0058`, "Invalid value for amount" (re-probed
+2026-08-15 with the amount as a two-decimal string, a bare string, and a JSON number — all
+three are refused identically, so the ceiling is the value, not the format). Demo
+consultation fees are GH₵ 150–300, so a real fee cannot be collected there. Two further
+blockers are independent of the cap: the demo MSISDN is fictional, so nobody can approve the
+prompt, and the callback cannot reach `localhost` (TD-025).
+**Impact:** UAT-003 can demonstrate booking, the payload and `trans_hash` being accepted,
+and the pending prompt, but not a completed live capture at a real fee. Capture in a
+walkthrough therefore relies on the credentials-unset path, which logs and marks paid. A
+production deployment carrying these test credentials would reject every real consultation
+fee with a 422, so the merchant has to be swapped before the payment path handles money.
+**Priority:** High for production · **Category:** integration · **Status:** Accepted
+**Resolution:** A live merchant account with a normal transaction ceiling, a public callback
+URL, and one end-to-end capture approved on a real handset. Until then do not describe live
+payment as verified.
+**Target:** v1.1 · **Related:** FR-017, TD-025, UAT-003
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -422,6 +447,7 @@ Do not add another datastore. The exam deploy uses the Supabase direct URI as
 | TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
 | TD-029 | File logs ephemeral on serverless hosts | Low | observability | Accepted |
 | TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
+| TD-031 | Live MoMo capture unverified at real fees (test merchant caps the amount) | High (prod) | integration | Accepted |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being
@@ -438,7 +464,8 @@ fixed rather than accepted. See the defect log in `docs/04-testing.md`.
 **v1.1** — TD-003 refresh tokens and revocation; TD-007 privacy disclosure and data
 minimisation review; TD-001 labelled evaluation set; TD-008 extend coverage; TD-021
 server-supplied permitted transitions; TD-023 rate limiting on the
-anonymous read endpoints; TD-027 Calendar API Meet rooms.
+anonymous read endpoints; TD-027 Calendar API Meet rooms; TD-031 a live merchant account
+and one approved end-to-end mobile-money capture.
 
 **v1.2** — TD-002 asynchronous triage; TD-004 outcome-informed matching weights; TD-006
 second provider adapter; TD-018 keyset pagination; TD-019 full-text search; TD-022

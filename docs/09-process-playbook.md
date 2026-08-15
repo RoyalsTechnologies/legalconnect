@@ -85,6 +85,7 @@ debt, reprioritise scope, and only then implement.
 | CH-019 | 2026-08-13 | Product owner: lawyer can pay monthly or a yearly equivalent | FR-018 (Should) | Payment interval on `SubscriptionPayment`; lawyer and admin UI | Year = 365 days at 12 × current monthly fee; no separate yearly price field |
 | CH-020 | 2026-08-13 | Product owner: lawyer wallet with a saved Ghana MoMo payment account | FR-020 (Should) | LawyerProfile payment fields; `/app/wallet`; subscribe prefill | Saved MoMo identity only — no ledger balance, no NaloPay disbursement (TD-025 stays) |
 | CH-021 | 2026-08-13 | Product owner: hold consultation fee until both confirm, then credit wallet; withdrawals and refunds | FR-021 (Should) | Ledger, dual confirm, payout adapter, Wallet UI | Live disbursement path unverified (TD-028); no commission or disputes |
+| CH-022 | 2026-08-15 | Product owner: a lawyer can move up to a larger plan mid-period | FR-018 (Should) | `activatePlan` adds the purchased term to time remaining; plan copy and Upgrade badge; IT-088, IT-089 | Unused days carry over rather than being discarded; still no proration or credit of value (TD-026 stays). Admin grants keep setting the period outright so one can be shortened |
 
 ## Scope safety rule
 

@@ -141,9 +141,24 @@ wherever feasible.
 
 Tie UAT to real user goals and demonstrate that implemented Must requirements solve the
 intended problem. Independent external participants have **not yet completed** a session.
-The cases below were executed on **2026-08-13** by the developer against the local Docker
-stack (`http://localhost:5173`, `http://localhost:4000`) using the gated demo accounts in
+The cases below were executed by the developer against the local Docker stack
+(`http://localhost:5173`, `http://localhost:4000`) using the gated demo accounts in
 `README.md`. That is a walkthrough, not a claim of third-party UAT.
+
+Two runs are recorded. Run 1 on **2026-08-13** covered UAT-001, UAT-002, and UAT-006 and
+left UAT-003 failing and UAT-004/UAT-005 unreached. Run 2 on **2026-08-15** re-executed
+UAT-003, UAT-004, and UAT-005. Two conditions of run 2 matter when reading the evidence:
+
+- The admin password was supplied locally through `SEED_ADMIN_PASSWORD`, which is what run
+  1 lacked. The seed leaves an existing admin's password unchanged, so the generated one
+  from the first seed was unrecoverable. The value is not recorded in this repository.
+- The payment step was executed twice: once against the live NaloPay **test** gateway, and
+  once against a second API process started from the same source with
+  `NALOPAY_MERCHANT_ID` unset on port 4001, which is the documented credentials-unset
+  path that logs and captures locally. Both are labelled below. Neither is a claim that
+  live mobile money moved.
+
+Screenshots from run 2 are in `docs/uat-evidence/`.
 
 ```
 UAT-001
@@ -152,7 +167,7 @@ Scenario: Describe an unpaid-salary dismissal in Accra in everyday language and 
 Acceptance criterion: Original words are stored; the user is not blocked when AI fails; lawyers remain reachable (NFR-004, FR-006, FR-010, FR-012).
 Expected outcome: An organised result or a controlled fallback, then recommendations or the directory.
 Actual outcome: POST /api/v1/intakes returned 201 after ~124s with aiStatus FAILED_FALLBACK, needsHumanReview true, category Other / Needs Review. originalDescription (152 characters) was unchanged. GET .../recommendations returned note "This enquiry has not been categorised yet, so no recommendation can be made. You can still browse the lawyer directory and contact someone directly." GET /lawyers listed the five seeded lawyers.
-Status: Pass on the fallback path. Live AI classification was not observed in this run.
+Status: Pass on the fallback path. Live AI classification was not observed in this run. It was observed in run 2 (2026-08-15): three intakes returned aiStatus COMPLETED within about 7 seconds each, category Property & Tenancy, needsHumanReview false, with originalDescription stored unchanged.
 ```
 
 ```
@@ -168,21 +183,27 @@ Status: Pass
 ```
 UAT-003
 Actor: Citizen
-Scenario: Book a consultation from the directory after the fallback intake, including the fee (FR-013, FR-017, FR-019).
+Scenario: Book a consultation with a lawyer reached from the directory (run 1) or from a recommendation (run 2), including the fee (FR-013, FR-017, FR-019).
 Acceptance criterion: A future slot is stored; unpaid bookings stay AWAITING_PAYMENT and hidden from the lawyer until pay succeeds.
 Expected outcome: 201 booking; pay prompt or local capture; lawyer then sees the request.
-Actual outcome: POST /consultations returned 201, status AWAITING_PAYMENT, feePesewas 25000, matchReason "Chosen by the client from the lawyer directory rather than from a recommendation.", googleCalendarUrl present. POST .../pay with 0244123456 / MTN returned 503; lawyer GET /consultations was empty (correct while unpaid).
-Status: Fail — booking succeeded; payment did not complete in this environment (NaloPay 503). Independent retry after payment credentials work is not yet completed.
+Actual outcome (run 1, 2026-08-13): POST /consultations returned 201, status AWAITING_PAYMENT, feePesewas 25000, matchReason "Chosen by the client from the lawyer directory rather than from a recommendation.", googleCalendarUrl present. POST .../pay with 0244123456 / MTN returned 503; lawyer GET /consultations was empty (correct while unpaid).
+Actual outcome (run 2, 2026-08-15): Booking from a recommendation — POST /consultations returned 201, AWAITING_PAYMENT, feePesewas 30000, matchReason "Recommended because Kwame Asante lists Property & Tenancy as a practice area.", googleCalendarUrl present.
+  Live test gateway at the real fee: POST .../pay with 0244123456 / MTN returned 422 "Invalid value for amount". The payment log recorded gateway code PAY-INVAL-0058 for amount '300.00', so the gateway was reachable this time and rejected the amount, not the credentials or the hash.
+  Gateway probe (run from inside the server container, test merchant): amounts '0.10', '1.00', '1.50', '2.00', and '5.00' were accepted with 201 PAY-CRTD-0055 and an order_id; '10.00', '100.00', and '300.00' were rejected with 400 PAY-INVAL-0058. The test merchant therefore caps a collection somewhere between GH₵ 5 and GH₵ 10 (TD-031); the request payload and trans_hash are accepted as built.
+  Live test gateway within that cap: the lawyer set his fee to GH₵ 5 through PATCH /lawyers/me, the citizen re-booked, and POST .../pay returned 200 with reference LCPfbfaa750c04666d84ea5 and the hint "Approve the mobile money prompt on 0244123456. If asked, use *920*1*820#." The consultation correctly stayed AWAITING_PAYMENT. POST /consultations/verify-payment returned 400 "Payment has not been confirmed yet. Approve the prompt on your phone, then try again.", and the gateway's collection-status reported PENDING — nobody can approve a prompt on the fictional demo MSISDN. Lawyer GET /consultations did not include the booking while it was unpaid.
+  Credentials-unset path (port 4001), fee restored to GH₵ 300: POST /consultations returned 201 AWAITING_PAYMENT feePesewas 30000, and POST .../pay returned 200 moving it to PENDING with reference LCPdfdd84be064438b49519, which is what made UAT-004 reachable.
+Status: Pass for booking, for payment initiation against the live test gateway, and for capture on the credentials-unset path. A live mobile-money capture at a real consultation fee is **not yet completed**: the test merchant rejects amounts above about GH₵ 5, no real subscriber can approve the prompt on the demo number, and NaloPay cannot POST its callback to localhost (TD-025, TD-031).
 ```
 
 ```
 UAT-004
-Actor: Lawyer (demo Akua Owusu)
+Actor: Lawyer (demo Kwame Asante — the lawyer the run-2 enquiry was matched to)
 Scenario: Read the structured intake and accept or decline (FR-014).
 Acceptance criterion: The lawyer sees the citizen's own words and can accept with a Google Meet URL.
 Expected outcome: Inbox shows the paid request; accept stores meetUrl.
-Actual outcome: Not reached — the booking from UAT-003 never left AWAITING_PAYMENT.
-Status: not yet completed
+Actual outcome (run 1, 2026-08-13): Not reached — the booking from UAT-003 never left AWAITING_PAYMENT.
+Actual outcome (run 2, 2026-08-15): The paid request appeared in the lawyer's inbox at http://localhost:5173/app/requests under "Incoming consultation requests" (uat-004-lawyer-inbox.png). The detail screen showed the summary, a section headed "IN THEIR OWN WORDS" carrying the citizen's unchanged sentence, Urgent and Property & Tenancy tags, the client's name and phone, "GH₵ 300.00 — held until both of you confirm the consultation happened", Add to Google Calendar, Join Google Meet, and Confirm consultation happened (uat-004-accepted-request.png, uat-004-structured-intake.png). Over the API, GET /consultations/:id as the lawyer returned intake.originalDescription unchanged alongside aiSummary; PATCH /consultations/:id with status ACCEPTED and meetUrl https://meet.google.com/abc-defg-hij returned 200 with the meetUrl stored; the citizen then saw ACCEPTED with the same link; a second lawyer (Akua Owusu) requesting the same id received 404.
+Status: Pass
 ```
 
 ```
@@ -191,8 +212,9 @@ Actor: Administrator
 Scenario: Open the admin overview and lawyer approval queue (FR-015).
 Acceptance criterion: Admin-only screens load; USER/LAWYER callers cannot use them.
 Expected outcome: Overview with pending lawyers and platform counts.
-Actual outcome: not yet completed (admin password is generated at first seed and is not recorded in the repository).
-Status: not yet completed
+Actual outcome (run 1, 2026-08-13): not yet completed (admin password is generated at first seed and is not recorded in the repository).
+Actual outcome (run 2, 2026-08-15, admin password supplied locally through SEED_ADMIN_PASSWORD): Approval queue exercised end to end first — registering Nana Adjei as a lawyer created the profile PENDING, admin stats moved to pending 1, the profile was visible to the admin and absent from the public directory, and PATCH /lawyers/:id with approvalStatus APPROVED as admin returned 200 APPROVED. The screens were then opened in the browser, so they show the queue already cleared: http://localhost:5173/app/admin loaded with "Needs a decision" — 0 lawyers awaiting approval, 3 enquiries needing review, 3 AI fallbacks, 1 awaiting a lawyer — over platform counts of 12 users, 7 approved lawyers, and 5 live plans (uat-005-admin-overview.png). The Lawyers screen loaded with Pending / Approved / Rejected / All filters, the empty state "pending is empty when the queue is clear" on Pending, and on All a row per practitioner with review and plan badges, a Reject control, and Grant plan disabled until a plan is chosen (uat-005-admin-lawyers.png). Guards: PATCH /lawyers/:id returned 403 for a citizen and 403 for another lawyer; GET /admin/stats returned 403 for citizen and lawyer and 401 anonymously. PATCH /admin/users/:id/status returned 200 for SUSPENDED and 200 again restoring ACTIVE.
+Status: Pass
 ```
 
 ```
@@ -209,9 +231,9 @@ Status: Pass for the public home page. Signed-in intake screen disclaimer was no
 | --- | --- | --- | --- |
 | UAT-001 | Citizen | Describe a concern and still reach lawyers if AI fails | Pass (fallback path) |
 | UAT-002 | Visitor | Browse the directory without an account | Pass |
-| UAT-003 | Citizen | Book and pay | Fail — booking 201; pay 503 |
-| UAT-004 | Lawyer | Accept a paid request | not yet completed (blocked by UAT-003) |
-| UAT-005 | Admin | Use the admin overview | not yet completed |
+| UAT-003 | Citizen | Book and pay | Pass for booking, live initiation, and credentials-unset capture; live capture at a real fee not yet completed (TD-031) |
+| UAT-004 | Lawyer | Accept a paid request | Pass (2026-08-15) |
+| UAT-005 | Admin | Use the admin overview | Pass (2026-08-15) |
 | UAT-006 | Visitor | See that the product is not legal advice | Pass (home page) |
 
 ## Defect log
@@ -225,6 +247,12 @@ Status: Pass for the public home page. Signed-in intake screen disclaimer was no
 | DEF-004 | Test ID `SEC-LG-003` was assigned to two different tests | Low | — | Phase 2 correctness review | The registration privilege-escalation test reused the ID belonging to the admin-endpoint guard case, so the traceability matrix under-reported coverage | Reassign the registration case to `SEC-LG-011` and add the missing IDs to the security catalogue | Fixed | Pass — IDs verified unique across the suite |
 | DEF-005 | An AI-fallback enquiry was told "no approved lawyer lists this practice area" | Medium | FR-010 | Live check against the running stack, phase 6 | Matching guarded on `categoryId` being null, but the AI-failure path assigns the real `Other / Needs Review` holding category instead of leaving it null. The guard never fired for the case it was written for, so matching ran against a category no lawyer practises and the empty result was reported as an absence of coverage rather than as work still to do | Treat the holding category by name as uncategorised, returning the same explanatory note and directory link as a null category | Fixed | Pass — MT-009 |
 | DEF-006 | `Other / Needs Review` was offered as a selectable practice area | Low | FR-004 | Browser walkthrough of the lawyer profile editor | Category pickers listed every active category, and the holding category is active by necessity — intakes have to be able to point at it. A lawyer could therefore tick a practice area that matching deliberately skips, producing a setting that silently does nothing | Refuse it server-side in practice-area validation, and filter it out of the three client pickers through one shared `selectable()` helper so the UI cannot drift from the rule | Fixed | Pass — IT-051 |
+| DEF-007 | Cancelling an unpaid booking permanently blocks sending that enquiry to the same lawyer again | Low | FR-013 | UAT run 2, 2026-08-15 | `@@unique([intakeId, lawyerProfileId])` on `ConsultationRequest` counts every row whatever its status, so a CANCELLED row keeps the pair occupied and the create returns P2002 → 409 "You have already sent this enquiry to that lawyer" | Not yet implemented. Needs uniqueness scoped to live statuses (or the pairing released on cancel) plus a migration; the citizen's workaround today is to start a new enquiry or choose another lawyer | Open | not yet completed |
+| DEF-008 | A booking cancelled while unpaid becomes visible to the lawyer | Low | FR-019 | UAT run 2, 2026-08-15 | The lawyer's scope excludes only `AWAITING_PAYMENT`, so cancelling an unpaid booking moves the row into a status the lawyer can list even though the fee was never paid and it was never a request | Not yet implemented. Exclude cancelled rows that never carried a `paymentReference` from the lawyer scope, with an integration test alongside the existing unpaid-visibility case | Open | not yet completed |
+| DEF-009 | Practitioner names wrap one character per line in the admin Lawyers table at a 1024 px viewport | Low | NFR-004 | UAT run 2, 2026-08-15 (uat-005-admin-lawyers.png) | Not yet diagnosed — the table's column widths leave the practitioner column too narrow at that width | Not yet implemented | Open | not yet completed |
+| DEF-010 | Confirmation links in email pointed at `http://localhost:5173` from the deployed site | High | FR-001 | Reported link would not confirm, 2026-08-15 | `CLIENT_ORIGIN` on Vercel carries the local development origin, so `appUrl()` built every verification and reset link against localhost. A CORS probe of the live API showed it: `Origin: http://localhost:5173` was allowed and its own host was refused. The variable is stored as sensitive, so its value cannot be read back through the CLI to confirm the exact string | Partly code, partly configuration. In code, resolve the origin from `VERCEL_PROJECT_PRODUCTION_URL` (then `VERCEL_URL`) when `CLIENT_ORIGIN` is absent on Vercel, and add the production host to the CORS list. That closes the unset case; a wrong value still wins, so the Production variable also has to be corrected and the project redeployed | Fixed in code; configuration open | not yet completed — needs the variable corrected, a redeploy, and one registration on the live URL |
+| DEF-011 | A valid confirmation link reported "invalid or has expired" in local development | Medium | FR-001 | Tracing the DEF-010 report, 2026-08-15 | The verify page posted the token from an effect, and React's StrictMode double-mount in development ran it twice. The first call consumed the single-use token and the second was rejected, so the page rendered the retry's 400 | Hold the in-flight request in a ref keyed by token so the second mount re-reads the same promise instead of posting again | Fixed | Pass — FT-006, which fails against the previous code |
+| DEF-012 | A paid subscription did not appear as active until the lawyer reloaded the profile page | Medium | FR-018 | E2E re-run while checking DEF-011, 2026-08-15 (FT-003 had regressed to a failure) | The effect that seeds the local profile snapshot depended on the `useAsync` return value, which is a new object literal on every render. It therefore re-ran after every render and overwrote the snapshot — including one just replaced by the confirmed subscription — with the response from the first load | Depend on the fetched record instead of the hook's wrapper, so the effect only re-runs when a load actually resolves | Fixed | Pass — FT-003 |
 
 Severity: **Critical** blocks core use, deployment, or security · **High** major
 requirement broken · **Medium** workaround exists · **Low** cosmetic. Fix Critical and High
@@ -579,6 +607,8 @@ FR-018. `npm test` in `server/` after yearly billing landed: **179 tests passed 
 | IT-065 | FR-018 | A yearly payment charges 12 × the monthly fee and lasts 365 days | Pass |
 | IT-066 | FR-018 | An interval other than month or year returns `422` | Pass |
 | IT-055 | FR-018 | Approved but unsubscribed is hidden from the directory | Pass |
+| IT-088 | FR-018 | Upgrading mid-period keeps the days already paid for | Pass |
+| IT-089 | FR-018 | An admin grant sets the period outright, so it can still be shortened | Pass |
 | MT-010 | FR-018 | Unsubscribed lawyers are not recommended | Pass |
 
 Eligibility for directory, matching, and new bookings is one helper (`publicLawyerWhere`)
@@ -623,20 +653,22 @@ That run covered the saved MoMo identity only (FR-020). Ledger, credit, and with
 | IT-074 | FR-020 | Sending `null` on all three payment fields clears the account | Pass |
 | IT-075 | FR-020 | A pay-from number without network is stored with the inferred network | Pass |
 
-## Frontend E2E (2026-08-14)
+## Frontend E2E (2026-08-14, re-run 2026-08-15)
 
 Playwright drives the Vite client at `http://127.0.0.1:5173`. `/api/v1` is mocked in
 `client/e2e/mock-api.ts` so the suite does not need Postgres, seed data, or NaloPay.
-`npm run test:e2e` — **5 passed (10.1s)**.
+`npm run test:e2e` — **6 passed (7.3s)** on 2026-08-15. FT-003 failed on that re-run before
+DEF-012 was fixed; FT-006 was added with DEF-011.
 
 ```
-Running 5 tests using 5 workers
-  ✓  FT-001: a visitor can open the landing page and browse the directory (FR-012) (5.1s)
-  ✓  FT-005: an expired session signs the citizen out and returns them to sign-in (FR-002) (5.9s)
-  ✓  FT-002: a citizen signs in, describes an issue, and sees the organised request (FR-001, FR-006) (6.3s)
-  ✓  FT-004: a rejected collection shows the gateway message on the plan form (FR-018) (6.4s)
-  ✓  FT-003: a lawyer pays for a plan and the UI shows the MoMo prompt then the active plan (FR-018) (6.7s)
-  5 passed (10.1s)
+Running 6 tests using 6 workers
+  ✓  FT-006: a confirmation link is spent once and reports success (FR-001, DEF-011) (2.5s)
+  ✓  FT-001: a visitor can open the landing page and browse the directory (FR-012) (3.1s)
+  ✓  FT-004: a rejected collection shows the gateway message on the plan form (FR-018) (3.6s)
+  ✓  FT-005: an expired session signs the citizen out and returns them to sign-in (FR-002) (3.7s)
+  ✓  FT-002: a citizen signs in, describes an issue, and sees the organised request (FR-001, FR-006) (3.7s)
+  ✓  FT-003: a lawyer pays for a plan and the UI shows the MoMo prompt then the active plan (FR-018) (5.4s)
+  6 passed (7.3s)
 ```
 
 | ID | Requirement | Case | Result |
@@ -646,6 +678,7 @@ Running 5 tests using 5 workers
 | FT-003 | FR-018 | Lawyer signs in, pays for Starter, UI reaches an active plan | Pass |
 | FT-004 | FR-018 | Mocked `PAY-INVAL` / Invalid reference appears on the plan form | Pass |
 | FT-005 | FR-002 | Expired JWT (`401 Session expired`) clears the session and returns to sign-in | Pass |
+| FT-006 | FR-001 | A confirmation link posts its token once and reports success, not "expired" | Pass |
 
 First time locally: `npx --prefix client playwright install chromium`. Not part of
 GitHub Actions CI (browsers are large); run `npm run test:e2e` on a developer machine.
@@ -655,13 +688,13 @@ GitHub Actions CI (browsers are large); run `npm run test:e2e` on a developer ma
 Live gateway calls are mocked (`fetch` in unit tests; `startPayment` / `verifyPayment` on
 the HTTP paths). The suite never calls `nalopaytest.nalosolutions.com`.
 
-`npm run test:unit -- --run tests/nalopay.test.ts tests/nalopay-live.test.ts` — **2 files, 38 passed**.
+`npm run test:unit -- --run tests/nalopay.test.ts tests/nalopay-live.test.ts` — **2 files, 40 passed**.
 `npm --prefix server run test:integration -- tests/nalopay-http.test.ts` — **1 file, 4 passed**.
 
 ```
  Test Files  2 passed (2)
-      Tests  38 passed (38)
- Duration  362ms
+      Tests  40 passed (40)
+ Duration  381ms
 ```
 
 ```
@@ -673,6 +706,7 @@ the HTTP paths). The suite never calls `nalopaytest.nalosolutions.com`.
 | ID | Requirement | Case | Result |
 | --- | --- | --- | --- |
 | UT-019 | FR-017 | Collection body uses local MSISDN, `trans_hash`, HTTPS `callback`, no `extra_data`, ASCII description | Pass |
+| UT-020 | FR-017 | `PAY-INVAL` with `cause: amount` reports the refused cedi figure, not the gateway's "Invalid value for amount" | Pass |
 | IT-084 | FR-018 | Subscribe stays pending when the mocked gateway does not capture; reference is `LCP` + 20 hex | Pass |
 | IT-085 | FR-018 | Adapter `PAY-INVAL` / `Invalid reference` is `422` on `POST /lawyers/me/subscription` | Pass |
 | IT-086 | FR-018 | Confirm calls `verifyPayment` with the stored order id and activates the plan | Pass |
@@ -682,6 +716,14 @@ A local Docker subscribe against the real test merchant (2026-08-14) returned
 `PAY-INVAL-0060` `{ cause: "reference", description: "Invalid reference" }` for
 `lc_<cuid>_<hex>` (45 characters, underscores). References are now `LCP`/`LCW`/`LCR` plus
 20 hex characters.
+
+A subscribe at a real plan price (2026-08-15) returns `PAY-INVAL-0058`
+`{ cause: "amount", description: "Invalid value for amount" }`. The same amount was retried
+as `"150.00"`, as `"150"`, and as the JSON number `150` and refused identically, so the test
+merchant is rejecting the value rather than the format; a descending ladder on the same
+endpoint accepted GH₵ 5.00 (`201 PAY-CRTD-0055`) and refused GH₵ 6.00 and above (TD-031).
+The adapter now names the refused cedi figure instead of repeating the gateway's wording,
+which describes a field the payer does not control.
 
 ## Consultation escrow, wallet credit, and withdrawals (2026-08-13)
 

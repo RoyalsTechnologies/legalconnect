@@ -37,7 +37,7 @@ time and the build will fail if `DATABASE_URL` or `JWT_SECRET` is missing.
 | `NODE_ENV` | Yes | `production` |
 | `DATABASE_URL` | Yes | Supabase **direct** URI (`db.<ref>.supabase.co:5432?sslmode=require`). **Edit the existing variable** if it still says `localhost:5433` — adding a second `DATABASE_URL` does nothing. Not the Transaction pooler on port `6543`. The Supabase Vercel integration’s `POSTGRES_URL_NON_POOLING` is used if `DATABASE_URL` is still local |
 | `JWT_SECRET` | Yes | ≥ 32 characters. `openssl rand -base64 48` |
-| `CLIENT_ORIGIN` | Yes | `https://<project>.vercel.app` (update after the first URL is known) |
+| `CLIENT_ORIGIN` | Should | `https://<project>.vercel.app` (update after the first URL is known). Left unset on Vercel the API now falls back to `VERCEL_PROJECT_PRODUCTION_URL`, so emailed links stay reachable; set it explicitly once a custom domain is in play |
 | `NALOPAY_CALLBACK_URL` | If NaloPay is set | `https://<project>.vercel.app/api/v1/payments/callback` |
 | `AI_PROVIDER_*` | No | Unset → intake fallback (FR-010) |
 | `EMAIL_*` / `SMS_*` / `NALOPAY_*` | No | Unset → log / local-dev behaviour; production NaloPay without credentials returns 503 |
@@ -81,9 +81,18 @@ Checked against the live URL on 15 Aug 2026. Unticked items are not yet evidence
 tick one without running it.
 
 - [x] Production build succeeds — the deployed build serves
-- [x] Environment variables configured on the host — `DATABASE_URL` and `JWT_SECRET` at
-      least; the Function boots and reaches the database. `CLIENT_ORIGIN` and the NaloPay
-      callback URL not re-checked since the hostname was known
+- [x] Environment variables configured on the host — 28 Production variables are set,
+      including `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, `NALOPAY_CALLBACK_URL`, the
+      `EMAIL_*` set and `SEED_ADMIN_*`; the Function boots and reaches the database. All of
+      them are marked **sensitive**, so `vercel env pull` returns `"[SENSITIVE]"` rather than
+      values — the connection string cannot be recovered from Vercel and has to come from
+      Supabase when seeding from a workstation
+- [ ] `CLIENT_ORIGIN` points at the live host — it does not. A CORS probe on 15 Aug 2026
+      showed the deployed API allowing `http://localhost:5173` and refusing its own host, so
+      the value is the local development origin and every emailed confirmation link from the
+      live site pointed at localhost (DEF-010). The API now falls back to the Vercel host
+      when the variable is *absent*, but a wrong value still wins: the Production variable
+      has to be corrected and the project redeployed
 - [x] Database connection works — `/api/health` returns `{"status":"ok","database":"connected"}`
 - [x] Migrations applied — table queries return empty result sets rather than errors
 - [x] API endpoints work — `/api/health`, `/api/v1/categories`, `/api/v1/lawyers` all respond

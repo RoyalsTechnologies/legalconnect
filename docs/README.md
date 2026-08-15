@@ -7,7 +7,7 @@ the final submission documents, so keep them current as the project develops.
 | --- | --- |
 | [00-exam-brief.md](00-exam-brief.md) | Examination constraints, phases, mark weighting, submission package, final check |
 | [01-requirements.md](01-requirements.md) | Problem statement, actors, MoSCoW scope, FR/NFR baseline, acceptance criteria, traceability |
-| [02-effort-estimation.md](02-effort-estimation.md) | Estimation technique, assumptions, estimate table |
+| [02-effort-estimation.md](02-effort-estimation.md) | Estimation technique, assumptions, estimate table, re-estimation of added scope, actuals and variance |
 | [03-architecture.md](03-architecture.md) | Architecture, data model, diagrams, ADRs, implementation order |
 | [04-testing.md](04-testing.md) | Test strategy, test cases, AI and security tests, defect log, results |
 | [05-technical-debt-register.md](05-technical-debt-register.md) | Debt register and repayment plan |
