@@ -104,7 +104,7 @@ covers landing, citizen intake, and lawyer plan payment against a mocked `/api/v
 `docs/04-testing.md`.
 **Target:** v1.1 · **Related:** All, `server/tests/`, `client/src/`
 
-### TD-009 — Tests share one database schema and run sequentially
+### TD-009 — Tests share one database schema and run sequentially (resolved)
 
 **Cause:** Phase 2 test setup truncates a shared `test` schema before each test, so
 `fileParallelism` is disabled to stop parallel workers truncating each other's data.
@@ -115,12 +115,17 @@ because the schema is shared across processes as well as across workers. Measure
 respectively, against 0 when either runs alone. The failures are unique-constraint
 collisions on seeded emails and rows vanishing mid-test, and they present as authorization
 and validation failures, which is thoroughly misleading — the first instinct on seeing
-`SEC-LG-001` fail is to go looking for an access-control bug that is not there.
-**Priority:** Medium · **Category:** testing · **Status:** Accepted, with a caveat
-**Resolution:** Give each run its own schema keyed by process id or `VITEST_WORKER_ID`, or
-wrap each test in a transaction and roll back instead of truncating. Until then, never run
-`npm test` and `npm run verify` concurrently, and treat a sudden burst of unrelated
-failures as a suspected overlap before believing it.
+`SEC-LG-001` fail is to go looking for an access-control bug that is not there. It recurred
+on 2026-08-15 during editing, costing two runs (108 then 112 failures) before the signature
+was recognised again — `seedPackages()` counting zero rows and then colliding on a unique
+name, truncated admin rows reappearing as duplicate emails.
+**Priority:** Medium · **Category:** testing · **Status:** **Resolved**
+**Resolution:** `tests/global-setup.ts` now migrates a per-run schema, `test_<pid>`, exported
+to the workers as `LC_TEST_SCHEMA` and dropped on teardown, so overlapping runs no longer
+share tables. Verified 2026-08-15 by starting two suites in the same second: 23 and 53 tests,
+both green, where the shared schema previously produced ~52 failures each. The suite still
+runs serially within a run (`fileParallelism: false`), which remains the speed cost; a crashed
+run can leave one `test_<pid>` schema behind.
 **Target:** v1.1 · **Related:** `server/tests/`, `server/vitest.config.ts`
 
 ### TD-010 — Password reset and email verification (resolved)
@@ -425,7 +430,7 @@ payment as verified.
 | TD-006 | Single AI provider | Low | dependency | Accepted |
 | TD-007 | Intake data leaves boundary | High | data | Accepted, needs disclosure |
 | TD-008 | Targeted test coverage | Medium | testing | Partially mitigated |
-| TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | Accepted |
+| TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | **Resolved** |
 | TD-010 | Password reset and email verification | Medium | security | **Resolved** |
 | TD-011 | Confidence threshold not calibrated | Medium | AI quality | Accepted |
 | TD-012 | No retry on transient AI failure | Low | reliability | Accepted |

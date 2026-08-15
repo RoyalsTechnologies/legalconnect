@@ -23,8 +23,9 @@ web interface: registration and login, AI-assisted intake with a safe fallback,
 deterministic lawyer matching with visible reasons, a filterable lawyer directory, the
 consultation request workflow, and administration.
 
-Not yet done: deployment to a hosting platform (phase 10). Developer UAT against the local
-stack was run on 2026-08-13; independent participant UAT is not yet completed.
+Deployed and reachable at <https://legalconnect-beryl.vercel.app>. Developer UAT against the
+local stack was run on 2026-08-13 and extended on 2026-08-15; independent participant UAT is
+not yet completed.
 The AI provider key is unset by default, so triage takes the fallback path until one is
 configured — the intake and consultation flow works either way, which is the point of
 building it that way. See [docs/03-architecture.md](docs/03-architecture.md) for the phase
@@ -221,14 +222,16 @@ diagrams/  design diagrams
 
 | Document | Contents |
 | --- | --- |
-| [docs/01-requirements.md](docs/01-requirements.md) | FR-001–FR-015, NFRs, acceptance criteria, traceability |
-| [docs/02-effort-estimation.md](docs/02-effort-estimation.md) | Estimation technique and MVP estimate |
+| [docs/01-requirements.md](docs/01-requirements.md) | FR-001–FR-021, NFRs, acceptance criteria, traceability |
+| [docs/02-effort-estimation.md](docs/02-effort-estimation.md) | Estimation technique, estimate, and actuals |
 | [docs/03-architecture.md](docs/03-architecture.md) | Architecture, data model, ADRs, phase plan |
-| [docs/04-testing.md](docs/04-testing.md) | Test strategy and cases |
+| [docs/04-testing.md](docs/04-testing.md) | Test strategy, cases, results, defects |
 | [docs/05-technical-debt-register.md](docs/05-technical-debt-register.md) | Debt register and repayment plan |
+| [docs/10-srs.md](docs/10-srs.md) | Software Requirements Specification |
+| [docs/11-conclusion.md](docs/11-conclusion.md) | Project conclusion |
+| [docs/12-references.md](docs/12-references.md) | References and acknowledgements |
 
 ## Acknowledgements
 
-Third-party frameworks, libraries, and services used are listed in
-[docs/00-exam-brief.md](docs/00-exam-brief.md#references-and-acknowledgements) and will be
-finalised in the submission documentation.
+Every third-party framework, library, API, and service used is acknowledged in
+[docs/12-references.md](docs/12-references.md).

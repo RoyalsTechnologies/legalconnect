@@ -1,8 +1,11 @@
 # User manual
 
-Status: draft against the implemented web app. Screenshots: not yet completed.
+Status: written against the implemented web app. Illustrative screenshots are limited to the
+UAT evidence in `uat-evidence/`; a fully illustrated manual is not yet completed.
 
-**Application URL** — local development: http://localhost:5173 (API http://localhost:4000). Production URL: not yet deployed.
+**Application URL** — live: <https://legalconnect-beryl.vercel.app> (admin area at
+`/app/admin`). Local development: http://localhost:5173 with the API on
+http://localhost:4000.
 
 **Supported roles** — Citizen (`USER`), Lawyer, Admin
 

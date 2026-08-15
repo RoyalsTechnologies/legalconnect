@@ -86,6 +86,7 @@ debt, reprioritise scope, and only then implement.
 | CH-020 | 2026-08-13 | Product owner: lawyer wallet with a saved Ghana MoMo payment account | FR-020 (Should) | LawyerProfile payment fields; `/app/wallet`; subscribe prefill | Saved MoMo identity only — no ledger balance, no NaloPay disbursement (TD-025 stays) |
 | CH-021 | 2026-08-13 | Product owner: hold consultation fee until both confirm, then credit wallet; withdrawals and refunds | FR-021 (Should) | Ledger, dual confirm, payout adapter, Wallet UI | Live disbursement path unverified (TD-028); no commission or disputes |
 | CH-022 | 2026-08-15 | Product owner: a lawyer can move up to a larger plan mid-period | FR-018 (Should) | `activatePlan` adds the purchased term to time remaining; plan copy and Upgrade badge; IT-088, IT-089 | Unused days carry over rather than being discarded; still no proration or credit of value (TD-026 stays). Admin grants keep setting the period outright so one can be shortened |
+| CH-023 | 2026-08-15 | Engineering: integration runs corrupted each other again, costing two runs to diagnose | None (test infrastructure) | `tests/global-setup.ts` migrates a per-run `test_<pid>` schema and drops it on teardown | Closes TD-009. Runs are still serial within a run; a crashed run can leave a schema behind |
 
 ## Scope safety rule
 

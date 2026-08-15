@@ -58,19 +58,80 @@ An unrestricted legal-advice chatbot must never become the core of this project.
 
 ## Limitations
 
-Document limitations honestly rather than disguising them. Expected sources for this
-project:
+The limitations the project actually has, as at 2026-08-15. Each is real and observed, not
+a generic caveat, and each names where it is tracked.
 
-- 48-hour development duration
-- Limited test-data availability
-- External AI service limits and nondeterminism
-- Hosting infrastructure constraints
-- Simplified UX
-- Reduced feature scope
-- Limited performance testing
-- Security hardening not completed
+### Process and scope
 
-Where AI requests leave the application boundary, document that data-processing
-consideration in the security and limitations discussion.
+- **48 hours, one person.** Every design decision carries the bias of a single estimator
+  with no second opinion and no peer review (CON-001). The estimate itself had no consensus
+  technique available; the variance analysis in `02-effort-estimation.md` is a
+  self-assessment.
+- **Reduced feature scope.** Twenty-one functional requirements were built — fifteen Must and
+  six Should. No Could-priority feature exists. Everything deliberately excluded is listed
+  under "Out of scope" in `01-requirements.md` and revisited under future evolution above.
+- **Three defects are open at submission** (DEF-007, DEF-008, DEF-009 in `04-testing.md`),
+  each with a diagnosed cause and a named fix. They are edge cases in the consultation
+  lifecycle and one admin-table layout fault, not broken Must paths.
 
-*Actual limitations to be recorded as they arise.*
+### Validation
+
+- **No independent user testing.** Usability (NFR-004) rests on developer walkthroughs.
+  No participant outside the project has run a session, so the claim that a first-time user
+  reaches recommendations without legal terminology is evidenced but not independently
+  validated.
+- **Performance is unmeasured.** NFR-006 states a 2-second target for non-AI operations; it
+  has not been measured under load and is recorded as unmeasured rather than asserted. AI
+  latency likewise is not characterised.
+- **AI answer quality is unmeasured.** The tests prove the contract around the model is
+  enforced and every failure mode degrades safely; they do not show the categories it
+  returns are correct (TD-011). There is no labelled evaluation set.
+- **No frontend component tests.** Browser confidence comes from six Playwright flows
+  against a mocked API; React components are not tested in isolation (TD-008).
+
+### External dependencies
+
+- **One LLM provider on a free tier** (CON-004), reached through a gateway. Rate limits,
+  latency, and model availability are outside the project's control. The system is built to
+  survive the provider's absence, which is the mitigation, but a degraded provider still
+  degrades the experience.
+- **Intake text leaves the trust boundary.** A citizen's description is transmitted to a
+  third-party model provider for classification. This is the most significant privacy
+  consideration in the system, recorded as TD-007 and requiring disclosure to users.
+- **Payments are only partially verifiable.** The NaloPay test merchant refuses amounts at
+  or above GH₵ 6, so no end-to-end capture at a real consultation fee or plan price has been
+  performed (TD-031), and the live disbursement path is not confirmed against merchant
+  documentation (TD-028).
+- **Email and SMS are optional by design.** With no provider configured the server logs
+  instead of sending. That keeps the workflow usable, but it means notification delivery is
+  not proven in the deployed environment.
+
+### Platform and operations
+
+- **Serverless constraints.** The API runs as a single Vercel function, so it must stay
+  stateless between requests, cold starts are possible, and no in-process scheduler or
+  background worker exists. Anything periodic would need an external trigger.
+- **One environment.** There is no staging tier; the deployed environment is also the
+  demonstration environment, so a change is verified locally and then in production.
+- **No monitoring or alerting.** Errors are logged to the platform's log stream; nothing
+  aggregates them, and no alert fires on a failure (TD-014 covers the AI case specifically).
+  A fault in the deployed system would be noticed by a user, not by the operator.
+- **No rate limiting.** No throttle protects login, registration, or the AI-backed intake
+  endpoint against abuse or cost exhaustion.
+- **No token revocation.** A JWT stays valid until it expires; sign-out is client-side, so a
+  stolen token cannot be invalidated early (TD-003).
+
+### Data and domain
+
+- **No professional verification.** Lawyers appear because they registered and an
+  administrator approved them. Nothing checks a licence number against the General Legal
+  Council or any regulator, so the directory's trustworthiness rests entirely on manual
+  approval.
+- **Seed data is fictional.** Demo practitioners are invented for demonstration and do not
+  represent real lawyers.
+- **No retention or deletion policy.** Data minimisation is applied at collection, but there
+  is no automated retention window, no user-initiated account deletion, and no export.
+- **Accessibility is not audited.** No screen-reader or contrast testing was performed, and
+  one layout defect at a 1024 px viewport is already known (DEF-009).
+- **Ghana-specific by design.** Regions, mobile money networks, and the Accra timezone are
+  assumed throughout; the system is not internationalised and supports English only.

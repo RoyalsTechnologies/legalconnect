@@ -257,7 +257,7 @@ legalconnect/
 ├── .cursor/rules/             scoped agent rules
 ├── docker-compose.yml         local dev stack: postgres, server, client
 ├── docs/                      lifecycle documentation
-├── diagrams/                  exported diagrams
+├── diagrams/                  Mermaid sources; exports/ holds the rendered SVG and PNG
 ├── client/
 │   ├── src/
 │   │   ├── api/               typed fetch wrappers, shared response types

@@ -748,14 +748,19 @@ enforced and every failure mode degrades safely, not that the categories it retu
 right. Frontend component tests do not exist yet (TD-008). Playwright E2E covers four
 browser flows against a mocked API (FT-001…005).
 
-**The suite cannot be run twice concurrently.** Every run shares one `test` schema, so
-overlapping runs truncate and re-seed underneath each other. Observed on 2026-08-12: a
-`verify` run that overlapped another test run reported 2 failures, and a deliberate
-reproduction — a second run started three seconds after the first — produced 52 and 53
-failures against 0 for either run alone. The symptoms are misleading, surfacing as
-authorization and validation failures rather than as the data race they are. The
-ownership queries were re-read afterwards and are unconditionally scoped by `clientId`
-for non-admin callers, and all 131 tests pass on every isolated run. Recorded as TD-009.
+**Overlapping runs used to destroy each other**, because every run shared one `test`
+schema and truncated it before each test. Observed on 2026-08-12: a `verify` run that
+overlapped another test run reported 2 failures, and a deliberate reproduction — a second
+run started three seconds after the first — produced 52 and 53 failures against 0 for
+either run alone. It recurred on 2026-08-15 (108 then 112 failures) while server files were
+being edited during a run. The symptoms are misleading, surfacing as authorization and
+validation failures rather than as the data race they are; the ownership queries were
+re-read afterwards and are unconditionally scoped by `clientId` for non-admin callers.
+
+Each run now migrates its own `test_<pid>` schema and drops it on teardown (TD-009,
+resolved). Verified on 2026-08-15 by starting two suites in the same second —
+`subscriptions.test.ts` (23) and `lawyers.test.ts` (53) — both green. Runs are still serial
+*within* a run, so the suite's duration is unchanged.
 
 ## Server coverage (2026-08-13)
 
@@ -780,3 +785,41 @@ Thresholds enforced in `server/vitest.coverage.config.ts` and the CI **coverage*
 several remaining paths are environment-gated (email send outside `NODE_ENV=test`,
 `env.ts` parse failure at process start) or defensive catches (non-P2002 rethrows,
 concurrent update races). Frontend component tests still do not exist (TD-008).
+
+## Conclusion
+
+Testing gives good confidence in the server and limited confidence in the browser layer.
+
+As at 2026-08-15 the automated suites stand at **164 unit tests and 220 integration tests,
+all passing**, plus six Playwright flows exercising the browser against a mocked API. The
+coverage run of 2026-08-13 measured 96.3% of statements and 89.42% of branches in
+`server/src`, with thresholds enforced in CI rather than merely reported, so a regression in
+coverage fails the build instead of being noticed later.
+
+Twelve defects were found and logged. Nine are fixed and retested against a named case;
+three remain open (DEF-007 and DEF-008, both consultation-state edge cases, and DEF-009, a
+layout defect in the admin table at a 1024 px viewport), and one is partial: DEF-010's code
+and configuration are both corrected and verified by probe, but a registration on the live
+URL with a real inbox has not been performed. Every open item is recorded with its cause and
+the fix it needs, not left implicit.
+
+Three defects are worth noting as evidence that the strategy worked rather than as
+embarrassments. DEF-011 and DEF-012 were both found by running the browser suite rather than
+the server suite, which is precisely the gap the E2E layer exists to cover: neither could
+have been caught by an API test, because both were client-side lifecycle faults. DEF-010 was
+found by probing the deployed environment rather than any local run, which is why deployment
+verification is treated as a test activity here and not as an afterthought.
+
+What testing does **not** establish is equally important. It does not show that the AI
+returns the *right* category — only that the contract around it is enforced and every
+failure mode degrades safely (TD-011). It does not cover React components in isolation
+(TD-008). Usability rests on developer walkthroughs; no independent participant has run a
+session, so NFR-004 is evidenced but not independently validated. NFR-006 performance has
+not been measured. A live mobile money capture at a real consultation fee has not been
+performed, because the test merchant refuses amounts at that scale (TD-031).
+
+On balance the Must-priority paths — authentication, authorisation and ownership, intake
+with its AI fallback, matching, and the consultation lifecycle — are covered by automated
+tests at both the unit and integration level, and the security cases are written as
+adversarial attempts rather than happy paths. That is the part of the system where a defect
+would be most costly, and it is the part with the strongest evidence.

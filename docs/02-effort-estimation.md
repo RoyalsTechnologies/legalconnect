@@ -128,7 +128,7 @@ have happened.
 | 3 Implementation | 13–32 | E-02…E-12 | 31.0 | 2026-08-13 08:17 → 15:05, plus added scope E-16…E-22 |
 | 4 Testing and refinement | 33–38 | E-13 | 4.5 | 2026-08-13 14:59 (CI), 2026-08-14 16:03 (E2E), 2026-08-15 07:22 (UAT run 2) |
 | 5 Deployment | 39–42 | E-14 | 3.5 | 2026-08-14 16:20 → 2026-08-15 07:20 |
-| 6 Documentation and submission | 43–48 | E-15 | 3.0 | Continuous; package not yet assembled |
+| 6 Documentation and submission | 43–48 | E-15 | 3.0 | Continuous; package generated, identity and live credentials outstanding |
 | | | | **48.5** | |
 
 Two things are visible here that the hour totals alone do not show. Phase 5 overran its
@@ -259,7 +259,7 @@ Hands-on hours are unmeasured for every row, for the reason given above.
 | E-12 | 3.0 | Delivered | `modules/admin`; UAT-005 Pass in run 2 |
 | E-13 | 4.5 | Delivered, exceeded | Grew past the targeted pass into a coverage gate and CI — see E-24 |
 | E-14 | 3.5 | Delivered, badly exceeded | Eleven `deploy` commits over 2026-08-14 16:20 → 2026-08-15 05:27 — see the variance note |
-| E-15 | 3.0 | Partially delivered | Documentation is current; the submission package (PDFs, `Deployment_and_Source_Links.txt`, student name and ID) is not yet assembled |
+| E-15 | 3.0 | Partially delivered | Documentation is current and the package builds with `npm run docs:submission` — a 95-page combined PDF plus `Deployment_and_Source_Links.txt`. Student name and ID are still placeholders, and the live test credentials depend on the hosted database being seeded |
 | E-16…E-27 | 42.5 (re-estimated) | Delivered except as noted | Added scope, evidenced by the commits in the windows table; E-17 remains unverified for live capture at real fees (TD-031) |
 
 ## Variance analysis
