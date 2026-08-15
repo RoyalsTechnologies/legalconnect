@@ -130,6 +130,11 @@ provider timeout, network error, or schema-invalid response produces an `AiStatu
 `FAILED_FALLBACK` with an excerpt summary — no exception escapes to the caller, which is
 how NFR-003 is met. The threshold is judgement, not measurement — TD-011.
 
+For that fallback to run at all, the provider wait has to end before the host stops the
+invocation it runs inside. `ai-client.ts` therefore caps the wait at 25 seconds
+(`providerWaitMs`) instead of trusting `AI_REQUEST_TIMEOUT_MS`, which was configured at 180
+seconds against a 60-second Vercel ceiling — DEF-014, found by walking the deployed site.
+
 ### Directory paging and search — FR-012
 
 `GET /lawyers` takes `limit` (default 20, maximum 50) and `offset`, and returns
@@ -176,7 +181,7 @@ wrapper envelope; a `204` carries no body. Errors are uniform:
 `lib/errors.ts` provides the factories that fix the status codes — `badRequest` 400,
 `unauthorized` 401, `forbidden` 403, `notFound` 404, `conflict` 409, `unprocessable` 422,
 `serviceUnavailable` 503 — and `middleware/error-handler.ts` maps Zod failures to 422 and
-malformed JSON to 400 (ADR-006). Services therefore express intent, not HTTP.
+malformed JSON to 400 (ADR-011). Services therefore express intent, not HTTP.
 
 ## Authentication
 
@@ -185,7 +190,8 @@ hash is never selected into a response — `publicUserFields` decides what a use
 contains. Login issues a JWT through `lib/jwt.ts` carrying only `sub` and `role`, expiring
 after `JWT_EXPIRES_IN` (default `2h`), signed with a `JWT_SECRET` that `config/env.ts`
 refuses to accept below 32 characters. The client keeps the token in `localStorage` under
-`lc_token` and treats its expiry as the session end (`client/src/auth/session.ts`).
+`lc_token` (`client/src/api/client.ts`) and treats its expiry as the session end. Holding it
+there is a known exposure rather than an oversight — see TD-035.
 
 Email verification and password reset share one token mechanism in `email/mailer.ts`. The
 emailed value is random; only its SHA-256 hash is stored. Issuing a token invalidates any
@@ -277,7 +283,7 @@ Full attribution, including the hosted services, is in `12-references.md`.
 
 ## Verification
 
-33 test files under `server/tests/` hold 384 automated cases, split by
+33 test files under `server/tests/` hold 385 automated cases, split by
 `vitest.unit.config.ts` (pure logic, no database) and the integration config (Supertest
 against a migrated schema). `04-testing.md` records what each covers and what it does not,
 and `01-requirements.md` carries the requirement-to-test traceability matrix.

@@ -1,0 +1,31 @@
+flowchart TB
+  visitor["Visitor<br/>browses before<br/>registering"]
+  citizen["Citizen<br/>describes a<br/>legal concern"]
+  lawyer["Lawyer<br/>answers<br/>enquiries"]
+  admin["Administrator<br/>vets lawyers,<br/>curates categories"]
+
+  system["LegalConnect Ghana<br/>intake · AI triage · matching · consultation coordination · payments"]
+
+  llm["LLM provider<br/>classify and<br/>summarise"]
+  nalopay["NaloPay<br/>mobile money<br/>in and out"]
+  email["Email provider<br/>one-use<br/>token links"]
+  sms["SMS provider<br/>payment prompt<br/>notices"]
+  calendar["Calendar and Meet<br/>slot link and<br/>meeting URL"]
+
+  visitor -->|"browse only"| system
+  citizen <-->|"concern, fee · matches"| system
+  lawyer <-->|"profile, plan · intake, payout"| system
+  admin <-->|"approvals · statistics"| system
+
+  system <-->|"text · validated JSON"| llm
+  system <-->|"charge · signed callback"| nalopay
+  system -->|"links"| email
+  system -->|"notices"| sms
+  system -->|"template URL"| calendar
+
+  classDef actor fill:#eef4ff,stroke:#3b5bdb;
+  classDef service fill:#fff4e6,stroke:#e8590c;
+  classDef core fill:#e6fcf5,stroke:#0ca678,stroke-width:2px;
+  class visitor,citizen,lawyer,admin actor;
+  class llm,nalopay,email,sms,calendar service;
+  class system core;

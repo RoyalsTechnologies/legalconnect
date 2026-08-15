@@ -3,8 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
-import { signToken } from '../src/lib/jwt.js';
-import { sessionFor } from './session.js';
+import { signToken, verifyToken } from '../src/lib/jwt.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan, packageId, seedPackages } from './subscription-fixtures.js';
 
@@ -31,7 +31,7 @@ async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function createLawyer(
@@ -343,10 +343,9 @@ describe('Lawyer subscription packages (FR-018)', () => {
     const created = await createLawyer(admin, [employmentId]);
     const citizen = await userToken();
 
-    const me = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${citizen}`);
     const intake = await prisma.legalIntake.create({
       data: {
-        clientId: me.body.id,
+        clientId: verifyToken(citizen).sub,
         originalDescription: 'My employer dismissed me without notice and has not paid me.',
         categoryId: employmentId,
       },
@@ -444,6 +443,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.body.subscription.active).toBe(true);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244123456',
@@ -468,6 +468,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.status).toBe(201);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244987654',
@@ -491,6 +492,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.status).toBe(201);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244123456',

@@ -4,7 +4,8 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FALLBACK_CATEGORY_NAME } from '../src/ai/legal-triage.service.js';
 import { createApp } from '../src/app.js';
-import { signToken } from '../src/lib/jwt.js';
+import { signToken, verifyToken } from '../src/lib/jwt.js';
+import { tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -17,7 +18,7 @@ async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 /**
@@ -77,11 +78,13 @@ async function seedIntake(
   token: string,
   overrides: { categoryId?: string | null; city?: string; region?: string } = {},
 ) {
-  const me = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${token}`);
+  // Owner from the token, not from GET /users/me: the fixture needs an id the token already
+  // carries, and routing that through an endpoint makes every test here depend on it (CH-025).
+  const { sub: clientId } = verifyToken(token);
 
   const intake = await prisma.legalIntake.create({
     data: {
-      clientId: me.body.id,
+      clientId,
       originalDescription: 'My employer dismissed me without notice and has not paid me.',
       categoryId: overrides.categoryId === undefined ? employmentId : overrides.categoryId,
       city: overrides.city ?? 'Accra',

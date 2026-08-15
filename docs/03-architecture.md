@@ -3,6 +3,30 @@
 Status: confirmed for MVP (2026-08-12). Update to match the system as actually built and
 document any deviation rather than quietly revising the design.
 
+## System context
+
+Before any internal structure, the boundary. The system has four kinds of human actor and
+five external services, and every one of those nine relationships is a place where the
+project's guarantees either hold or leak.
+
+![System context](../diagrams/exports/00-system-context.png)
+
+| Across the boundary | What crosses it | Why it matters here |
+| --- | --- | --- |
+| Visitor | Directory reads only, no account | Sets the rule that reads are open and writes need a session (ADR-009) |
+| Citizen | Concern text and a fee in; category, summary, and ranked lawyers out | The output must orient, never advise (CON-003) |
+| Lawyer | Profile and plan payment in; structured intake and payout out | The intake reaches the lawyer only after payment clears (FR-017) |
+| Administrator | Approvals, categories, plans, suspensions in; statistics out | The only actor who can change what other users may see |
+| LLM provider | Intake text out; JSON back, validated before use | The one dependency that can fail unpredictably, and the one place user text leaves the trust boundary (TD-007) |
+| NaloPay | Charge and disbursement out; a signed callback back | Money movement, so the callback is authenticated by HMAC rather than trusted |
+| Email provider | One-use verification and reset links | Account recovery, so token lifetime and single use are security properties |
+| SMS provider | Payment prompt notices | Informational only; a failure here must not fail a payment |
+| Google Calendar and Meet | A template URL out, a Meet link pasted back in | Deliberately link-level rather than an API integration (TD-027) |
+
+Two things are worth reading off this diagram. The AI provider is one arrow among nine, not
+the centre of the system — that is the deliberate consequence of the analysis below. And no
+arrow carries legal advice in either direction.
+
 ## Analysis — core workflow
 
 The critical workflow is AI-assisted intake. Analysed before choosing any technology:
@@ -98,24 +122,48 @@ review. The model can request review but cannot waive it (`SEC-LG-013`).
 
 ## API surface
 
-All product endpoints sit under `/api/v1`:
+All product endpoints sit under `/api/v1`: forty-three of them across ten routers, plus the
+unversioned health probe. Every one is listed below; rows that combine two methods on one path
+are counted individually. `Access` states who may call the endpoint, and is the rule the
+middleware actually enforces rather than an intention.
 
-| Prefix | Module |
-| --- | --- |
-| `/api/v1/auth` | Registration, login, logout |
-| `/api/v1/users` | Own profile |
-| `/api/v1/categories` | Legal category taxonomy — read for anyone, write for admins |
-| `/api/v1/packages` | Lawyer plans — read for anyone, write for admins |
-| `/api/v1/lawyers` | Lawyer directory with filters — read for anyone; own-profile editing, admin creation and approval require a session |
-| `/api/v1/lawyers/me/subscription` | Lawyer pays for a month or a yearly equivalent of a plan |
-| `/api/v1/lawyers/me/withdrawals` | Lawyer lists and requests wallet withdrawals |
-| `/api/v1/intakes` | Legal issue submission and retrieval |
-| `/api/v1/intakes/:id/recommendations` | Deterministic lawyer matching for one intake |
-| `/api/v1/consultations` | Consultation requests and their status workflow |
-| `/api/v1/consultations/:id/confirm` | Client or lawyer confirms the session happened |
-| `/api/v1/payments/callback` | NaloPay signed webhook — no JWT; raw body for HMAC |
-| `/api/v1/admin` | User management, suspension, platform statistics |
-| `/api/health` | Operational probe — **not** versioned |
+| Method and path | Purpose | Access | Requirement |
+| --- | --- | --- | --- |
+| `POST /auth/register` | Create a USER or, with `accountType=lawyer`, a pending LAWYER | Public | FR-001, FR-016 |
+| `POST /auth/verify-email` | Spend a one-use verification token | Public | FR-001 |
+| `POST /auth/resend-verification` | Reissue a verification email | Public | FR-001 |
+| `POST /auth/login` | Exchange credentials for a JWT | Public | FR-002 |
+| `POST /auth/logout` | Client-side session discard | Public | FR-002 |
+| `POST /auth/forgot-password` | Send a one-use reset link | Public | FR-003 |
+| `POST /auth/reset-password` | Spend a reset token and set a new password | Public | FR-003 |
+| `POST /auth/change-password` | Change password knowing the current one | Session | FR-003 |
+| `GET /users/me` · `PATCH /users/me` | Read and update own profile | Session | FR-003 |
+| `GET /categories` | List categories; retired ones for admins only | Optional auth | FR-005, FR-012 |
+| `POST /categories` · `PATCH /categories/:id` · `DELETE /categories/:id` | Create, edit, retire a category | Admin | FR-005, FR-015 |
+| `GET /packages` | List subscription plans | Optional auth | FR-018 |
+| `POST /packages` · `PATCH /packages/:id` | Create or edit a plan, including its monthly fee | Admin | FR-018, FR-015 |
+| `GET /lawyers` | Directory with filters, search, pagination | Optional auth | FR-012 |
+| `GET /lawyers/:id` | One eligible profile; any profile for an admin | Optional auth | FR-012 |
+| `GET /lawyers/me` · `PATCH /lawyers/me` | Own profile, including the MoMo payment account | Lawyer | FR-004, FR-020 |
+| `POST /lawyers` | Admin-created lawyer account | Admin | FR-004, FR-015 |
+| `PATCH /lawyers/:id` | Admin edit, including `approvalStatus` | Admin | FR-015, FR-016 |
+| `POST /lawyers/me/subscription` | Pay for a month or a yearly equivalent | Lawyer | FR-018 |
+| `POST /lawyers/me/subscription/confirm` | Poll the gateway and settle the payment | Lawyer | FR-018 |
+| `GET /lawyers/me/withdrawals` · `POST /lawyers/me/withdrawals` | Wallet balance, ledger, and cash-out | Lawyer | FR-021 |
+| `POST /intakes` · `GET /intakes` | Submit a concern, list own intakes | Session | FR-006 |
+| `GET /intakes/:id` | Read one intake with its triage result | Owner, or admin under FR-015 | FR-006, FR-007 |
+| `GET /intakes/:intakeId/recommendations` | Deterministic matching for that intake | Owner, or admin | FR-011 |
+| `POST /consultations` | Create a request against an own intake | Citizen (USER) | FR-013 |
+| `GET /consultations` | List requests, scoped by role — sent, received, or all for an admin | Session | FR-014 |
+| `GET /consultations/:id` · `PATCH /consultations/:id` | Detail; accept or decline with a Meet link | Session, party to it | FR-014, FR-019 |
+| `POST /consultations/:id/pay` | Start the mobile-money charge for the fee | Client | FR-017 |
+| `POST /consultations/verify-payment` | Poll the gateway and settle a charge | Client | FR-017 |
+| `POST /consultations/:id/confirm` | Client or lawyer confirms the session happened | Party to it | FR-021 |
+| `POST /payments/callback` | NaloPay signed webhook — no JWT, raw body for HMAC | Gateway | FR-017 |
+| `GET /admin/users` · `PATCH /admin/users/:id/status` | List and suspend or reinstate accounts | Admin | FR-015 |
+| `GET /admin/stats` | Platform counts for the admin dashboard | Admin | FR-015 |
+| `POST /admin/lawyers/:id/subscription` | Grant a plan period without payment | Admin | FR-018 |
+| `GET /api/health` | Liveness plus a database round-trip — **not** versioned | Public | NFR-008 |
 
 Four read endpoints — the directory, an individual profile, the category list, and the
 plan list — use `optionalAuth` rather than `requireAuth`. They answer anyone, but the
@@ -172,9 +220,10 @@ LawyerProfile 1───< SubscriptionPayment >── SubscriptionPackage
 
 | Entity | Purpose | Fields |
 | --- | --- | --- |
-| `User` | Account, credentials, role | id, email (unique), passwordHash, fullName, phone?, role, status, createdAt, updatedAt |
+| `User` | Account, credentials, role | id, email (unique), passwordHash, fullName, phone?, role, status, emailVerifiedAt?, createdAt, updatedAt |
+| `EmailToken` | One-use link for email verification and password reset | id, userId, type, tokenHash (unique), expiresAt, usedAt?, createdAt |
 | `LawyerProfile` | Professional profile | id, userId (unique), displayName, firmName?, bio, licenseNumber?, city, region, isAvailable, approvalStatus, yearsExperience?, consultationFeePesewas, subscriptionPackageId?, subscriptionPeriodEnd?, paymentAccountName?, paymentPhone?, paymentNetwork?, createdAt, updatedAt |
-| `SubscriptionPackage` | Plan capping practice areas | id, name (unique), slug (unique), description, monthlyFeePesewas, maxPracticeAreas, isActive |
+| `SubscriptionPackage` | Plan capping practice areas | id, name (unique), slug (unique), description, monthlyFeePesewas, maxPracticeAreas, isActive, createdAt, updatedAt |
 | `SubscriptionPayment` | One prepaid plan payment | id, lawyerProfileId, packageId, feePesewas, periodDays, status, paymentReference?, paymentOrderId?, createdAt, updatedAt |
 | `LegalCategory` | Configurable taxonomy | id, name (unique), slug (unique), description, isActive |
 | `LawyerPracticeArea` | Specialisation join | lawyerProfileId, legalCategoryId — composite primary key |
@@ -188,6 +237,7 @@ Enums: `Role` = USER · LAWYER · ADMIN. `UserStatus` = ACTIVE · SUSPENDED.
 `ApprovalStatus` = PENDING · APPROVED · REJECTED. `Urgency` = NORMAL · IMPORTANT · URGENT.
 `AiStatus` = PENDING · COMPLETED · FAILED_FALLBACK. `ConsultationStatus` = AWAITING_PAYMENT · PENDING ·
 ACCEPTED · DECLINED · COMPLETED · CANCELLED. `SubscriptionPaymentStatus` = PENDING · PAID.
+`EmailTokenType` = VERIFY_EMAIL · RESET_PASSWORD.
 `MomoNetwork` = MTN · AT · TELECEL. `WalletLedgerType` = CREDIT · DEBIT.
 `WithdrawalStatus` = PENDING · PAID · FAILED. `PayoutType` = REFUND · WITHDRAWAL.
 `PayoutStatus` = PENDING · PAID · FAILED.
@@ -213,6 +263,56 @@ until the fee is paid, then a lawyer accepts or declines. `COMPLETED` requires b
 parties to confirm. A client can cancel an unpaid, pending, or accepted request; cancel
 or decline after payment refunds the payer. Transitions are declared as a role-to-status
 table in `consultations.service.ts`; confirm is a separate endpoint.
+
+## Security design
+
+Security is a design concern here rather than a hardening pass at the end, because three of
+the things this system holds — a stranger's account, an unpublished description of their legal
+trouble, and money in transit — are exactly the things a late pass tends to miss.
+
+**Trust boundaries.** There are four. The browser is untrusted, so nothing it sends about
+identity or role is believed and every authorisation decision is taken again on the server.
+The API and the database sit inside one boundary, reached only through Prisma with
+parameterised queries. The LLM provider is outside, and is the one place intake text leaves
+the system (TD-007). NaloPay is outside and initiates inbound calls, so its callback is
+authenticated rather than trusted.
+
+**Authentication.** Passwords are hashed with bcrypt at cost 12 and are never returned by any
+endpoint. Sign-in answers an unknown email and a wrong password identically, and runs a dummy
+`bcrypt.compare` when no user exists so the timing does not become an account-enumeration
+oracle. Sessions are stateless JWTs, two hours by default and set by `JWT_EXPIRES_IN` (ADR-003). Email verification and
+password reset use single-use tokens that are stored hashed, carry an expiry, and record
+`usedAt`, so a link is worthless once spent or leaked from an old mailbox.
+
+**Authorisation.** Three layers, applied in order: `requireAuth` or `optionalAuth` establishes
+who is asking, a role guard decides whether that kind of user may call the endpoint at all,
+and the service re-checks ownership against the row being touched. The third layer is the one
+that matters — a lawyer holding a valid token is still refused another lawyer's profile,
+because the query is scoped by owner rather than filtered after loading. Object-level misses
+answer `404` rather than `403` so the response does not confirm that a record exists.
+
+**Input handling.** Every body is parsed by Zod at the route boundary, so a service never sees
+an unvalidated shape; schema failures return `422` with field-level detail and parse failures
+return `400` (ADR-011). Bodies are capped at 100 kB. Helmet sets the standard response
+headers, and CORS is an explicit allowlist rather than a wildcard.
+
+**Money.** The NaloPay callback is verified by HMAC-SHA256 over the raw request bytes with
+`timingSafeEqual`, before the JSON is parsed, which is why that one route is mounted with a
+raw body parser. Amounts are held in integer pesewas throughout to keep floating-point error
+out of a ledger, and what was actually collected is written to `SubscriptionPayment` so a later
+price change cannot rewrite a period already paid for.
+
+**AI.** The provider key is server-side only and never reaches the client bundle. Model output
+is treated as untrusted input: it is schema-validated, its category must exist in the
+configured list, and it can request human review but can never waive it (FR-009).
+
+**Known gaps, stated rather than implied away.** There is no token revocation list, so a
+stolen token stays valid until it expires (TD-003). There is no rate limiting on the
+authentication endpoints (TD-036) or on the now-anonymous read endpoints (TD-023). The session
+token is held in `localStorage`, which is readable by any script that manages to run on the
+page (TD-035). Each is recorded in the debt register with the change that would close it. Of
+the four, TD-036 should be closed first: it is the smallest change and the only one an
+attacker can exploit without first finding a second weakness.
 
 ## Matching design
 
@@ -258,6 +358,8 @@ legalconnect/
 ├── docker-compose.yml         local dev stack: postgres, server, client
 ├── docs/                      lifecycle documentation
 ├── diagrams/                  Mermaid sources; exports/ holds the rendered SVG and PNG
+├── scripts/                   diagram rendering and submission-package build
+├── api/index.js               Vercel entry point; wraps the compiled Express app
 ├── client/
 │   ├── src/
 │   │   ├── api/               typed fetch wrappers, shared response types
@@ -283,9 +385,13 @@ legalconnect/
     │   │   ├── matching/
     │   │   ├── consultations/
     │   │   ├── subscriptions/
+    │   │   ├── wallet/        lawyer balance, ledger, withdrawals (FR-021)
     │   │   └── admin/
     │   ├── ai/                ai-client · prompts · schemas · legal-triage.service
-    │   ├── lib/               prisma client, errors
+    │   ├── payments/          NaloPay adapter: collections, disbursements, callback HMAC
+    │   ├── email/             verification and password-reset delivery
+    │   ├── sms/               mobile-money prompt notifications
+    │   ├── lib/               prisma, errors, jwt, logger, money, google-calendar
     │   ├── app.ts
     │   └── server.ts
     └── tests/
@@ -294,12 +400,20 @@ legalconnect/
 Each module owns `*.routes.ts`, `*.service.ts`, and `*.schema.ts`. Prompts never appear in
 route handlers; the provider is never reachable from the client.
 
+`payments/`, `email/`, and `sms/` sit beside `modules/` rather than inside one, because each
+is an outbound adapter to a third party rather than a product capability with its own routes:
+payments serves both consultations and subscriptions, and email serves auth. Keeping them
+outside the module tree is what stops two modules growing their own copy of a provider call.
+
 ## Design artefacts
 
-Produced in `../diagrams/` (Mermaid `.mmd`): use-case diagram (Citizen, Lawyer, Admin,
-Visitor), architecture diagram, ER diagram, sequence diagram for AI-assisted intake
-including the fallback branch, and the optional consultation lifecycle activity. See
-`diagrams/README.md`. No further diagram types.
+Produced in `../diagrams/` (Mermaid `.mmd`): the system context diagram at the top of this
+chapter, a use-case diagram (Citizen, Lawyer, Admin, Visitor), the architecture diagram, an ER
+diagram, a sequence diagram for AI-assisted intake including the fallback branch, and the
+optional consultation lifecycle activity. Six in total; `npm run docs:diagrams` renders them
+to SVG and PNG, and the submission PDF embeds the SVG so they stay sharp at any zoom. See
+`diagrams/README.md`. No further diagram types — a class diagram would restate the ER model,
+and a deployment diagram would restate `06-deployment.md`.
 
 ## Implementation phases
 
@@ -375,23 +489,6 @@ that the platform has verified anyone's licence.
 **Superseded by:** ADR-006 (2026-08-13), after the product owner asked for lawyer sign-up
 with admin approval.
 
-### ADR-006 — Lawyer self-registration with admin approval
-
-**Decision:** Public registration accepts `accountType=lawyer`, creates a `LAWYER` account
-and a `PENDING` profile, and keeps that profile out of the directory and matching until an
-admin approves it. Admin-created accounts remain available.
-**Context:** ADR-004 blocked self-signup to save schedule. The owner later required lawyers
-to apply themselves.
-**Options:** Keep admin-only creation · self-register with pending approval · open
-publication on signup.
-**Chosen:** Self-register + pending until admin approval.
-**Reason:** Smallest version of the requested flow. Existing eligibility rules already hide
-unapproved profiles (FR-011, FR-012). The applicant still cannot set `approvalStatus`.
-**Trade-offs:** Approval means "an admin reviewed this record", not that a Ghana Bar
-register or uploaded licence was checked. No document upload.
-**Debt remaining:** TD-005 residual — no licence verification against a professional
-register, no document upload.
-
 ### ADR-005 — Role named USER rather than CLIENT
 
 **Decision:** The `Role` enum value for an ordinary member of the public is `USER`.
@@ -409,19 +506,22 @@ the `client` name — they describe the party's role in that specific consultati
 account's role, and that distinction is worth preserving.
 **Debt introduced:** None.
 
-### ADR-006 — Validation failures return 422, parse failures return 400
+### ADR-006 — Lawyer self-registration with admin approval
 
-**Decision:** Zod schema failures return `422`; only unparseable input returns `400`.
-**Context:** The handler originally returned `400` for both. Once body-parser failures were
-mapped correctly, `400` carried two unrelated meanings.
-**Options:** Collapse everything to `400` · split `400` and `422`.
-**Chosen:** Split them, matching the convention already written into the project's API
-rules.
-**Reason:** A client can act on the distinction — `422` always carries field-level
-`details` naming the offending fields, `400` never can, because nothing was parsed.
-**Trade-offs:** `422` is less familiar than `400`, so the frontend error handling in Phase 4
-must treat both as user-correctable.
-**Debt introduced:** None.
+**Decision:** Public registration accepts `accountType=lawyer`, creates a `LAWYER` account
+and a `PENDING` profile, and keeps that profile out of the directory and matching until an
+admin approves it. Admin-created accounts remain available.
+**Context:** ADR-004 blocked self-signup to save schedule. The owner later required lawyers
+to apply themselves.
+**Options:** Keep admin-only creation · self-register with pending approval · open
+publication on signup.
+**Chosen:** Self-register + pending until admin approval.
+**Reason:** Smallest version of the requested flow. Existing eligibility rules already hide
+unapproved profiles (FR-011, FR-012). The applicant still cannot set `approvalStatus`.
+**Trade-offs:** Approval means "an admin reviewed this record", not that a Ghana Bar
+register or uploaded licence was checked. No document upload.
+**Debt remaining:** TD-005 residual — no licence verification against a professional
+register, no document upload.
 
 ### ADR-007 — Version the API from the start with `/api/v1`
 
@@ -502,6 +602,28 @@ and `periodDays` keep what was actually collected.
 business rule, not a client checkbox limit. Expired plans drop out without a cron job
 because queries use `subscriptionPeriodEnd > now()`.
 **Trade-offs:** No automatic renewal; a lawyer who forgets to pay disappears from matching
-at period end. Switching plans resets the period to now plus the newly paid duration
-rather than carrying unused days.
+at period end.
+**Amended 2026-08-15 (CH-022):** a payment now adds the paid days to whatever time is still
+remaining instead of resetting the period to now, so a lawyer moving to a larger plan
+mid-period no longer forfeits days already bought. The unused *value* is still not prorated,
+which is the remaining half of TD-026. An admin grant continues to set the period outright,
+because a grant must be able to shorten a period as well as extend one.
 **Debt introduced:** TD-026 — no recurring collection, proration, or failed-payment retry.
+
+### ADR-011 — Validation failures return 422, parse failures return 400
+
+**Decision:** Zod schema failures return `422`; only unparseable input returns `400`.
+**Context:** The handler originally returned `400` for both. Once body-parser failures were
+mapped correctly, `400` carried two unrelated meanings.
+**Options:** Collapse everything to `400` · split `400` and `422`.
+**Chosen:** Split them, matching the convention already written into the project's API
+rules.
+**Reason:** A client can act on the distinction — `422` always carries field-level
+`details` naming the offending fields, `400` never can, because nothing was parsed.
+**Trade-offs:** `422` is less familiar than `400`, so the frontend error handling in Phase 4
+must treat both as user-correctable.
+**Debt introduced:** None.
+**Numbering note:** this decision was recorded on 2026-08-13 as a second ADR-006, colliding
+with the self-registration decision made the same day. It was renumbered to ADR-011 on
+2026-08-15. Anything citing "ADR-006" for the status-code convention means this record; every
+other ADR-006 citation, including the two in the server code, means self-registration.

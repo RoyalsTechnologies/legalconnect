@@ -3,8 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
-import { signToken } from '../src/lib/jwt.js';
-import { sessionFor } from './session.js';
+import { signToken, verifyToken } from '../src/lib/jwt.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -18,7 +18,7 @@ async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function adminToken(): Promise<string> {
@@ -68,11 +68,16 @@ async function seedLawyer(email = 'akua@example.com', displayName = 'Akua Owusu'
 }
 
 async function seedIntake(token: string): Promise<string> {
-  const me = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${token}`);
+  // The owner comes from the token rather than from GET /users/me. Twenty call sites went
+  // through that endpoint purely to learn an id the token already carries, so a single
+  // unsuccessful response left `clientId` undefined and Prisma reported a missing argument
+  // in whichever test happened to be running — the same misdirection CH-025 removed from the
+  // sign-in fixtures.
+  const { sub: clientId } = verifyToken(token);
 
   const intake = await prisma.legalIntake.create({
     data: {
-      clientId: me.body.id,
+      clientId,
       originalDescription: 'My employer dismissed me without notice and has not paid me.',
       categoryId: employmentId,
       aiSummary: 'Client reports dismissal without notice and unpaid wages.',

@@ -17,6 +17,7 @@
     "test:e2e": "npm --prefix client run test:e2e",
     "audit": "npm --prefix server audit --audit-level=high && npm --prefix client audit --audit-level=high",
     "measure:latency": "node scripts/measure-latency.mjs",
+    "capture:uat": "node scripts/capture-uat-evidence.mjs",
     "docs:diagrams": "node scripts/render-diagrams.mjs",
     "docs:submission": "npm run docs:diagrams && node scripts/build-submission.mjs",
     "verify": "npm run check && npm run typecheck && npm run test && npm run audit",

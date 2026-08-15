@@ -1,8 +1,32 @@
 # Requirements
 
-Status: **confirmed for MVP** (2026-08-12). Derived from the approved 13-item MVP scope.
-Supersedes the earlier provisional baseline — IDs were renumbered during confirmation, so
-do not cite pre-confirmation IDs.
+Status: **confirmed for MVP** (2026-08-12). This register carries **fifteen Must
+requirements**, FR-001 to FR-015.
+
+An earlier version of this line described the input as an "approved 13-item MVP scope", which
+matched neither the fifteen below nor its own source: the provisional list it referred to is
+the Must column in `docs/archive/original-cursorrules.txt` §64, and that column has fourteen
+bullets. The "13" was never grounded in anything countable, so it is retired here rather than
+carried forward. Three differences between that column and this register are verifiable and
+worth stating rather than glossing:
+
+- It mixes product features with engineering practices — validation and error handling, tests
+  for critical flows, and production deployment. Those became NFR-001 and process obligations
+  here rather than functional requirements, which is why fourteen bullets do not map to
+  fourteen FRs.
+- AI fallback behaviour appears there under Should. Confirmation promoted it to Must as
+  FR-010, because an intake that is lost when the provider fails is not an acceptable
+  degradation.
+- Payments and escrow appear there under Won't for the exam version. They were later added at
+  the product owner's request as FR-017 and FR-021. The escrow half went through the change
+  log as CH-021; the consultation fee itself was never written up as a change entry, which
+  `09-process-playbook.md` now records as a gap. Neither was re-estimated before acceptance —
+  see `02-effort-estimation.md`.
+
+The count is stated directly above rather than derived after the fact.
+
+Supersedes the earlier provisional baseline — IDs were renumbered during confirmation, so do
+not cite pre-confirmation IDs.
 
 ## Problem statement
 
@@ -34,13 +58,22 @@ availability.
 
 ## Stakeholders
 
-| Stakeholder | Interest |
-| --- | --- |
-| Citizen / client | Wants to reach the right legal professional without knowing legal terminology |
-| Lawyer / law firm | Wants relevant, well-structured enquiries rather than vague ones |
-| Platform administrator | Maintains category taxonomy, approves lawyers, manages users |
-| Examiner | Assesses engineering discipline across the lifecycle |
-| Ghana Bar Association / regulators | Indirect: the platform must not practise law or give legal advice |
+Interest is what the stakeholder wants; influence is how much their position can change the
+product. The last column is the point of the table — a stakeholder who shaped nothing did not
+need listing.
+
+| Stakeholder | Interest | Influence | What their position changed |
+| --- | --- | --- | --- |
+| Citizen / client | Wants to reach the right legal professional without knowing legal terminology | High — the access problem is theirs, and abandoning the form is the failure mode that matters | Free-text intake with no required legal vocabulary (FR-006); the directory readable without an account (FR-012, ADR-009); an AI failure never blocks the enquiry (FR-010, NFR-003) |
+| Lawyer / law firm | Wants relevant, well-structured enquiries rather than vague ones, and to be paid | High — with no lawyers accepting requests the citizen side has nowhere to go | The structured intake shown alongside the citizen's own words (FR-014); a visible reason on every match (FR-011); fees held until both parties confirm rather than paid on booking (FR-019) |
+| Platform administrator | Maintains category taxonomy, approves lawyers, manages users | Medium — controls who appears in the directory | Approval before a profile is public (FR-004, FR-015); soft retirement of categories so history survives (ADR-008); admin-only mutations enforced server-side (NFR-001) |
+| Ghana Bar Association / regulators | Indirect: the platform must not practise law or give legal advice | High as a constraint, none as a requester — they were not consulted, and the boundary is drawn conservatively because of that | CON-003: no advice, no liability finding, no outcome prediction, no citations. Enforced in the prompt (AI-TC-007), in copy on every AI-bearing screen (UAT-006), and in the naming of a suggestion as a suggestion |
+| Examiner | Assesses engineering discipline across the lifecycle | High over process, none over the product | Traceability from requirement to test; debt recorded as it was taken on rather than reconstructed; evidence-or-"not yet completed" as a documentation rule |
+
+Not consulted, and this is a limitation rather than an omission: no practising Ghanaian lawyer,
+no regulator, and no citizen outside the project reviewed the requirements. Every statement of
+what a user wants here is inference from the brief, not research, which is why NFR-004 is
+recorded as partially met and why TD-034 keeps independent acceptance testing open.
 
 ## Actors and roles
 
@@ -90,16 +123,62 @@ implementation at the product owner's request.
 
 ## Non-functional requirements
 
-| ID | Area | Requirement | Verification |
-| --- | --- | --- | --- |
-| NFR-001 | Security | Passwords shall be stored only as bcrypt hashes and every role- or ownership-restricted operation shall be enforced server-side. | SEC-LG-003, SEC-LG-005 |
-| NFR-002 | Privacy | The system shall collect only data the MVP requires, shall not log full intake text, and shall not expose one user's intake to any unauthorised user. | SEC-LG-001, SEC-LG-002, SEC-LG-008 |
-| NFR-003 | Reliability | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005 |
-| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13, extended 2026-08-15 through UAT-003/004/005; independent participants not yet completed) |
-| NFR-005 | Maintainability | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
-| NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | PERF-001 to PERF-004 (2026-08-15). Met in steady state — live p50 ~0.49 s, local p95 under 30 ms. The first request after idle reached 2.25 s on the deployment, which is DEF-013. AI latency remains uncharacterised by design |
-| NFR-007 | Explainability | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
-| NFR-008 | Availability | The deployed application shall be reachable for grading, subject to host limitations. | Live verification |
+| ID | Area | Priority | Requirement | Verification |
+| --- | --- | --- | --- | --- |
+| NFR-001 | Security | Must | Passwords shall be stored only as bcrypt hashes and every role- or ownership-restricted operation shall be enforced server-side. | SEC-LG-003, SEC-LG-005 |
+| NFR-002 | Privacy | Must | The system shall collect only data the MVP requires, shall not log full intake text, and shall not expose one user's intake to any unauthorised user. | SEC-LG-001, SEC-LG-002, SEC-LG-008 |
+| NFR-003 | Reliability | Must | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005, and UT-020 for the condition the fallback needs in order to run at all: on the deployment a provider wait longer than the platform's function ceiling let the host kill the request before the fallback could answer (DEF-014) |
+| NFR-004 | Usability | Must | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13, extended 2026-08-15 through UAT-003/004/005; independent participants not yet completed) |
+| NFR-005 | Maintainability | Should | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
+| NFR-006 | Performance | Should | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | PERF-001 to PERF-004 (2026-08-15). Met in steady state — live p50 ~0.49 s, local p95 under 30 ms. The first request after idle reached 2.25 s on the deployment, which is DEF-013. AI latency remains uncharacterised by design |
+| NFR-007 | Explainability | Must | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
+| NFR-008 | Availability | Must | The deployed application shall be reachable for grading, subject to host limitations. | Live verification |
+
+NFR-005 and NFR-006 are Should rather than Must because neither can fail the examination on its
+own: a provider adapter that leaked into two files would be poor structure but working software,
+and a demonstration-load latency target has no contractual user behind it. Everything a citizen's
+safety or privacy depends on is Must.
+
+### Non-functional acceptance criteria
+
+**NFR-001** — No route mutates data without passing an authentication middleware, and no
+role-restricted route relies on the client to assert its role. The `passwordHash` column
+contains only bcrypt digests, never plaintext, and no endpoint returns it. A USER or LAWYER
+calling an admin route receives `403`, and a lawyer editing another lawyer's profile receives
+`403`, both verified against a running server rather than by inspection.
+
+**NFR-002** — Application logs contain intake length and status but never the intake body:
+`logFailure` receives `description.length`, not `description`. A citizen requesting another
+citizen's intake receives `404` rather than `403`, so the response does not confirm that the
+record exists. Public lawyer responses omit the mobile-money fields (FR-020).
+
+**NFR-003** — With the provider unreachable, timing out, or returning invalid JSON, `POST`
+of an intake still returns `2xx`, the row persists with `originalDescription` intact, and
+`aiStatus` is `FAILED_FALLBACK`. No 5xx is observable on the intake path in any of those
+three cases.
+
+**NFR-004** — A participant who has not seen the system before completes describe → triage →
+recommendation → request without asking what a term means and without needing to name a
+practice area. **Partially met:** satisfied in a developer walkthrough, not with independent
+participants; see the UAT record in `04-testing.md` and TD-034.
+
+**NFR-005** — No provider SDK is installed at all: `ai-client.ts` calls the OpenAI-compatible
+`/chat/completions` endpoint with `fetch`, so the provider can be changed by configuration.
+Searching `client/` and `server/src` for provider names returns exactly two places — the
+request in `server/src/ai/ai-client.ts` and the default base URL in `server/src/config/env.ts`
+— and nothing in the client bundle. Swapping providers means changing `AI_PROVIDER_BASE_URL`,
+the key, and the model name.
+
+**NFR-006** — Measured p95 for read paths under demonstration load is under 2 s. **Partially
+met:** met in steady state, exceeded once on a cold serverless start (2.25 s, DEF-013), and
+not tested under sustained concurrent load.
+
+**NFR-007** — Every recommendation carries a non-empty reason naming the criteria that
+produced it, the same inputs produce the same ranking on repeat calls, and no reason
+attributes the recommendation to the AI.
+
+**NFR-008** — The deployed URL serves the application, the API health endpoint responds, and
+sign-in works for each of the three roles against the live database.
 
 ## Constraints
 
@@ -110,6 +189,33 @@ implementation at the product owner's request.
 | CON-003 | The platform must not practise law or present AI output as legal advice. |
 | CON-004 | One external LLM provider only; cost and rate limits are those of a free or low tier. |
 | CON-005 | Third-party libraries, APIs, and datasets must be acknowledged. |
+
+## Assumptions
+
+These are stated because the requirements below depend on them. Each is a judgement made
+without evidence the project had time to gather; if one is wrong, the requirement it supports
+is affected in the way described.
+
+| ID | Assumption | If it is wrong |
+| --- | --- | --- |
+| ASM-001 | A citizen with a legal problem can describe it in two or three sentences of everyday English. | FR-006 and FR-007 degrade: triage receives too little to classify, and more intakes land in review. Voice and local-language intake are the mitigation, both out of scope. |
+| ASM-002 | Users reach the platform on a phone with an intermittent connection rather than on a desktop. | Drove the mobile-first layout and small payloads. If desktop dominates, the layout is merely conservative, not wrong. |
+| ASM-003 | Lawyers will accept mobile money for fees and payouts, which is the dominant consumer payment rail in Ghana. | FR-017 and FR-021 would need card or bank rails, changing the payment adapter but not the workflow. |
+| ASM-004 | An administrator vets lawyers manually, by a process outside the system. | FR-016 approval is a human decision with no licence verification behind it; a fraudulent applicant is caught only by that manual check (TD-012). |
+| ASM-005 | Category taxonomy stays small enough for one classification call to choose from the whole list in a prompt. | FR-007 would need retrieval or hierarchical classification once the list outgrows a prompt. |
+| ASM-006 | One LLM provider on a free tier is fast and reliable enough for demonstration, but not for production traffic. | Already partly true — hence FR-010 fallback and the decision not to assert AI latency in NFR-006. |
+| ASM-007 | Examiner and demonstration traffic is a handful of concurrent users, not a public launch. | NFR-006 was measured at that scale only; sustained-load behaviour is unknown and stated as such. |
+
+## In scope
+
+The delivered system is exactly the twenty-one functional requirements above and nothing
+else: registration and authentication for three roles, profile management, an
+administrator-maintained category taxonomy, free-text intake, AI classification with a
+validated schema and a fallback that never loses the intake, deterministic explainable
+matching, a public lawyer directory, a paid consultation workflow with escrow and
+withdrawals, lawyer subscription plans, and an administration surface for users, lawyers,
+categories, and plans. Anything not traceable to an FR in the matrix below was not built,
+whether or not it is mentioned as a possibility elsewhere in these documents.
 
 ## Out of scope
 
@@ -201,15 +307,29 @@ pays out to the saved payment account; over-balance or a missing account returns
 before any AI call occurs. Empty or over-length input returns `422` and no AI call is
 made.
 
-**FR-007 / FR-009** — Given a valid concern, when the AI returns a category present in the
-configured list, the system stores category, summary, urgency, keywords, and confidence
-against the intake and preserves `originalDescription` unchanged. A category outside the
-configured list is rejected and the intake is marked `needsHumanReview`.
+**FR-007** — Given a valid concern, the system returns exactly one category drawn from the
+configured list, an urgency of `NORMAL`, `IMPORTANT`, or `URGENT`, and keywords, and stores
+them against the intake. Confidence below the 0.5 threshold sets `needsHumanReview` while keeping
+the classification, so a weak answer is flagged rather than discarded.
+
+**FR-008** — The stored summary is derived only from the submitted text: it introduces no
+fact the client did not state, offers no advice or opinion on the merits, and cites no
+legislation or case. `originalDescription` is written once and is never overwritten by
+generated text, so the client's own words remain available beside the summary for the lawyer
+to read (visible in the UAT evidence for UAT-004).
+
+**FR-009** — Every AI response is validated before it is stored or used: invalid JSON, a
+missing required field, a category outside the configured list, an urgency outside the enum,
+or a confidence outside 0–1 all fail validation. A failed validation is treated as an AI
+failure under FR-010 rather than being partially applied, and a category outside the list is
+rejected with the intake marked `needsHumanReview`.
 
 **FR-010** — Given an AI timeout, network error, or schema-invalid response, the intake
 remains stored with its original text, `aiStatus` is `FAILED_FALLBACK`,
 `needsHumanReview` is true, the user sees a controlled message rather than an error page,
-and the user can still browse and contact lawyers.
+and the user can still browse and contact lawyers. **Partially met on the review half:** the
+flag is raised and counted on the admin dashboard, but no screen lets an administrator work
+the flagged intakes, so the system fails safe without recovering (TD-037).
 
 **FR-011** — Only lawyers who are `APPROVED`, whose account is active, and whose
 subscription has not expired are returned. At
@@ -224,10 +344,17 @@ suspended lawyers stay hidden, and a session that is absent, expired, or revoked
 the view to the public one rather than failing the request. Reads are open; every write
 still requires a session.
 
-**FR-013 / FR-014** — A client may only create a request against their own intake. A
-lawyer sees only requests addressed to them, and only then the associated intake. A client
-sees only their own requests. Any other combination returns `403` or `404`, never another
-user's data.
+**FR-013** — A client may only create a consultation request against their own intake and
+only against a lawyer who is currently eligible under FR-011. A request against another
+user's intake, or against a hidden lawyer, returns `403` or `404` and never reveals whether
+the resource exists.
+
+**FR-014** — A lawyer sees only requests addressed to them, and sees the associated
+structured intake only once payment has cleared: an `AWAITING_PAYMENT` request is outside the
+lawyer's query scope entirely, so it returns `404` rather than a redacted record (FR-017). Accept and decline are
+available only from the states the workflow allows; any other transition returns `403`. A
+client sees only their own requests and their status. Any other combination returns `403` or
+`404`, never another user's data.
 
 **FR-015** — Admin-only endpoints reject USER and LAWYER callers with `403`.
 
@@ -247,7 +374,7 @@ Tested, Done.
 | FR-007 | AI triage service | `ai/legal-triage.service.ts`, `ai/prompts.ts` | AI-TC-001, 003, 008, 011 | Tested |
 | FR-008 | AI triage service | `ai/prompts.ts`, `ai/legal-triage.service.ts` | AI-TC-001, 007 | Tested |
 | FR-009 | AI schemas | `ai/schemas.ts` | AI-TC-006, 012, SEC-LG-013 | Tested |
-| FR-010 | AI triage service | `ai/legal-triage.service.ts`, `modules/legal-intake/*` | AI-TC-005, 015, 016 | Tested |
+| FR-010 | AI triage service | `ai/legal-triage.service.ts`, `modules/legal-intake/*` | AI-TC-005, 015, 016 | Tested — review queue outstanding (TD-037) |
 | FR-011 | Matching service | `modules/matching/*` | MT-001…008, SEC-LG-021, SEC-LG-022 | Tested |
 | FR-012 | Lawyers module | `modules/lawyers/*` — filters, search, pagination; `middleware/auth.ts` — `optionalAuth` | IT-028, IT-046…050, IT-052…054, SEC-LG-007, SEC-LG-019, SEC-LG-033…036 | Tested |
 | FR-013 | Consultations module | `modules/consultations/*` | IT-030, IT-031, SEC-LG-023…025 | Tested |
@@ -259,6 +386,20 @@ Tested, Done.
 | FR-019 | Consultations + Google Calendar/Meet | `scheduledAt`, `meetUrl`; Calendar template URL; Meet required on accept | IT-067, IT-068, IT-033, `google-calendar.test.ts` | Tested |
 | FR-020 | Lawyer payment account (Wallet) | `LawyerProfile` payment fields; own-profile only; subscribe falls back to saved MoMo | IT-069…075 | Tested |
 | FR-021 | Escrow, wallet ledger, withdrawals | Dual confirm; `WalletLedger`; refund payout; `POST /lawyers/me/withdrawals` | IT-076…083 | Tested |
+
+The non-functional requirements are traced on the same basis. Two are shown as Partially met
+rather than Tested, because the evidence behind them is narrower than the requirement states.
+
+| Requirement | Design element | Implementation | Test cases | Status |
+| --- | --- | --- | --- | --- |
+| NFR-001 | Auth middleware, role guards, bcrypt hashing | `middleware/auth.ts`, `modules/auth/auth.service.ts` | SEC-LG-003, SEC-LG-005, SEC-LG-009…011, UT-001…010 | Tested |
+| NFR-002 | Ownership scoping, minimal logging, response shaping | `modules/legal-intake/*`, `ai/legal-triage.service.ts` (`logFailure`), `modules/lawyers/lawyers.service.ts` | SEC-LG-001, SEC-LG-002, SEC-LG-008, IT-069…075 | Tested |
+| NFR-003 | AI fallback path | `ai/legal-triage.service.ts`, `modules/legal-intake/legal-intake.service.ts`, `ai/ai-client.ts` | AI-TC-005, AI-TC-015, AI-TC-016, UT-020 | Tested — the deployment needs the DEF-014 build before the fallback is guaranteed room to run |
+| NFR-004 | Plain-language intake and results UI | `client/src/pages/IntakePage.tsx`, `RecommendationsPage.tsx`, `IntakeDetailPage.tsx` | UAT-001, UAT-003…006 | Partially met — developer walkthrough only (TD-034) |
+| NFR-005 | Single AI adapter | `ai/ai-client.ts` | Code review; AI-TC-002 provider-failure substitution | Tested |
+| NFR-006 | Read-path query design, pagination | `modules/lawyers/*`, `modules/matching/*` | PERF-001…004 | Partially met — steady state only; cold start DEF-013 |
+| NFR-007 | Deterministic matching with reason strings | `modules/matching/matching.service.ts` | MT-001…008, AI-TC-010 | Tested |
+| NFR-008 | Vercel deployment, hosted Postgres | `vercel.json`, `api/index.js` | Live verification 2026-08-15 (`06-deployment.md`) | Tested |
 
 A requirement is Done only when it is implemented, acceptance criteria are satisfied, test
 evidence exists, debt is recorded, and it works in the deployed environment.

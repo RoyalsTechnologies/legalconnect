@@ -116,6 +116,15 @@ tick one without running it.
       cities, and an admin token reads `/api/v1/admin/stats` (5 approved, 5 subscribed,
       9 active categories). A paid consultation cannot be completed on the live URL because
       the test merchant refuses amounts at real fee levels (TD-031)
+- [ ] Enquiry submission through the deployed **form** — a browser walkthrough on 15 Aug 2026
+      submitted an enquiry and saw no result within 180 s, which is DEF-014: the provider wait
+      was configured at 180 s (`AI_REQUEST_TIMEOUT_MS`) inside a 60 s function ceiling
+      (`vercel.json`), so the platform could kill the invocation before the fallback ran. The
+      same enquiry sent to the API returned `201` in 53.9 s with a completed classification
+      (PERF-005), so the workflow itself is sound. The fix caps the wait at 25 s in
+      `ai-client.ts`; it takes effect on the next deployment, and this box stays unticked until
+      the form has been re-walked against that build. **Set `AI_REQUEST_TIMEOUT_MS` on the host
+      to 25000 as well**, so the configured value matches what the code enforces
 - [x] No secrets exposed in the bundle or in API responses — audited 15 Aug 2026. The client
       source contains no `import.meta.env` or `process.env` reference at all, so no
       environment value can reach the bundle by construction. A scan of the built assets for
@@ -198,8 +207,8 @@ submission/22424693_LegalConnect_Ghana/
 ├── Deployment_and_Source_Links.txt    links and working credentials
 └── Supporting_Files/
     ├── diagrams/                      Mermaid sources plus PNG and SVG renders
-    └── uat-evidence/                  5 UAT screenshots
-submission/22424693_LegalConnect_Ghana.zip   3.3 MB
+    └── uat-evidence/                  10 UAT screenshots, local stack and deployment
+submission/22424693_LegalConnect_Ghana.zip   9.6 MB
 ```
 
 This is the structure the brief names, file for file. The brief also permits combining those
@@ -226,11 +235,11 @@ strength of a document merely existing.
 | Requirements analysis completed | Met | 21 functional and 8 non-functional requirements, prioritised, with acceptance criteria |
 | SRS completed | Met | `10-srs.md`, chapter 1 of the PDF |
 | Effort estimated, technique justified | Met | `02-effort-estimation.md` — story points with expert judgement, baseline 48.5 h, re-estimation of added scope, variance analysis |
-| System designed | Met | `03-architecture.md` and five diagrams in `diagrams/` |
+| System designed | Met | `03-architecture.md` and six diagrams in `diagrams/` |
 | Major prioritised requirements implemented | Met | FR-001…FR-021; build phases 1–8 complete in `03-architecture.md` |
 | Functional application works | Met | Live directory returns five lawyers; all three roles sign in |
-| Tests executed, results documented | Met | 164 unit, 220 integration, 6 Playwright E2E, all passing 15 Aug 2026; recorded in `04-testing.md` |
-| Technical debt identified with resolution strategies | Met | 32 items in `05-technical-debt-register.md`, each with cause, impact, resolution and target, plus a repayment plan giving every open item a priority, prerequisite, target release, estimated effort, and expected benefit |
+| Tests executed, results documented | Met | 165 unit, 220 integration, 6 Playwright E2E, all passing 15 Aug 2026; recorded in `04-testing.md` |
+| Technical debt identified with resolution strategies | Met | 37 items in `05-technical-debt-register.md`, each with cause, impact, resolution and target, plus a repayment plan giving every open item a priority, prerequisite, target release, estimated effort, and expected benefit |
 | Application deployed, live deployment tested | Met | Vercel plus Supabase; the checklist above, verified against the live URL |
 | User manual prepared | Met | `user-manual.md` |
 | Maintenance strategy and future evolution prepared | Met | `07-maintenance-and-evolution.md` |
@@ -247,3 +256,11 @@ not load-tested and a cold first request over the NFR-006 target (DEF-013), a li
 mobile-money capture at a real consultation fee blocked by the test merchant (TD-031), the
 emailed confirmation link on the live site not yet retested end to end since `CLIENT_ORIGIN`
 was corrected (DEF-010), and four open Low defects (DEF-007, DEF-008, DEF-009, DEF-013).
+
+One further gap is a High defect rather than a Low one: DEF-014, found by walking the deployed
+site on 15 Aug 2026. Submitting an enquiry through the form could hang, because a 180-second
+provider wait had been configured inside a 60-second function ceiling and the platform killed
+the invocation before the fallback could answer. It is fixed in code and covered by UT-020, and
+the fix reaches the deployment with the next build, so the live retest is not yet completed. It
+is recorded here rather than quietly repaired because the deployment a marker opens may still be
+running the previous build.

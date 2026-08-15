@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FALLBACK_CATEGORY_NAME } from '../src/ai/legal-triage.service.js';
 import { createApp } from '../src/app.js';
 import { signToken } from '../src/lib/jwt.js';
-import { sessionFor } from './session.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -47,7 +47,7 @@ async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function createLawyer(token: string, overrides: Record<string, unknown> = {}) {

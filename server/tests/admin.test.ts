@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
-import { sessionFor } from './session.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 
 const app = createApp();
@@ -29,7 +29,7 @@ async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function userIdFor(email: string): Promise<string> {

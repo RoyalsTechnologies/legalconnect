@@ -67,7 +67,7 @@ or liability, predict court outcomes, guarantee a remedy, or produce legal citat
 - `docs/04-testing.md` — test strategy, cases, results, defect log
 - `docs/05-technical-debt-register.md` — debt register
 - `docs/06-deployment.md` — deployment and configuration
-- `docs/11-references.md` — third-party frameworks, libraries, APIs, and services
+- `docs/12-references.md` — third-party frameworks, libraries, APIs, and services
 
 ---
 
@@ -145,55 +145,74 @@ low tier; third parties must be acknowledged.
 
 ## 3. Functional requirements
 
-Twenty-one numbered requirements. The full statement of each, with its acceptance criteria,
-is in `01-requirements.md`, which is the chapter immediately after this one in the submission
-PDF — the criteria are written as observable outcomes including
-expected HTTP status codes, and are the basis of the test cases in `04-testing.md`.
+Twenty-one numbered requirements, stated below in full. Each is written as a single "shall"
+statement with the acceptance criterion that decides whether it is met — an observable
+outcome, usually including the expected HTTP status code, so that a test can either pass or
+fail against it rather than a reader forming an opinion. The test cases in `04-testing.md`
+are derived from these criteria, and the traceability matrix in section 9 links the two.
 
-| ID | Title | Priority |
-| --- | --- | --- |
-| FR-001 | User registration | Must |
-| FR-002 | Authentication | Must |
-| FR-003 | User profile | Must |
-| FR-004 | Lawyer profile management | Must |
-| FR-005 | Legal category management | Must |
-| FR-006 | Legal issue submission | Must |
-| FR-007 | AI classification | Must |
-| FR-008 | AI structured summary | Must |
-| FR-009 | AI output validation | Must |
-| FR-010 | AI failure fallback | Must |
-| FR-011 | Lawyer recommendation | Must |
-| FR-012 | Lawyer discovery | Must |
-| FR-013 | Consultation request | Must |
-| FR-014 | Consultation management | Must |
-| FR-015 | Administration | Must |
-| FR-016 | Lawyer self-registration | Should |
-| FR-017 | Paid consultation booking | Should |
-| FR-018 | Lawyer subscription plans | Should |
-| FR-019 | Calendar and video booking | Should |
-| FR-020 | Lawyer payment account | Should |
-| FR-021 | Consultation fee escrow and withdrawals | Should |
+`01-requirements.md`, the chapter immediately after this one in the submission PDF, remains
+the authoritative register: it carries the same statements with fuller criteria, the
+stakeholder analysis, and the scope boundaries. Where the wording differs, that register
+governs.
+
+| ID | Requirement | Priority | Acceptance criterion |
+| --- | --- | --- | --- |
+| FR-001 | The system shall allow a visitor to create a USER account with name, email, and password, rejecting duplicate emails. | Must | Account stored with a bcrypt hash and never plaintext; duplicate email `409`; malformed or weak input `422` with field-level messages. |
+| FR-002 | The system shall authenticate registered users by email and password, establish an authorised session, and support logout. | Must | Valid credentials return a token and role; invalid credentials `401` with wording identical for unknown email and wrong password; protected route without a token `401`. |
+| FR-003 | The system shall allow an authenticated user to view and update their own profile, including changing their password when they know the current one. | Must | Name and phone update for self only; password change requires the current password, and a wrong one returns `401` leaving the hash unchanged; forgotten password resets through a one-use email link. |
+| FR-004 | The system shall maintain lawyer profiles including display name, firm, bio, practice areas, city/region, and availability, editable by the owning lawyer and by an admin. | Must | A lawyer edits only their own profile and cannot set `approvalStatus`; either attempt returns `403`; an admin may edit any profile. |
+| FR-005 | The system shall maintain a configurable list of legal practice categories usable for classification, specialisation, and filtering. | Must | Readable without an account; write restricted to admin (`403` otherwise); slug derived from name; duplicate name `409`; delete retires rather than deletes, keeping historical references intact. |
+| FR-006 | The system shall allow an authenticated client to submit a free-text description of a legal concern with optional location. | Must | Text within length bounds is persisted with its author **before** any AI call; empty or over-length input returns `422` and makes no AI call. |
+| FR-007 | The system shall analyse a submitted concern and return one category from the configured list, an urgency level, and keywords, or flag it for review where confidence is insufficient. | Must | Exactly one configured category, urgency in `NORMAL`/`IMPORTANT`/`URGENT`, keywords stored on the intake; confidence below 0.5 sets `needsHumanReview` while keeping the classification. |
+| FR-008 | The system shall generate a concise neutral summary derived only from the submitted concern. | Must | The summary introduces no fact the client did not state, gives no opinion on the merits, and cites no legislation or case; `originalDescription` is never overwritten. |
+| FR-009 | The system shall validate every AI response against a schema before storing or using it. | Must | Invalid JSON, missing field, category outside the list, urgency outside the enum, or confidence outside 0–1 all fail validation; a failure is handled under FR-010 rather than partially applied. |
+| FR-010 | The system shall preserve the user's original text and provide a recoverable, reviewable workflow whenever the AI service is unavailable or returns invalid output. | Must | On timeout, network error, or invalid response the intake persists with its original text, `aiStatus` is `FAILED_FALLBACK`, `needsHumanReview` is true, the user sees a controlled message rather than an error page, and can still browse and contact lawyers. The review flag is raised and counted but has no admin queue behind it (TD-037). |
+| FR-011 | The system shall recommend eligible lawyers ranked by category against practice area, then location, then availability, and display the reason for each. | Must | Only approved, active, unexpired-subscription lawyers with at least one matching practice area are returned; every result carries a reason naming the matched criteria; identical inputs give an identical ranking. |
+| FR-012 | The system shall allow users to browse, search, and filter eligible lawyer profiles and view profile detail. | Must | Directory and approved profiles readable without an account; unapproved and suspended lawyers stay hidden; an absent or expired session narrows the view rather than failing the request; every write still needs a session. |
+| FR-013 | The system shall allow a client to submit a consultation request to a selected eligible lawyer, linked to their intake. | Must | The intake must belong to the caller and the lawyer must be currently eligible; otherwise `403` or `404`, never a response that confirms the resource exists. |
+| FR-014 | The system shall allow a lawyer to view requests addressed to them with the associated structured intake and accept or decline, and allow a client to track their own requests. | Must | A lawyer sees only their own requests, and the intake only once payment has cleared; transitions outside the permitted workflow return `403`; a client sees only their own requests. |
+| FR-015 | The system shall allow an administrator to manage users, lawyer profiles including approval status, and legal categories. | Must | Admin-only endpoints reject USER and LAWYER callers with `403`. |
+| FR-016 | The system shall allow a visitor to create a LAWYER account with a professional profile that stays hidden until an administrator approves it. | Should | Registration with `accountType=lawyer` creates a `PENDING` profile absent from directory and matching; a self-approving payload is ignored; `role` cannot create an ADMIN. |
+| FR-017 | The system shall let each lawyer set a consultation fee and require the client to pay it before the lawyer is notified of, or can act on, the request. | Should | Creating a request snapshots the fee and leaves it `AWAITING_PAYMENT`, invisible to the lawyer until payment confirms; a later fee change does not alter an existing booking. |
+| FR-018 | The system shall offer subscription packages, billed monthly or as a yearly equivalent, that cap listed practice areas, and hide lawyers without a live plan. | Should | Plans cap `practiceAreaIds` and exceeding the cap returns `422`; a payment adds days to any remaining time; an admin grant sets the period outright; a lawyer without a future `subscriptionPeriodEnd` is absent from directory, matching, and new bookings even if approved. |
+| FR-019 | The system shall let a client propose a date and time, provide an Add to Google Calendar action, and require a Google Meet link when the lawyer accepts. | Should | `scheduledAt` must be in the future; a Calendar template URL is returned for the slot; accept requires a `meet.google.com` link that is not `/new`; a missing slot or link returns `422`. |
+| FR-020 | The system shall let a lawyer save a Ghana mobile-money account for their own use, keep it off the public directory, and reuse it for plan payments. | Should | Account name, number, and network save together, and a half-filled account returns `422`; public lawyer responses omit the fields; subscribing without a `phone` uses the saved number. |
+| FR-021 | The system shall hold a paid fee until both parties confirm, then credit the lawyer's wallet; refund on cancellation or decline after payment; and allow withdrawal to the saved account. | Should | Both confirmations move the request to `COMPLETED` and insert one wallet CREDIT; one confirmation changes nothing; cancel or decline after payment creates a REFUND to the paying number without crediting the lawyer; over-balance or missing account on withdrawal returns `422`. |
 
 FR-001 to FR-015 are the approved MVP. FR-016 to FR-021 were added during implementation at
-the product owner's request, each re-estimated and recorded in the change log in
-`09-process-playbook.md`.
+the product owner's request and are recorded in the change log in `09-process-playbook.md`.
+Their effort was **not** re-estimated when they were accepted, which is a departure from the
+project's own change process; the re-estimation was carried out afterwards, on 2026-08-15, and
+is reported with that date in `02-effort-estimation.md`.
 
 ---
 
 ## 4. Non-functional requirements
 
-NFR-001 to NFR-008 in `01-requirements.md`, each with its verification method: security
-(bcrypt hashing, server-side authorisation), privacy (data minimisation, no full intake text
-in logs), reliability (AI failure never loses an intake and never returns 5xx on the intake
-workflow), usability (a first-time user reaches recommendations without legal terminology),
-maintainability (all provider-specific AI logic behind one adapter), performance (non-AI
-operations within 2 seconds under demonstration load), explainability (every recommendation
-carries a traceable reason), and availability of the deployed application.
+Eight requirements, each with a priority, an acceptance criterion that can be checked, and the
+evidence that was actually produced for it. Two are shown as partially met; those are the
+honest positions and are argued below rather than rounded up.
 
-Two are not fully evidenced and are recorded as such rather than asserted: NFR-004 has been
-verified by developer walkthrough but **not** by independent participants, and NFR-006 is
-measured on the read paths only (PERF-001 to PERF-004) — within target in steady state, with a
-cold first request on the deployment above it (DEF-013), and no sustained-load test.
+| ID | Area | Priority | Requirement | Acceptance criterion | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| NFR-001 | Security | Must | Passwords shall be stored only as bcrypt hashes, and every role- or ownership-restricted operation shall be enforced server-side. | No mutating route bypasses authentication; no role decision trusts the client; `passwordHash` holds only digests and is never returned; a USER or LAWYER on an admin route gets `403`. | SEC-LG-003, SEC-LG-005, SEC-LG-009…011; UT-001…010 |
+| NFR-002 | Privacy | Must | The system shall collect only what the MVP requires, shall not log full intake text, and shall not expose one user's intake to an unauthorised user. | Logs carry intake length and status, never the body; another user's intake returns `404`, not `403`, so existence is not disclosed; public lawyer payloads omit mobile-money fields. | SEC-LG-001, SEC-LG-002, SEC-LG-008; IT-069…075 |
+| NFR-003 | Reliability | Must | Failure of the AI provider shall not lose a submitted concern or return 5xx on the intake workflow. | With the provider unreachable, timing out, or returning invalid JSON, the intake `POST` still returns 2xx and the row persists with its original text and `FAILED_FALLBACK`. The wait for the provider must also end inside the hosting platform's invocation limit, or the host ends the request before the fallback can answer (DEF-014). | AI-TC-005, AI-TC-015, AI-TC-016, UT-020 |
+| NFR-004 | Usability | Must | A first-time user shall reach lawyer recommendations without using or understanding legal terminology. | A participant new to the system completes intake to recommendation without asking what a term means or naming a practice area. | **Partially met** — UAT-001, UAT-003…006, developer walkthrough only (TD-034) |
+| NFR-005 | Maintainability | Should | All provider-specific AI logic shall sit behind a single adapter. | No provider SDK is installed; provider references exist only in `ai/ai-client.ts` and the default base URL in `config/env.ts`, and none in the client bundle. | Code review; AI-TC-002 |
+| NFR-006 | Performance | Should | Non-AI API operations shall respond within 2 s under demonstration load; AI latency shall be measured, not asserted. | Read-path p95 under 2 s at demonstration scale. | **Partially met** — PERF-001…004: live p50 ≈ 0.49 s, local p95 < 30 ms, one cold start at 2.25 s (DEF-013) |
+| NFR-007 | Explainability | Must | Every recommendation shall carry a human-readable reason traceable to configured criteria, not to an AI claim. | Each result has a non-empty reason naming the criteria; repeat calls rank identically; no reason credits the AI. | MT-001…008, AI-TC-010 |
+| NFR-008 | Availability | Must | The deployed application shall be reachable for grading. | The public URL serves the app, the health endpoint responds, and all three roles sign in against the live database. | Live verification 2026-08-15, `06-deployment.md` |
+
+NFR-004 and NFR-006 are recorded as partially met rather than met. NFR-004 was walked by the
+developer, who cannot be a first-time user of a system he built, so the criterion is not
+satisfied by the evidence held; independent participants are the missing piece (TD-034).
+NFR-006 holds in steady state but was exceeded once on a cold serverless start, and no
+sustained-load test was run, so the target is demonstrated at demonstration scale only.
+
+NFR-005 and NFR-006 carry Should rather than Must because neither can fail the product on its
+own; everything a citizen's safety or privacy depends on is Must.
 
 ---
 
@@ -297,9 +316,14 @@ Traced to NFR-001 and NFR-002 and verified by the `SEC-LG-*` cases in `04-testin
 | SR-13 | Suspended accounts shall be refused access to authenticated operations |
 | SR-14 | AI output shall not be trusted to control authorisation or review status: the model may request human review but shall never be able to waive it |
 
-Known security limitations, recorded honestly rather than omitted: there is no token
-revocation list, so a stolen token stays valid until it expires (TD-003), and the intake
-text leaves the trust boundary when sent to the LLM provider (TD-007).
+Known security limitations, recorded rather than omitted: there is no token revocation list,
+so a stolen token stays valid until it expires (TD-003); the intake text leaves the trust
+boundary when sent to the LLM provider (TD-007); the session token is held in `localStorage`,
+so an XSS would be a session takeover (TD-035); and the authentication endpoints are not rate
+limited, so online password guessing is bounded only by bcrypt's cost (TD-036). TD-007 carries
+the highest priority of the four because it affects every user who submits an enquiry, but
+TD-036 is the one to do first: it is two points of work against an exposure that needs no
+insider and no XSS to exploit.
 
 ---
 
@@ -310,7 +334,7 @@ MoSCoW, as recorded per requirement in `01-requirements.md`.
 | Priority | Count | Requirements |
 | --- | --- | --- |
 | Must | 15 | FR-001 … FR-015 — the approved 48-hour MVP |
-| Should | 6 | FR-016 … FR-021 — added during the build, each re-estimated before acceptance |
+| Should | 6 | FR-016 … FR-021 — added during the build; re-estimated afterwards, not before acceptance |
 | Could | 0 | None built. Candidates are listed under future evolution |
 | Won't | — | Listed under "Out of scope" in `01-requirements.md` |
 
@@ -321,11 +345,41 @@ scope may expand without re-estimation and a change-log entry.
 
 ## 9. Traceability
 
-The full matrix — requirement to design element to implementation to test cases to status —
-is in `01-requirements.md` under "Traceability", the chapter immediately after this one in the
-submission PDF. Every one of the 21 functional
-requirements has a design element, an implementation path, and named test cases, and is
-marked Tested.
+Every requirement traces forward to a design element, an implementation path, and named test
+cases. The matrix below is the summary; `01-requirements.md` carries the same rows with the
+full test-case lists, and `04-testing.md` carries what each case does.
+
+| Requirement | Design element | Implementation | Test evidence | Status |
+| --- | --- | --- | --- | --- |
+| FR-001, FR-002 | Auth module, JWT sessions | `modules/auth/*`, `lib/jwt.ts` | UT-001…010, SEC-LG-005, SEC-LG-009 | Tested |
+| FR-003 | Users module, account page | `modules/users/*`, `AccountPage` | IT-001…007, UT-016…018, SEC-LG-010 | Tested |
+| FR-004 | Lawyers module | `modules/lawyers/*` | IT-020…029, SEC-LG-015…020 | Tested |
+| FR-005 | Legal categories module | `modules/legal-categories/*` | IT-016…019, SEC-LG-003, SEC-LG-014 | Tested |
+| FR-006 | Legal intake module | `modules/legal-intake/*` | IT-011…015, AI-TC-004, AI-TC-014 | Tested |
+| FR-007, FR-008 | AI triage service and prompts | `ai/legal-triage.service.ts`, `ai/prompts.ts` | AI-TC-001, 003, 007, 008, 011 | Tested |
+| FR-009 | AI response schemas | `ai/schemas.ts` | AI-TC-006, 012, SEC-LG-013 | Tested |
+| FR-010 | Fallback path in triage and intake | `ai/legal-triage.service.ts`, `modules/legal-intake/*` | AI-TC-005, 015, 016 | Tested — review queue outstanding (TD-037) |
+| FR-011 | Deterministic matching service | `modules/matching/*` | MT-001…008, SEC-LG-021, SEC-LG-022 | Tested |
+| FR-012 | Directory with optional auth | `modules/lawyers/*`, `middleware/auth.ts` | IT-046…054, SEC-LG-007, SEC-LG-033…036 | Tested |
+| FR-013, FR-014 | Consultations module and state machine | `modules/consultations/*` | IT-030…039, SEC-LG-023…030 | Tested |
+| FR-015 | Admin module | `modules/admin/*` | IT-040…045, SEC-LG-031, SEC-LG-032 | Tested |
+| FR-016 | Registration with pending approval | `modules/auth/*`, admin `PATCH /lawyers/:id` | `lawyers.test.ts` self-registration cases | Tested |
+| FR-017 | Fee snapshot, NaloPay adapter, callback | `modules/consultations/*`, `payments/nalopay.ts` | `consultations.test.ts`, `nalopay.test.ts` | Tested |
+| FR-018 | Subscriptions module, plan caps | `modules/subscriptions/*` | `subscriptions.test.ts`, IT-055, IT-063…066, IT-088, IT-089, MT-010 | Tested |
+| FR-019 | Calendar template URL, Meet on accept | `modules/consultations/*` | IT-033, IT-067, IT-068, `google-calendar.test.ts` | Tested |
+| FR-020 | Lawyer payment account fields | `modules/lawyers/*` | IT-069…075 | Tested |
+| FR-021 | Escrow, wallet ledger, withdrawals | `modules/consultations/*`, wallet ledger | IT-076…083 | Tested |
+| NFR-001, NFR-002 | Auth middleware, ownership scoping, minimal logging | `middleware/auth.ts`, module services | SEC-LG-001…011 | Tested |
+| NFR-003 | AI fallback | `ai/legal-triage.service.ts`, `ai/ai-client.ts` | AI-TC-005, 015, 016, UT-020 | Tested — live retest pending the DEF-014 build |
+| NFR-004 | Plain-language intake and results UI | `IntakePage.tsx`, `RecommendationsPage.tsx`, `IntakeDetailPage.tsx` | UAT-001, UAT-003…006 | Partially met (TD-034) |
+| NFR-005 | Single AI adapter | `ai/ai-client.ts` | Code review, AI-TC-002 | Tested |
+| NFR-006 | Read-path query design | `modules/lawyers/*`, `modules/matching/*` | PERF-001…004 | Partially met (DEF-013) |
+| NFR-007 | Reason strings on every match | `modules/matching/matching.service.ts` | MT-001…008, AI-TC-010 | Tested |
+| NFR-008 | Vercel deployment, hosted Postgres | `vercel.json`, `api/index.js` | Live verification 2026-08-15 | Tested |
+
+Tracing backwards, no endpoint, table, or screen exists that does not answer a requirement in
+this list. The wallet ledger and the payments adapter are the two additions a reader might
+expect to be unaccounted for, and both belong to FR-021 and FR-017.
 
 The register defines Done more strictly than Tested: a requirement is Done only when it is
 implemented, its acceptance criteria are satisfied, test evidence exists, debt is recorded,

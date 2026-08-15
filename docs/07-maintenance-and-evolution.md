@@ -13,7 +13,10 @@ used during the build and recorded in `09-process-playbook.md`: reproduce it, wr
 that fails, apply the smallest safe fix, re-run the suite, then record cause, fix, and
 retest in the defect log in `04-testing.md`. Severity decides urgency — Critical and High
 before any enhancement. The four open defects (DEF-007, DEF-008, DEF-009, DEF-013) are the first
-queue this process would pick up.
+queue this process would pick up, and DEF-014 is an example of it running: found by walking the
+deployed site, diagnosed to a provider wait longer than the platform's function ceiling, fixed
+with a cap and a unit test, and left flagged until the live retest happens rather than closed on
+the strength of a local pass.
 
 ### Adaptive maintenance
 
@@ -123,6 +126,11 @@ a generic caveat, and each names where it is tracked.
   `04-testing.md`), all Low, each with a diagnosed cause and a named fix. They are two edge
   cases in the consultation lifecycle, one admin-table layout fault, and the deployment's cold
   first request — not broken Must paths.
+- **One High defect is fixed but not yet verified live.** DEF-014: submitting an enquiry through
+  the form on the deployment could hang, because the configured provider wait outlived the
+  platform's function ceiling and the fallback never got to run. Capped in code and covered by
+  UT-020; the deployment needs the new build before the walkthrough can be repeated. Until then
+  the API path is proven (PERF-005) and the form path is not.
 
 ### Validation
 
@@ -133,8 +141,9 @@ a generic caveat, and each names where it is tracked.
 - **Performance is sampled, not load-tested.** The read paths were measured on 2026-08-15
   (PERF-001 to PERF-004 in `04-testing.md`): comfortably inside the NFR-006 target in steady
   state, with a cold first request on the deployment at 2.25 s, which is DEF-013. Nothing was
-  measured under sustained or higher concurrency, no write or payment path was timed, and AI
-  latency is deliberately not characterised because it depends on a free-tier provider.
+  measured under sustained or higher concurrency, and no payment path was timed. AI latency is
+  characterised by a single live observation (PERF-005: 53.9 s for one enquiry), which is enough
+  to show the risk recorded as TD-038 and not enough to be called a distribution.
 - **AI answer quality is unmeasured.** The tests prove the contract around the model is
   enforced and every failure mode degrades safely; they do not show the categories it
   returns are correct (TD-011). There is no labelled evaluation set.

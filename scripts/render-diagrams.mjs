@@ -30,6 +30,29 @@ if (files.length === 0) throw new Error(`no .mmd files in ${sourceDir}`);
 
 await mkdir(outputDir, { recursive: true });
 
+/**
+ * Mermaid's SVG carries `width="100%"` and a `max-width` style, so in a container without a
+ * width it collapses to the 300 px default for a replaced element. Screenshotting that
+ * produced 300 px PNGs that the submission PDF then stretched across the page at roughly
+ * 43 dpi. Pin the SVG to its own viewBox dimensions before the screenshot, and take it at
+ * three device pixels per CSS pixel so the print is sharp.
+ */
+const SHOT_SCALE = 3;
+
+async function sizeToViewBox(page) {
+  return page.evaluate(() => {
+    const svg = document.querySelector('svg');
+    if (!svg) throw new Error('no SVG in the page');
+    const box = svg.viewBox.baseVal;
+    const width = Math.ceil(box.width || svg.getBoundingClientRect().width);
+    const height = Math.ceil(box.height || svg.getBoundingClientRect().height);
+    svg.style.maxWidth = 'none';
+    svg.setAttribute('width', String(width));
+    svg.setAttribute('height', String(height));
+    return { width, height };
+  });
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
 await page.setContent('<!doctype html><html><body><div id="host"></div></body></html>');
@@ -47,14 +70,22 @@ for (const file of files) {
 
   // Screenshot the rendered SVG rather than converting the file, so the PNG matches what
   // Mermaid actually lays out including fonts.
-  await page.setContent(
-    `<!doctype html><html><body style="margin:0;background:#fff;display:inline-block">${svg}</body></html>`,
+  const shotPage = await browser.newPage({
+    viewport: { width: 1600, height: 1200 },
+    deviceScaleFactor: SHOT_SCALE,
+  });
+  await shotPage.setContent(
+    `<!doctype html><html><body style="margin:0;background:#fff">${svg}</body></html>`,
   );
-  const element = await page.$('svg');
+  const { width, height } = await sizeToViewBox(shotPage);
+  await shotPage.setViewportSize({ width, height });
+
+  const element = await shotPage.$('svg');
   if (!element) throw new Error(`${file} produced no SVG element`);
   await element.screenshot({ path: join(outputDir, `${name}.png`), scale: 'device' });
+  await shotPage.close();
 
-  console.log(`rendered ${name}`);
+  console.log(`rendered ${name} — ${width}×${height} at ${SHOT_SCALE}x`);
 }
 
 await browser.close();

@@ -81,7 +81,7 @@ than numbered cases.
 
 The automated cases are recorded in the compact tables further down — ID, requirement, case,
 result — because the suite itself is the executable version of the steps, and transcribing
-twelve fields for 384 cases would add length without adding evidence. Two are written out in
+twelve fields for 385 cases would add length without adding evidence. Two are written out in
 full below so the format is demonstrated rather than only declared: one automated case that
 has always passed, and one written to close a defect.
 
@@ -205,9 +205,15 @@ The cases below were executed by the developer against the local Docker stack
 (`http://localhost:5173`, `http://localhost:4000`) using the gated demo accounts in
 `README.md`. That is a walkthrough, not a claim of third-party UAT.
 
-Two runs are recorded. Run 1 on **2026-08-13** covered UAT-001, UAT-002, and UAT-006 and
+Three runs are recorded. Run 1 on **2026-08-13** covered UAT-001, UAT-002, and UAT-006 and
 left UAT-003 failing and UAT-004/UAT-005 unreached. Run 2 on **2026-08-15** re-executed
-UAT-003, UAT-004, and UAT-005. Two conditions of run 2 matter when reading the evidence:
+UAT-003, UAT-004, and UAT-005 against the local stack. Run 3, later on **2026-08-15**, took
+UAT-001, UAT-002, and UAT-006 through the **deployed** site at
+<https://legalconnect-beryl.vercel.app> with the demo citizen account, both to capture the
+evidence those three cases had been described without and to check the flows on the
+deployment a marker will open. Run 3 is what found DEF-014.
+
+Two conditions of run 2 matter when reading the evidence:
 
 - The admin password was supplied locally through `SEED_ADMIN_PASSWORD`, which is what run
   1 lacked. The seed leaves an existing admin's password unchanged, so the generated one
@@ -218,7 +224,10 @@ UAT-003, UAT-004, and UAT-005. Two conditions of run 2 matter when reading the e
   path that logs and captures locally. Both are labelled below. Neither is a claim that
   live mobile money moved.
 
-Screenshots from run 2 are in `docs/uat-evidence/`.
+Screenshots from runs 2 and 3 are in `docs/uat-evidence/`. Run 3's browser steps are scripted
+in `scripts/capture-uat-evidence.mjs` so the captures can be reproduced against any
+deployment; the script drives the same screens a person would open, and it creates nothing
+the screenshots do not show.
 
 ```
 UAT-001
@@ -227,7 +236,8 @@ Scenario: Describe an unpaid-salary dismissal in Accra in everyday language and 
 Acceptance criterion: Original words are stored; the user is not blocked when AI fails; lawyers remain reachable (NFR-004, FR-006, FR-010, FR-012).
 Expected outcome: An organised result or a controlled fallback, then recommendations or the directory.
 Actual outcome: POST /api/v1/intakes returned 201 after ~124s with aiStatus FAILED_FALLBACK, needsHumanReview true, category Other / Needs Review. originalDescription (152 characters) was unchanged. GET .../recommendations returned note "This enquiry has not been categorised yet, so no recommendation can be made. You can still browse the lawyer directory and contact someone directly." GET /lawyers listed the five seeded lawyers.
-Status: Pass on the fallback path. Live AI classification was not observed in this run. It was observed in run 2 (2026-08-15): three intakes returned aiStatus COMPLETED within about 7 seconds each, category Property & Tenancy, needsHumanReview false, with originalDescription stored unchanged.
+Actual outcome (run 3, 2026-08-15, deployed site): The intake screen carries the "Not legal advice" notice above Continue (uat-006-intake-disclaimer.png). A landlord-lockout enquiry submitted through the form did not return a result page within 180 s — DEF-014. The same enquiry sent to the deployed API returned 201 in 53.9 s with aiStatus COMPLETED, category Property & Tenancy, urgency URGENT, needsHumanReview false, and originalDescription stored unchanged; the citizen's own view of it shows Suggested category, Summary for the lawyer, Your original words, and keywords (uat-001-organised-request.png). GET .../recommendations returned one match in 2.4 s, shown as "Recommended because Kwame Asante lists Property & Tenancy as a practice area and is currently accepting new enquiries" (uat-001-recommendations.png).
+Status: Pass on the fallback path (run 1) and on live AI classification, storage, and explainable matching (runs 2 and 3). Run 2 (local, 2026-08-15) recorded three intakes at aiStatus COMPLETED within about 7 seconds each. The browser submission on the deployment is a **fail** until DEF-014's fix is deployed: the API path works, but the form could hang because the platform killed the invocation before the fallback could answer.
 ```
 
 ```
@@ -236,7 +246,8 @@ Actor: Visitor (not signed in)
 Scenario: Open the lawyer directory before creating an account (ADR-009, FR-012).
 Acceptance criterion: Approved lawyers are visible; payment-account fields are not; writes still require a session.
 Expected outcome: A filterable list with names, fees, and View profile.
-Actual outcome: Browser at http://localhost:5173/lawyers showed heading "Find a legal professional", search "e.g. unpaid salary", and five cards: Abena Sarpong, Akua Owusu, Efua Danso, Kwame Asante, Yaw Boakye, with GH₵ fees and regions. Sign in / Get started remained available. JSON for a directory lawyer had no paymentPhone or wallet keys.
+Actual outcome (run 1, 2026-08-13): Browser at http://localhost:5173/lawyers showed heading "Find a legal professional", search "e.g. unpaid salary", and five cards: Abena Sarpong, Akua Owusu, Efua Danso, Kwame Asante, Yaw Boakye, with GH₵ fees and regions. Sign in / Get started remained available. JSON for a directory lawyer had no paymentPhone or wallet keys.
+Actual outcome (run 3, 2026-08-15, deployed site): The same screen on the deployment reported "5 lawyers found" with practice-area and region filters, fees per card, and Sign in / Get started still offered to a visitor (uat-002-public-directory.png). The prompt "Not sure which kind of lawyer you need? Create an account…" appears above the filters.
 Status: Pass
 ```
 
@@ -283,18 +294,19 @@ Actor: Visitor
 Scenario: Read the public home page and judge whether the product claims to give legal advice (CON-003, NFR-004).
 Acceptance criterion: Copy tells people they can describe a concern in their own words and that a lawyer remains responsible for advice.
 Expected outcome: Plain-language steps; no verdict or prediction.
-Actual outcome: http://localhost:5173/ heading "We help you reach the right lawyer — they remain responsible for professional advice." Steps: "Tell us what happened", "We organise your request", "Connect with a lawyer."
-Status: Pass for the public home page. Signed-in intake screen disclaimer was not opened in the browser in this run.
+Actual outcome (run 1, 2026-08-13): http://localhost:5173/ heading "We help you reach the right lawyer — they remain responsible for professional advice." Steps: "Tell us what happened", "We organise your request", "Connect with a lawyer."
+Actual outcome (run 3, 2026-08-15, deployed site): The home page carries the same wording plus "The platform organises and matches. It does not give legal advice, decide guilt, or predict a court outcome", and the footer repeats that AI-assisted results are not a substitute for professional legal advice (uat-006-home-not-legal-advice.png). The signed-in intake screen — the gap left by run 1 — shows the "Not legal advice" notice between the form and Continue, and the organised result repeats it above the suggested category (uat-006-intake-disclaimer.png, uat-001-organised-request.png).
+Status: Pass on the public home page and, from run 3, on the signed-in screens where AI output is actually shown.
 ```
 
 | ID | Actor | Goal | Result |
 | --- | --- | --- | --- |
-| UAT-001 | Citizen | Describe a concern and still reach lawyers if AI fails | Pass (fallback path) |
-| UAT-002 | Visitor | Browse the directory without an account | Pass |
+| UAT-001 | Citizen | Describe a concern and still reach lawyers if AI fails | Pass on the fallback and on live classification and matching; the browser submission on the deployment fails until DEF-014's fix ships |
+| UAT-002 | Visitor | Browse the directory without an account | Pass, locally and on the deployment |
 | UAT-003 | Citizen | Book and pay | Pass for booking, live initiation, and credentials-unset capture; live capture at a real fee not yet completed (TD-031) |
 | UAT-004 | Lawyer | Accept a paid request | Pass (2026-08-15) |
 | UAT-005 | Admin | Use the admin overview | Pass (2026-08-15) |
-| UAT-006 | Visitor | See that the product is not legal advice | Pass (home page) |
+| UAT-006 | Visitor | See that the product is not legal advice | Pass (home page, intake screen, and organised result) |
 
 ## Defect log
 
@@ -315,6 +327,7 @@ Status: Pass for the public home page. Signed-in intake screen disclaimer was no
 | DEF-012 | A paid subscription did not appear as active until the lawyer reloaded the profile page | Medium | FR-018 | E2E re-run while checking DEF-011, 2026-08-15 (FT-003 had regressed to a failure) | The effect that seeds the local profile snapshot depended on the `useAsync` return value, which is a new object literal on every render. It therefore re-ran after every render and overwrote the snapshot — including one just replaced by the confirmed subscription — with the response from the first load | Depend on the fetched record instead of the hook's wrapper, so the effect only re-runs when a load actually resolves | Fixed | Pass — FT-003 |
 
 | DEF-013 | The first request to the deployed API after an idle period takes up to 2.25 s, over the 2-second target | Low | NFR-006 | Performance measurement, 2026-08-15 (PERF-002) | Serverless cold start — the platform starts the function and initialises the Prisma client before serving the first request. Steady-state p50 on the same endpoint is ~0.49 s, so application work is not the cost | Not yet implemented. Options are a keep-warm ping, trimming what the function initialises at import time, and the connection pooler already recorded as TD-030 | Open | not yet completed |
+| DEF-014 | On the deployed site, submitting an enquiry through the form could hang and never return a result | High | FR-006, FR-010, NFR-003 | Browser capture of UAT-001 against the live deployment, 2026-08-15 — the form was submitted and no result page appeared within 180 s | Two settings that were never compared. `AI_REQUEST_TIMEOUT_MS` is `180000` in `.env.example` and on the deployment, while `vercel.json` caps a function at 60 s. The free-tier model is slow and variable: a live API submission measured 53.9 s (PERF-005). When the model needs longer than the platform allows, the host kills the invocation, so the fallback in `legal-triage.service.ts` — the whole reason an AI failure is survivable — never runs, and the citizen gets a gateway failure instead of an unclassified enquiry | Cap the wait in `ai-client.ts` at 25 s rather than trusting the configured value, so the fallback always has room inside the function budget, and correct `.env.example` | Fixed in code | Pass locally — UT-020. Retest on the deployment is **not yet completed**: it needs the redeploy that publishing the branch triggers |
 
 Severity: **Critical** blocks core use, deployment, or security · **High** major
 requirement broken · **Medium** workaround exists · **Low** cosmetic. Fix Critical and High
@@ -341,6 +354,7 @@ caught next time rather than found by hand again.
 | DEF-010 | Origin resolved from the Vercel host when `CLIENT_ORIGIN` is absent, production host added to the CORS list, and the Production variable corrected | Unit test on `resolveClientOrigin`; CORS probe recorded in Live deployment verification |
 | DEF-011 | The in-flight verification request held in a ref keyed by token, so a double mount cannot spend a single-use token twice | FT-006, which fails against the previous code |
 | DEF-012 | The effect depends on the resolved record rather than on the hook's wrapper object | FT-003 |
+| DEF-014 | The provider wait is bounded in code instead of by configuration, so no environment can set a value that outlives the invocation it runs inside | UT-020, plus a stated ceiling in `.env.example` and in the deployment environment table. The deeper lesson is that a timeout is only meaningful relative to the budget of whatever runs it, which is now written down where both numbers appear |
 | DEF-007, DEF-008, DEF-009, DEF-013 | No corrective action yet — all four are Low and open, with the diagnosis and intended fix recorded in the log | Deferred deliberately; none blocks a Must requirement. DEF-013 is measured by PERF-002, so a fix would have a before-and-after number |
 | Test infrastructure (not a product defect) | Integration runs migrate a per-run `test_<pid>` schema after two runs corrupted a shared one | CH-023, closing TD-009 |
 
@@ -362,8 +376,11 @@ was re-run afterwards to check for regressions. Dated outcomes:
 | DEF-010 | CORS probe of the live API; live sign-in for all three roles | 2026-08-15 | Partial — the live host is now allowed and localhost refused. A registration on the live URL with a real inbox, following the emailed link, is **not yet completed** |
 | DEF-011 | FT-006, written to fail against the previous code | 2026-08-15 | Pass |
 | DEF-012 | FT-003, which had regressed to a failure | 2026-08-15 | Pass |
+| DEF-014 | UT-020, which fails against the previous code because the configured 180 s value was used as given | 2026-08-15 | Pass locally. The deployment still runs the previous build, so the live retest — submit an enquiry through the form and see a result or a controlled fallback — is **not yet completed** |
 | Regression check after the 2026-08-15 fixes | Full server suite and the E2E suite | 2026-08-15 | Pass — see Server coverage and Frontend E2E |
 | DEF-007, DEF-008, DEF-009, DEF-013 | Not applicable — no fix has been applied | — | Open, retest not yet completed |
+
+The suite was re-run after the DEF-014 fix: 165 unit and 220 integration tests, 385 passing.
 
 ## Results summary
 
@@ -464,6 +481,7 @@ JSON, or invent a category on demand, and those are precisely the paths that mat
 | AI-TC-014 | FR-006 | Over-length description returns `422` before any AI call | Pass |
 | AI-TC-015 | FR-010 | `originalDescription` is unchanged after a fallback | Pass |
 | AI-TC-016 | FR-007 | Low-confidence result is stored and flagged, not discarded | Pass |
+| UT-020 | FR-010, NFR-003 | The provider wait is capped below the serverless function ceiling so the fallback can run (DEF-014) | Pass |
 | IT-011 | FR-006 | Submission returns the triaged intake | Pass |
 | IT-012 | FR-006 | Intake is attributed to the authenticated caller | Pass |
 | IT-013 | FR-006 | Unauthenticated submission returns `401` | Pass |
@@ -891,14 +909,17 @@ function invocation.
 | PERF-002 | NFR-006 | Live deployment, same endpoints, 20 samples each: health p50 486.5 ms / p95 2121.8 ms / max 2254.8 ms; categories 477.7 / 546.8; directory 488.8 / 525.8; search 481.9 / 511.5; lawyer detail 466.7 / 503.0 | **Partial** — steady-state p50 is ~0.5 s, but the first request after idle reached 2.25 s, over the target (DEF-013) |
 | PERF-003 | NFR-006 | Local burst, 20 concurrent directory requests: wall 447 ms, p50 406.5 ms, p95 440.3 ms, 0 non-200 | Pass — concurrency serialises but stays well inside target |
 | PERF-004 | NFR-006 | Live burst, 20 concurrent directory requests: wall 1105 ms, p50 1018.4 ms, p95 1067 ms, 0 non-200 | Pass — no failures, no connection exhaustion at this level |
+| PERF-005 | NFR-006 (AI path), FR-006 | One live enquiry submitted to the deployed API: `POST /intakes` returned 201 in **53.9 s** with a completed classification; the recommendation read that follows it returned in 2.4 s | Measured, and the number is the finding. The 2-second target excludes the AI path, but 53.9 s sits inside a 60 s function ceiling with almost no margin, which is DEF-014. One sample, not a distribution — the free-tier model's variance is exactly the risk |
 
 What this does and does not show. It shows that the query and serialisation cost of the read
 paths is negligible, that the deployed steady-state latency is dominated by network and
 platform overhead rather than by application work, and that twenty simultaneous readers cause
 no errors. It does **not** show behaviour at sustained or higher concurrency, does not touch
 the write or payment paths, and was run from a single client, so the live figures include this
-machine's connection. The AI path is deliberately excluded: it is bounded by a third-party
-provider on a free tier (CON-004, TD-002) and any single figure would misrepresent it.
+machine's connection. The AI path stays outside the 2-second target because it is bounded by a
+third-party provider on a free tier (CON-004, TD-002), and PERF-005 is one observation rather
+than a distribution — but leaving it entirely unmeasured is what allowed a 180-second provider
+wait to sit unnoticed inside a 60-second function ceiling (DEF-014, TD-038).
 
 ## Known issues and testing limitations
 
@@ -956,21 +977,21 @@ assertion, which is what was missing all three times.
 
 ## Server coverage (2026-08-15)
 
-`npm run test:coverage` in `server/` — **33 files, 384 tests, all passing**, then v8
+`npm run test:coverage` in `server/` — **33 files, 385 tests, all passing**, then v8
 report for `server/src` (excludes `src/server.ts`, the process entrypoint). Coverage
 runs unit files that mock `env.js` in a separate Vitest project from the integration
-suite so `isTest` cannot leak.
+suite so `isTest` cannot leak. Re-run after the DEF-014 fix:
 
 ```
- Test Files  33 passed (33)
-      Tests  384 passed (384)
- Duration  220.56s
-
-Statements   : 95.85% ( 1388/1448 )
+Statements   : 95.86% ( 1390/1450 )
 Branches     : 89.16% ( 963/1080 )
-Functions    : 99.64% ( 281/282 )
-Lines        : 97.38% ( 1267/1301 )
+Functions    : 99.64% ( 282/283 )
+Lines        : 97.39% ( 1269/1303 )
 ```
+
+The run before that fix, over 384 tests, reported 95.85% statements, 89.16% branches,
+99.64% functions, and 97.38% lines — the cap and its test moved statements by two lines
+and left the branch figure unchanged.
 
 Thresholds enforced in `server/vitest.coverage.config.ts` and the CI **coverage** job:
 95% statements, lines, and functions; 88% branches. Branches sit below 95% because
@@ -991,33 +1012,36 @@ under test.
 
 Testing gives good confidence in the server and limited confidence in the browser layer.
 
-As at 2026-08-15 the automated suites stand at **164 unit tests and 220 integration tests,
+As at 2026-08-15 the automated suites stand at **165 unit tests and 220 integration tests,
 all passing**, plus six Playwright flows exercising the browser against a mocked API. The
-coverage run of 2026-08-15 measured 95.85% of statements and 89.16% of branches in
+coverage run of 2026-08-15 measured 95.86% of statements and 89.16% of branches in
 `server/src`, with thresholds enforced in CI rather than merely reported, so a regression in
 coverage fails the build instead of being noticed later.
 
-Twelve defects were found and logged. Nine are fixed and retested against a named case;
-three remain open (DEF-007 and DEF-008, both consultation-state edge cases, and DEF-009, a
-layout defect in the admin table at a 1024 px viewport), and one is partial: DEF-010's code
-and configuration are both corrected and verified by probe, but a registration on the live
-URL with a real inbox has not been performed. Every open item is recorded with its cause and
-the fix it needs, not left implicit.
+Fourteen defects were found and logged. Ten are fixed and retested against a named case; four
+remain open (DEF-007 and DEF-008, both consultation-state edge cases, DEF-009, a layout defect
+in the admin table at a 1024 px viewport, and DEF-013, the deployment's cold first request), and
+two are partial: DEF-010's code and configuration are both corrected and verified by probe, but
+a registration on the live URL with a real inbox has not been performed, and DEF-014 is fixed
+and unit-tested but awaits the deployment that will carry the fix. Every open item is recorded
+with its cause and the fix it needs, not left implicit.
 
-Three defects are worth noting as evidence that the strategy worked rather than as
+Four defects are worth noting as evidence that the strategy worked rather than as
 embarrassments. DEF-011 and DEF-012 were both found by running the browser suite rather than
 the server suite, which is precisely the gap the E2E layer exists to cover: neither could
-have been caught by an API test, because both were client-side lifecycle faults. DEF-010 was
-found by probing the deployed environment rather than any local run, which is why deployment
-verification is treated as a test activity here and not as an afterthought.
+have been caught by an API test, because both were client-side lifecycle faults. DEF-010 and
+DEF-014 were found by exercising the deployed environment rather than any local run — DEF-014
+could not have been found locally at all, because the 60-second ceiling that exposes it only
+exists on the host. That is why deployment verification is treated as a test activity here and
+not as an afterthought.
 
 What testing does **not** establish is equally important. It does not show that the AI
 returns the *right* category — only that the contract around it is enforced and every
 failure mode degrades safely (TD-011). It does not cover React components in isolation
 (TD-008). Usability rests on developer walkthroughs; no independent participant has run a
-session, so NFR-004 is evidenced but not independently validated. Performance is sampled on
-the read paths (PERF-001 to PERF-004) but not load-tested, and the AI path is deliberately
-uncharacterised. A live mobile money capture at a real consultation fee has not been
+session, so NFR-004 is recorded as partially met rather than evidenced (TD-034). Performance is
+sampled on the read paths (PERF-001 to PERF-004) but not load-tested, and the AI path rests on
+one live observation (PERF-005). A live mobile money capture at a real consultation fee has not been
 performed, because the test merchant refuses amounts at that scale (TD-031).
 
 On balance the Must-priority paths — authentication, authorisation and ownership, intake

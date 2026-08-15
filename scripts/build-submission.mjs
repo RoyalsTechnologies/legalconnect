@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { Marked } from 'marked';
 import { chromium } from 'playwright-core';
@@ -102,16 +102,44 @@ function checked(value, label) {
   return value;
 }
 
+/**
+ * Rewrites relative `<img>` sources to data URIs.
+ *
+ * The print page is set from an HTML string and so has no base URL to resolve `../diagrams/...`
+ * against; left alone, an image a chapter embeds prints as a broken-image icon. Missing files
+ * throw rather than degrading quietly, because a diagram silently absent from the submission
+ * PDF is worse than a failed build.
+ */
+async function inlineImages(html, fromDir) {
+  const sources = [...html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)].map(([, src]) => src);
+  let inlined = html;
+
+  for (const src of new Set(sources)) {
+    if (/^(data|https?):/.test(src)) continue;
+    const buffer = await readFile(resolve(fromDir, src));
+    const type = src.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+    inlined = inlined.replaceAll(
+      `src="${src}"`,
+      `src="data:${type};base64,${buffer.toString('base64')}"`,
+    );
+  }
+
+  return inlined;
+}
+
 const chapters = [];
 for (const [file, title] of CHAPTERS) {
   const markdown = await readFile(join(docsDir, file), 'utf8');
-  const html = demoteHeadings(marked.parse(withoutLeadingTitle(markdown)));
+  const html = await inlineImages(
+    demoteHeadings(marked.parse(withoutLeadingTitle(markdown))),
+    docsDir,
+  );
   chapters.push({ title, html, source: `docs/${file}` });
 }
 
 const diagramDir = join(root, 'diagrams', 'exports');
 const diagrams = (await readdir(diagramDir).catch(() => []))
-  .filter((name) => name.endsWith('.png'))
+  .filter((name) => name.endsWith('.svg'))
   .sort();
 if (diagrams.length === 0) {
   throw new Error('no exported diagrams — run `npm run docs:diagrams` first');
@@ -122,36 +150,102 @@ const evidence = (await readdir(evidenceDir).catch(() => []))
   .filter((name) => name.endsWith('.png'))
   .sort();
 
-function imageFigure(directory, file, caption) {
-  const url = pathToFileURL(join(directory, file)).href;
-  return `<figure><img src="${url}" alt="${escapeHtml(caption)}"><figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+/**
+ * Gives an image a page of its own, as wide as the page allows.
+ *
+ * Two more ambitious layouts were tried and abandoned, which is worth recording because both
+ * look correct in a browser and fail in the PDF. Landscape pages for wide diagrams: Chromium
+ * shrinks the whole document to the first page's paper width once page sizes are mixed, so the
+ * wide plate printed at two-thirds scale — smaller than a portrait one. Plates sized explicitly
+ * in millimetres: scaled by the same two-thirds, for the same reason. Sizing relative to the
+ * text column is what survives, so that is what this does; wide diagrams stay upright and stay
+ * legible because they are embedded as vector artwork and a reader can zoom.
+ */
+function plate(content, caption) {
+  return `<section class="plate">
+      <figure>${content}<figcaption>${escapeHtml(caption)}</figcaption></figure>
+    </section>`;
+}
+
+/**
+ * Mermaid emits `width="100%"` with a `max-width` style, which caps the diagram at its own
+ * natural size and leaves the rest of the page empty. Strip both, and leave the height to the
+ * viewBox, so the diagram scales to the width it is given without distorting.
+ */
+function inlineSvg(markup) {
+  if (!/viewBox="([-\d.\s]+)"/.test(markup)) {
+    throw new Error('diagram SVG has no viewBox, so it cannot be scaled to fit');
+  }
+
+  const openingTag = /<svg[^>]*>/.exec(markup)?.[0] ?? '';
+  const cleaned = openingTag
+    .replace(/\s(?:width|height|style)="[^"]*"/g, '')
+    .replace('<svg', '<svg width="100%" preserveAspectRatio="xMidYMid meet"');
+
+  return { svg: markup.replace(openingTag, cleaned) };
+}
+
+/** Captions match the names the diagrams are referred to by in `diagrams/README.md`. */
+const DIAGRAM_CAPTIONS = {
+  '00-system-context': 'System context — actors, the system boundary, and every external service',
+  '01-use-cases': 'Use-case diagram — citizen, lawyer, admin, and visitor goals',
+  '02-architecture': 'Architecture — client, API, PostgreSQL, LLM provider, NaloPay',
+  '03-er-model': 'Entity-relationship model — persisted entities and relationships',
+  '04-intake-sequence': 'Sequence — AI-assisted intake, including the fallback branch',
+  '05-consultation-lifecycle': 'Activity — consultation lifecycle: booking, hold, confirm, refund',
+};
+
+function diagramCaption(file) {
+  const name = file.replace(/\.svg$/, '');
+  const caption = DIAGRAM_CAPTIONS[name];
+  if (!caption) throw new Error(`no caption for diagram ${name} — add one to DIAGRAM_CAPTIONS`);
+  return caption;
+}
+
+/** `uat-004-accepted-request.png` reads as "UAT-004 — accepted request". */
+function evidenceCaption(file) {
+  const name = file.replace(/\.png$/, '');
+  const match = /^uat-(\d+)-(.+)$/.exec(name);
+  return match ? `UAT-${match[1]} — ${match[2].replace(/-/g, ' ')}` : name.replace(/-/g, ' ');
+}
+
+const diagramPlates = [];
+for (const file of diagrams) {
+  const { svg } = inlineSvg(await readFile(join(diagramDir, file), 'utf8'));
+  diagramPlates.push(plate(svg, diagramCaption(file)));
 }
 
 chapters.push({
   title: 'Appendix A — Diagrams',
   source: 'diagrams/',
   html: `<p>Rendered from the Mermaid sources in <code>diagrams/</code> by
-    <code>npm run docs:diagrams</code>.</p>${diagrams
-      .map((file) =>
-        imageFigure(
-          diagramDir,
-          file,
-          file
-            .replace(/\.png$/, '')
-            .replace(/^\d+-/, '')
-            .replace(/-/g, ' '),
-        ),
-      )
-      .join('')}`,
+    <code>npm run docs:diagrams</code>. Each diagram is embedded as vector artwork on a page of
+    its own, so it stays sharp at any zoom; the sources and the PNG renders travel with the
+    package in <code>Supporting_Files/diagrams/</code>.</p>${diagramPlates.join('')}`,
 });
 
 if (evidence.length > 0) {
+  const evidencePlates = [];
+  for (const file of evidence) {
+    // Data URI, not a file:// URL: the print page is set from a string, so it has no base to
+    // resolve a local path against and the screenshots printed as broken-image icons.
+    const buffer = await readFile(join(evidenceDir, file));
+    const caption = evidenceCaption(file);
+    evidencePlates.push(
+      plate(
+        `<img src="data:image/png;base64,${buffer.toString('base64')}" alt="${escapeHtml(caption)}">`,
+        caption,
+      ),
+    );
+  }
+
   chapters.push({
     title: 'Appendix B — User acceptance testing evidence',
     source: 'docs/uat-evidence/',
-    html: `<p>Screenshots captured during the UAT runs recorded in the testing report.</p>${evidence
-      .map((file) => imageFigure(evidenceDir, file, file.replace(/\.png$/, '').replace(/-/g, ' ')))
-      .join('')}`,
+    html: `<p>Screenshots captured during the UAT runs recorded in the testing report, one to a
+      page at the size they were taken. UAT-004 and UAT-005 are from run 2 against the local
+      stack; UAT-001, UAT-002, and UAT-006 are from run 3 against the deployed
+      site.</p>${evidencePlates.join('')}`,
   });
 }
 
@@ -178,7 +272,15 @@ const styles = `
   blockquote { margin: 0 0 3mm; padding-left: 4mm; border-left: 3px solid #d6d9e0; color: #4a4f5a; }
   figure { margin: 0 0 6mm; page-break-inside: avoid; text-align: center; }
   figure img { max-width: 100%; max-height: 210mm; border: 1px solid #e3e5ea; border-radius: 3px; }
-  figcaption { font-size: 9pt; color: #565c68; margin-top: 2mm; text-transform: capitalize; }
+  figcaption { font-size: 9pt; color: #565c68; margin-top: 2mm; }
+
+  /* One image to a page, at the page edge rather than the text margin. Named pages let a wide
+     diagram print landscape while the rest of the document stays portrait. */
+  .plate { page-break-before: always; page-break-after: always; }
+  .plate figure { margin: 0; }
+  .plate figure > svg, .plate figure > img { width: 100%; height: auto; max-height: 235mm; object-fit: contain; }
+  .plate figure > img { border: 1px solid #e3e5ea; border-radius: 3px; }
+  .plate figcaption { flex: 0 0 auto; margin-top: 3mm; font-size: 9.5pt; }
   a { color: #14449b; text-decoration: none; word-break: break-word; }
   hr { border: none; border-top: 1px solid #d6d9e0; margin: 6mm 0; }
 

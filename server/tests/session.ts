@@ -1,5 +1,26 @@
+import type { Response } from 'supertest';
 import { signToken } from '../src/lib/jwt.js';
 import { prisma } from './setup.js';
+
+/**
+ * Reads a token out of a registration or sign-in response, refusing to hand on `undefined`.
+ *
+ * A fixture that passes a missing token into the next request produces a `401` against
+ * whatever that request was testing, which is a report about the wrong endpoint. Failing
+ * here instead names the response that actually went wrong — the diagnostic TD-033 has
+ * been missing at every occurrence.
+ */
+export function tokenFrom(response: Response, what: string): string {
+  const token: unknown = response.body?.token;
+
+  if (typeof token !== 'string' || token.length === 0) {
+    throw new Error(
+      `${what} returned no token: status ${response.status}, body ${JSON.stringify(response.body)}`,
+    );
+  }
+
+  return token;
+}
 
 /**
  * Mints a session for an existing account without posting to `/auth/login`.
