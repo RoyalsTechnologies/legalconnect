@@ -87,12 +87,14 @@ tick one without running it.
       them are marked **sensitive**, so `vercel env pull` returns `"[SENSITIVE]"` rather than
       values — the connection string cannot be recovered from Vercel and has to come from
       Supabase when seeding from a workstation
-- [ ] `CLIENT_ORIGIN` points at the live host — it does not. A CORS probe on 15 Aug 2026
-      showed the deployed API allowing `http://localhost:5173` and refusing its own host, so
-      the value is the local development origin and every emailed confirmation link from the
-      live site pointed at localhost (DEF-010). The API now falls back to the Vercel host
-      when the variable is *absent*, but a wrong value still wins: the Production variable
-      has to be corrected and the project redeployed
+- [x] `CLIENT_ORIGIN` points at the live host — corrected on 15 Aug 2026. It previously
+      carried the local development origin, so every emailed confirmation link from the live
+      site pointed at localhost (DEF-010): a CORS probe showed the API allowing
+      `http://localhost:5173` and refusing its own host. The Production variable was replaced
+      with `https://legalconnect-beryl.vercel.app` and the project redeployed; the same probe
+      now returns `access-control-allow-origin: https://legalconnect-beryl.vercel.app` and no
+      header for the localhost origin. The API also falls back to the Vercel host if the
+      variable is ever absent again
 - [x] Database connection works — `/api/health` returns `{"status":"ok","database":"connected"}`
 - [x] Migrations applied — table queries return empty result sets rather than errors
 - [x] API endpoints work — `/api/health`, `/api/v1/categories`, `/api/v1/lawyers` all respond
