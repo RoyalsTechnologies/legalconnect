@@ -55,7 +55,7 @@ No microservices, message brokers, Redis, Kubernetes, vector databases, or addit
 datastores. If you believe one is genuinely required, raise it before adding it.
 
 Deployment target is **Vercel** (static Vite build + one Express Function) plus hosted
-PostgreSQL. See `docs/06-deployment.md`. A live URL is not yet deployed.
+PostgreSQL. See `docs/06-deployment.md`. Live at <https://legalconnect-beryl.vercel.app>.
 
 ## Repository layout
 
@@ -100,6 +100,10 @@ not run.
 | Build | `npm run build` |
 | Lint + format | `npm run check:fix` (repo root, Biome) |
 | Full quality gate | `npm run verify` (repo root) |
+| Measure read-path latency | `npm run measure:latency -- <baseUrl> <samples>` (NFR-006 evidence) |
+| Capture UAT screenshots | `npm run capture:uat -- <baseUrl> <email> <password> [intakeId]` (writes `docs/uat-evidence/`) |
+| Render diagrams | `npm run docs:diagrams` (Mermaid → `diagrams/exports/`) |
+| Build submission package | `npm run docs:submission` (five PDFs + links file + `Supporting_Files/` in `submission/`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit, integration, coverage) |
 
 Run `npm run verify` from the root before considering a phase complete — it runs Biome,

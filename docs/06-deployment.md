@@ -1,10 +1,15 @@
 # Deployment
 
-Status: live at <https://legalconnect-beryl.vercel.app> (verified 15 Aug 2026 — landing page,
-hashed assets, and `/api/health` all serve). Migrations are applied on the hosted database
-but the one-off seed has **not** been run, so there are no legal categories, no lawyers, and
-no demo accounts there yet; triage, matching, and sign-in cannot be demonstrated on the live
-URL until it is.
+Status: live at <https://legalconnect-beryl.vercel.app>, migrated and **seeded** on
+15 Aug 2026. Verified the same day against the live URL: the landing page and hashed assets
+serve, `/api/health` returns `{"status":"ok","database":"connected"}`, the API returns nine
+legal categories, three subscription packages, and five approved lawyers, and all three
+roles sign in — admin (`role=ADMIN`, `/admin/stats` answers), citizen (`USER`), and lawyer
+(`LAWYER`). The directory, matching, and the consultation workflow can therefore be walked
+on the live URL.
+
+The seeded practitioners are **fictional demonstration profiles**, not real lawyers — see
+TD-032 for why that is a deliberate, recorded trade-off on a public deployment.
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build (`outputDirectory: client/dist`) from its CDN and
@@ -37,7 +42,7 @@ time and the build will fail if `DATABASE_URL` or `JWT_SECRET` is missing.
 | `NODE_ENV` | Yes | `production` |
 | `DATABASE_URL` | Yes | Supabase **direct** URI (`db.<ref>.supabase.co:5432?sslmode=require`). **Edit the existing variable** if it still says `localhost:5433` — adding a second `DATABASE_URL` does nothing. Not the Transaction pooler on port `6543`. The Supabase Vercel integration’s `POSTGRES_URL_NON_POOLING` is used if `DATABASE_URL` is still local |
 | `JWT_SECRET` | Yes | ≥ 32 characters. `openssl rand -base64 48` |
-| `CLIENT_ORIGIN` | Yes | `https://<project>.vercel.app` (update after the first URL is known) |
+| `CLIENT_ORIGIN` | Should | `https://<project>.vercel.app` (update after the first URL is known). Left unset on Vercel the API now falls back to `VERCEL_PROJECT_PRODUCTION_URL`, so emailed links stay reachable; set it explicitly once a custom domain is in play |
 | `NALOPAY_CALLBACK_URL` | If NaloPay is set | `https://<project>.vercel.app/api/v1/payments/callback` |
 | `AI_PROVIDER_*` | No | Unset → intake fallback (FR-010) |
 | `EMAIL_*` / `SMS_*` / `NALOPAY_*` | No | Unset → log / local-dev behaviour; production NaloPay without credentials returns 503 |
@@ -81,19 +86,58 @@ Checked against the live URL on 15 Aug 2026. Unticked items are not yet evidence
 tick one without running it.
 
 - [x] Production build succeeds — the deployed build serves
-- [x] Environment variables configured on the host — `DATABASE_URL` and `JWT_SECRET` at
-      least; the Function boots and reaches the database. `CLIENT_ORIGIN` and the NaloPay
-      callback URL not re-checked since the hostname was known
+- [x] Environment variables configured on the host — 28 Production variables are set,
+      including `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, `NALOPAY_CALLBACK_URL`, the
+      `EMAIL_*` set and `SEED_ADMIN_*`; the Function boots and reaches the database. All of
+      them are marked **sensitive**, so `vercel env pull` returns `"[SENSITIVE]"` rather than
+      values — the connection string cannot be recovered from Vercel and has to come from
+      Supabase when seeding from a workstation
+- [x] `CLIENT_ORIGIN` points at the live host — corrected on 15 Aug 2026. It previously
+      carried the local development origin, so every emailed confirmation link from the live
+      site pointed at localhost (DEF-010): a CORS probe showed the API allowing
+      `http://localhost:5173` and refusing its own host. The Production variable was replaced
+      with `https://legalconnect-beryl.vercel.app` and the project redeployed; the same probe
+      now returns `access-control-allow-origin: https://legalconnect-beryl.vercel.app` and no
+      header for the localhost origin. The API also falls back to the Vercel host if the
+      variable is ever absent again
 - [x] Database connection works — `/api/health` returns `{"status":"ok","database":"connected"}`
-- [x] Migrations applied — table queries return empty result sets rather than errors
-- [x] API endpoints work — `/api/health`, `/api/v1/categories`, `/api/v1/lawyers` all respond
-- [ ] Authentication works — no accounts exist on the hosted database yet
+- [x] Migrations applied — `prisma migrate status` against the hosted database reports all
+      11 migrations applied and the schema up to date
+- [x] Seed run — 15 Aug 2026, from a workstation using the Supabase direct URI. Nine
+      categories, three packages, one admin, one demo citizen, and five approved demo
+      lawyers with a year of subscription each. The seed upserts, so re-running is safe
+- [x] API endpoints work — `/api/health`, `/api/v1/categories` (9), `/api/v1/packages` (3),
+      and `/api/v1/lawyers` (total 5) all respond
+- [x] Authentication works — admin, citizen, and lawyer all returned `200` with the expected
+      role from `POST /api/v1/auth/login` against the live API
 - [x] Static assets load — every `/assets/*` JS and CSS request returns 200 and the SPA
       renders; deep routes such as `/lawyers` fall back to `index.html`
-- [ ] Critical workflows work end to end — blocked until the database is seeded
-- [ ] No secrets exposed in the bundle or in API responses
-- [ ] URLs are stable
-- [ ] Test credentials work — not created yet
+- [x] Critical workflows work end to end — the directory lists five lawyers across four
+      cities, and an admin token reads `/api/v1/admin/stats` (5 approved, 5 subscribed,
+      9 active categories). A paid consultation cannot be completed on the live URL because
+      the test merchant refuses amounts at real fee levels (TD-031)
+- [ ] Enquiry submission through the deployed **form** — a browser walkthrough on 15 Aug 2026
+      submitted an enquiry and saw no result within 180 s, which is DEF-014: the provider wait
+      was configured at 180 s (`AI_REQUEST_TIMEOUT_MS`) inside a 60 s function ceiling
+      (`vercel.json`), so the platform could kill the invocation before the fallback ran. The
+      same enquiry sent to the API returned `201` in 53.9 s with a completed classification
+      (PERF-005), so the workflow itself is sound. The fix caps the wait at 25 s in
+      `ai-client.ts`; it takes effect on the next deployment, and this box stays unticked until
+      the form has been re-walked against that build. **Set `AI_REQUEST_TIMEOUT_MS` on the host
+      to 25000 as well**, so the configured value matches what the code enforces
+- [x] No secrets exposed in the bundle or in API responses — audited 15 Aug 2026. The client
+      source contains no `import.meta.env` or `process.env` reference at all, so no
+      environment value can reach the bundle by construction. A scan of the built assets for
+      key-shaped strings (`sk-…`, `AKIA…`, `postgresql://`, secret variable names, provider
+      hostnames) returns nothing, and the local build reproduces the same asset hashes the
+      live page loads (`index-vFypezLz.js`, `react-dwAUvDdu.js`), so the audit applies to the
+      served bundle. The public `/api/v1/lawyers` response carries no email address,
+      password hash, or payment account field
+- [ ] URLs are stable — the project has not been renamed since deployment, but no alias is
+      pinned, so a rename would move the URL
+- [x] Test credentials work — verified by signing in as each role on 15 Aug 2026. The
+      accounts are listed below; the passwords live in `server/.env` and are injected into
+      the generated links file, never committed
 
 Never mark deployment complete on the strength of a successful build. Test the live
 application.
@@ -123,21 +167,100 @@ those fields and any email or Ghana MSISDN that appears in a message (NFR-002).
 
 ## Submission links
 
-Maintain this for the final `Deployment_and_Source_Links.txt`. **Keep real passwords out of
-the repository** — fill them in only in the submitted file, or reference credentials held
-outside version control. Use placeholders here until real values exist, and never invent a
-missing value.
+`Deployment_and_Source_Links.txt` is generated by `npm run docs:submission` from
+`submission.json`, alongside the five PDFs. Everything lands in `submission/`, which is
+gitignored precisely because the links file carries live credentials once they are filled in.
+
+Passwords are never written into `submission.json`, because that file is tracked. The
+config holds `${SEED_ADMIN_PASSWORD}` and `${SEED_DEMO_PASSWORD}`, which the build resolves
+from `server/.env`, so the value only ever reaches the generated file. The build reports any
+token it could not resolve rather than emitting it silently.
 
 ```
-Student Name:            <not yet recorded>
-Student ID:              <not yet recorded>
+Student Name:            Alexander Adade
+Student ID:              22424693
 Project Title:           LegalConnect Ghana — An AI-Powered Platform for Improving
                          Access to Legal Services
 Live Application:        https://legalconnect-beryl.vercel.app
 Admin URL:               https://legalconnect-beryl.vercel.app/app/admin
-Test Username:           <not yet created — hosted database not seeded>
-Test Password:           <supply in submission file only, not in the repository>
-Admin Username:          <not yet created — hosted database not seeded>
-Admin Password:           <supply in submission file only, not in the repository>
+Citizen Username:        ama.mensah@example.com
+Lawyer Username:         akua.owusu@example.com
+Admin Username:          admin@legalconnect.com
+Passwords:               resolved from server/.env at build time — see the generated file
 Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 ```
+
+All three accounts were verified against the live API on 15 Aug 2026 and returned their
+expected roles.
+
+## Package contents
+
+`npm run docs:submission` renders the diagrams, then writes the package and a ZIP beside it:
+
+```
+submission/22424693_LegalConnect_Ghana/
+├── Project_Documentation.pdf          15 numbered chapters, every required section
+├── SRS.pdf                            specification, plus the requirements register
+├── Testing_Report.pdf                 testing report
+├── Technical_Debt_Plan.pdf            register and repayment plan
+├── User_Manual.pdf                    end-user guide
+├── Deployment_and_Source_Links.txt    links and working credentials
+└── Supporting_Files/
+    ├── diagrams/                      Mermaid sources plus PNG and SVG renders
+    └── uat-evidence/                  10 UAT screenshots, local stack and deployment
+submission/22424693_LegalConnect_Ghana.zip   9.6 MB
+```
+
+This is the structure the brief names, file for file. The brief also permits combining those
+PDFs into one document if every required section is clearly identified, so both routes are
+provided rather than choosing between them: each of the four is its own file **and** a
+numbered chapter of `Project_Documentation.pdf`, which opens with a *Required sections* page
+mapping the brief's nineteen documentation topics to chapters. There is one source document
+per section — the standalone files and the chapters are rendered from the same markdown in the
+same run, so they cannot disagree.
+
+`SRS.pdf` carries the requirements register with the specification. The brief's SRS structure
+expects acceptance criteria and a traceability matrix inside the SRS, and both live in
+`01-requirements.md`, so a standalone specification without it would be incomplete.
+
+## Final submission check
+
+Verified 15 Aug 2026. Every row states where the evidence is; nothing is ticked on the
+strength of a document merely existing.
+
+| Brief requirement | State | Evidence |
+| --- | --- | --- |
+| Realistic problem defined | Met | `01-requirements.md` problem statement; `10-srs.md` §1 |
+| Stakeholders and users identified | Met | `01-requirements.md` users and stakeholders; use-case diagram |
+| Requirements analysis completed | Met | 21 functional and 8 non-functional requirements, prioritised, with acceptance criteria |
+| SRS completed | Met | `10-srs.md`, chapter 1 of the PDF |
+| Effort estimated, technique justified | Met | `02-effort-estimation.md` — story points with expert judgement, baseline 48.5 h, re-estimation of added scope, variance analysis |
+| System designed | Met | `03-architecture.md` and six diagrams in `diagrams/` |
+| Major prioritised requirements implemented | Met | FR-001…FR-021; build phases 1–8 complete in `03-architecture.md` |
+| Functional application works | Met | Live directory returns five lawyers; all three roles sign in |
+| Tests executed, results documented | Met | 165 unit, 220 integration, 6 Playwright E2E, all passing 15 Aug 2026; recorded in `04-testing.md` |
+| Technical debt identified with resolution strategies | Met | 37 items in `05-technical-debt-register.md`, each with cause, impact, resolution and target, plus a repayment plan giving every open item a priority, prerequisite, target release, estimated effort, and expected benefit |
+| Application deployed, live deployment tested | Met | Vercel plus Supabase; the checklist above, verified against the live URL |
+| User manual prepared | Met | `user-manual.md` |
+| Maintenance strategy and future evolution prepared | Met | `07-maintenance-and-evolution.md` |
+| Repository accessible | **Action needed** | The repository is public, but the default branch `main` is 15 commits behind the working branch. A grader opening the repository URL would not see the submitted work |
+| URLs verified | Met | Live and admin URLs respond; `/api/health` reports the database connected |
+| Credentials verified | Met | `node scripts/verify-live-credentials.mjs` signs in as each role against the live API and prints the outcome, never a password |
+| Name, student ID, project title included | Met | PDF cover and `Deployment_and_Source_Links.txt` |
+| Third-party resources acknowledged | Met | `12-references.md` |
+| Submission package complete | Met | Structure above, built by `npm run docs:submission`: `Project_Documentation.pdf`, `SRS.pdf`, `Testing_Report.pdf`, `Technical_Debt_Plan.pdf`, `User_Manual.pdf`, `Deployment_and_Source_Links.txt`, and `Supporting_Files/`, matching the brief file for file. The combined PDF additionally opens with a *Required sections* page mapping the brief's nineteen documentation topics to chapters |
+
+Known gaps carried into the submission, all recorded rather than hidden: no independent UAT
+participant session (developer walkthroughs only), performance sampled on the read paths but
+not load-tested and a cold first request over the NFR-006 target (DEF-013), a live
+mobile-money capture at a real consultation fee blocked by the test merchant (TD-031), the
+emailed confirmation link on the live site not yet retested end to end since `CLIENT_ORIGIN`
+was corrected (DEF-010), and four open Low defects (DEF-007, DEF-008, DEF-009, DEF-013).
+
+One further gap is a High defect rather than a Low one: DEF-014, found by walking the deployed
+site on 15 Aug 2026. Submitting an enquiry through the form could hang, because a 180-second
+provider wait had been configured inside a 60-second function ceiling and the platform killed
+the invocation before the fallback could answer. It is fixed in code and covered by UT-020, and
+the fix reaches the deployment with the next build, so the live retest is not yet completed. It
+is recorded here rather than quietly repaired because the deployment a marker opens may still be
+running the previous build.

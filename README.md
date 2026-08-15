@@ -23,8 +23,9 @@ web interface: registration and login, AI-assisted intake with a safe fallback,
 deterministic lawyer matching with visible reasons, a filterable lawyer directory, the
 consultation request workflow, and administration.
 
-Not yet done: deployment to a hosting platform (phase 10). Developer UAT against the local
-stack was run on 2026-08-13; independent participant UAT is not yet completed.
+Deployed and reachable at <https://legalconnect-beryl.vercel.app>. Developer UAT against the
+local stack was run on 2026-08-13 and extended on 2026-08-15; independent participant UAT is
+not yet completed.
 The AI provider key is unset by default, so triage takes the fallback path until one is
 configured — the intake and consultation flow works either way, which is the point of
 building it that way. See [docs/03-architecture.md](docs/03-architecture.md) for the phase
@@ -158,6 +159,7 @@ Send the returned `token` as `authorization: Bearer <token>`.
 | Unit tests | `server/` | `npm run test:unit` |
 | Integration tests | `server/` | `npm run test:integration` |
 | Frontend E2E | root or `client/` | `npm run test:e2e` |
+| Measure read-path latency | root | `npm run measure:latency -- <baseUrl> <samples>` |
 | Typecheck | either | `npm run typecheck` |
 | Build | either | `npm run build` |
 | CI | GitHub | `.github/workflows/ci.yml` |
@@ -190,8 +192,10 @@ Integration starts its own Postgres 16 service. Frontend E2E is local-only
 Hosting is Vercel (`vercel.json`): the Vite build in `client/dist` is served from the CDN
 and `/api/*` is rewritten to the Express Function at `api/index.js`. Create a hosted
 Postgres, set the variables in `docs/06-deployment.md`, then deploy. Live at
-<https://legalconnect-beryl.vercel.app>; that database is migrated but not yet seeded, so
-sign-in and matching only work locally for now.
+<https://legalconnect-beryl.vercel.app>, migrated and seeded on 15 Aug 2026: the directory,
+matching, and sign-in for all three roles were verified there. The practitioners shown are
+fictional demonstration profiles (TD-032), and a live payment still cannot be completed
+because the test merchant caps the amount (TD-031).
 
 Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 
@@ -221,14 +225,32 @@ diagrams/  design diagrams
 
 | Document | Contents |
 | --- | --- |
-| [docs/01-requirements.md](docs/01-requirements.md) | FR-001–FR-015, NFRs, acceptance criteria, traceability |
-| [docs/02-effort-estimation.md](docs/02-effort-estimation.md) | Estimation technique and MVP estimate |
+| [docs/01-requirements.md](docs/01-requirements.md) | FR-001–FR-021, NFRs, acceptance criteria, traceability |
+| [docs/02-effort-estimation.md](docs/02-effort-estimation.md) | Estimation technique, estimate, and actuals |
 | [docs/03-architecture.md](docs/03-architecture.md) | Architecture, data model, ADRs, phase plan |
-| [docs/04-testing.md](docs/04-testing.md) | Test strategy and cases |
+| [docs/04-testing.md](docs/04-testing.md) | Test strategy, cases, results, defects |
 | [docs/05-technical-debt-register.md](docs/05-technical-debt-register.md) | Debt register and repayment plan |
+| [docs/06-deployment.md](docs/06-deployment.md) | Deployment configuration, steps, and live verification |
+| [docs/07-maintenance-and-evolution.md](docs/07-maintenance-and-evolution.md) | Maintenance strategy, future evolution, limitations |
+| [docs/10-srs.md](docs/10-srs.md) | Software Requirements Specification |
+| [docs/11-conclusion.md](docs/11-conclusion.md) | Project conclusion |
+| [docs/12-references.md](docs/12-references.md) | References and acknowledgements |
+| [docs/13-implementation.md](docs/13-implementation.md) | Implementation — modules, workflows, algorithms, security, deviations |
+| [docs/user-manual.md](docs/user-manual.md) | End-user guide, common errors, troubleshooting |
+
+The full index, including the process playbook and the estimation and testing detail, is in
+[docs/README.md](docs/README.md).
+
+## Contributing
+
+Commit continuously, one logical change at a time, using a Conventional Commits prefix and a
+scope: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:` — for example
+`feat(auth): add lawyer role guard` or `test(matching): cover the tie-break order`. Run
+`npm run verify` from the repository root before a change is considered complete; it runs
+Biome, both typechecks, the test suites, and the dependency audit. Never rewrite history to
+make the work look more extensive than it was.
 
 ## Acknowledgements
 
-Third-party frameworks, libraries, and services used are listed in
-[docs/00-exam-brief.md](docs/00-exam-brief.md#references-and-acknowledgements) and will be
-finalised in the submission documentation.
+Every third-party framework, library, API, and service used is acknowledged in
+[docs/12-references.md](docs/12-references.md).

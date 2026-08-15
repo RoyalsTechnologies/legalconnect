@@ -94,8 +94,8 @@ privacy notice, and evaluate a self-hosted or in-region model.
 ### TD-008 — Targeted rather than broad test coverage
 
 **Cause:** E-13 budgets 4.5 hours; broad coverage was estimated near 12.
-**Impact:** Server `src/` is now measured at **96.3% statements / 97.48% lines / 99.61%
-functions / 89.42% branches** (`npm run test:coverage`, 2026-08-13, 358 tests). Remaining
+**Impact:** Server `src/` is measured at **95.86% statements / 97.39% lines / 99.64%
+functions / 89.16% branches** (`npm run test:coverage`, 2026-08-15, 385 tests). Remaining
 server gaps are env-gated mail paths and defensive catches. **The React client still has
 no component tests**, so isolated UI regressions would not be caught. Playwright E2E
 covers landing, citizen intake, and lawyer plan payment against a mocked `/api/v1`.
@@ -104,7 +104,7 @@ covers landing, citizen intake, and lawyer plan payment against a mocked `/api/v
 `docs/04-testing.md`.
 **Target:** v1.1 · **Related:** All, `server/tests/`, `client/src/`
 
-### TD-009 — Tests share one database schema and run sequentially
+### TD-009 — Tests share one database schema and run sequentially (resolved)
 
 **Cause:** Phase 2 test setup truncates a shared `test` schema before each test, so
 `fileParallelism` is disabled to stop parallel workers truncating each other's data.
@@ -115,12 +115,17 @@ because the schema is shared across processes as well as across workers. Measure
 respectively, against 0 when either runs alone. The failures are unique-constraint
 collisions on seeded emails and rows vanishing mid-test, and they present as authorization
 and validation failures, which is thoroughly misleading — the first instinct on seeing
-`SEC-LG-001` fail is to go looking for an access-control bug that is not there.
-**Priority:** Medium · **Category:** testing · **Status:** Accepted, with a caveat
-**Resolution:** Give each run its own schema keyed by process id or `VITEST_WORKER_ID`, or
-wrap each test in a transaction and roll back instead of truncating. Until then, never run
-`npm test` and `npm run verify` concurrently, and treat a sudden burst of unrelated
-failures as a suspected overlap before believing it.
+`SEC-LG-001` fail is to go looking for an access-control bug that is not there. It recurred
+on 2026-08-15 during editing, costing two runs (108 then 112 failures) before the signature
+was recognised again — `seedPackages()` counting zero rows and then colliding on a unique
+name, truncated admin rows reappearing as duplicate emails.
+**Priority:** Medium · **Category:** testing · **Status:** **Resolved**
+**Resolution:** `tests/global-setup.ts` now migrates a per-run schema, `test_<pid>`, exported
+to the workers as `LC_TEST_SCHEMA` and dropped on teardown, so overlapping runs no longer
+share tables. Verified 2026-08-15 by starting two suites in the same second: 23 and 53 tests,
+both green, where the shared schema previously produced ~52 failures each. The suite still
+runs serially within a run (`fileParallelism: false`), which remains the speed cost; a crashed
+run can leave one `test_<pid>` schema behind.
 **Target:** v1.1 · **Related:** `server/tests/`, `server/vitest.config.ts`
 
 ### TD-010 — Password reset and email verification (resolved)
@@ -333,8 +338,11 @@ collects one month or a yearly equivalent (12 × the current monthly fee) when t
 pays; there is no mandate, webhook-driven renewal, or dunning. Admins can grant a period
 for the demo.
 **Impact:** A lapsed plan silently removes the lawyer from the directory and matching.
-Upgrading or downgrading does not credit unused days. There is no yearly discount — a year
-is exactly twelve monthly fees. Platform subscription fees are not invoiced.
+Changing plan carries unused days over — the purchased term is added to whatever is left —
+but their *value* is not prorated, so a lawyer who upgrades gets the larger plan for days
+bought at the smaller price, and one who downgrades keeps the cheaper plan for days bought
+at the dearer price. There is no yearly discount — a year is exactly twelve monthly fees.
+Platform subscription fees are not invoiced.
 **Priority:** Medium for production · **Category:** functionality · **Status:** Accepted
 **Resolution:** Recurring mobile-money or card mandates; reminder before period end;
 proration; receipts; optional yearly discount.
@@ -388,6 +396,211 @@ Do not add another datastore. The exam deploy uses the Supabase direct URI as
 `DATABASE_URL` so migrate and the Function share one connection string.
 **Target:** v1.1 · **Related:** NFR-008, CON-002
 
+### TD-031 — Live mobile-money capture is unverified at real consultation fees
+
+**Cause:** The only NaloPay merchant available is the test merchant on
+`nalopaytest.nalosolutions.com`. Probed on 2026-08-15 from inside the server container, it
+accepts collections of GH₵ 0.10 to GH₵ 5.00 (`201 PAY-CRTD-0055`, with an `order_id`) and
+rejects GH₵ 6.00 and above with `400 PAY-INVAL-0058`, "Invalid value for amount" (re-probed
+2026-08-15 with the amount as a two-decimal string, a bare string, and a JSON number — all
+three are refused identically, so the ceiling is the value, not the format). Demo
+consultation fees are GH₵ 150–300, so a real fee cannot be collected there. Two further
+blockers are independent of the cap: the demo MSISDN is fictional, so nobody can approve the
+prompt, and the callback cannot reach `localhost` (TD-025).
+**Impact:** UAT-003 can demonstrate booking, the payload and `trans_hash` being accepted,
+and the pending prompt, but not a completed live capture at a real fee. Capture in a
+walkthrough therefore relies on the credentials-unset path, which logs and marks paid. A
+production deployment carrying these test credentials would reject every real consultation
+fee with a 422, so the merchant has to be swapped before the payment path handles money.
+**Priority:** High for production · **Category:** integration · **Status:** Accepted
+**Resolution:** A live merchant account with a normal transaction ceiling, a public callback
+URL, and one end-to-end capture approved on a real handset. Until then do not describe live
+payment as verified.
+**Target:** v1.1 · **Related:** FR-017, TD-025, UAT-003
+
+### TD-032 — Fictional practitioners are published on the public deployment
+
+**Cause:** The examination requires a deployed application an examiner can walk through, and
+the directory, matching, and consultation flows are empty without lawyers. The hosted
+database was therefore seeded on 2026-08-15 with `SEED_DEMO_DATA=true`, creating five
+`APPROVED` fictional lawyer profiles with a shared, known password — the exact thing the
+seed script's own comment warns against doing outside local demonstration.
+**Impact:** The live URL is public. A member of the public who finds it sees five invented
+practitioners presented the same way a real one would be, and could send a consultation
+request that no lawyer will ever read. The shared demo password also means any visitor who
+guesses it can sign in as one of those lawyers. This is a deliberate trade-off for
+assessability, not an oversight, and it is the one place where the deployed system is
+knowingly misleading.
+**Priority:** Medium · **Category:** data · **Status:** Accepted for the examination window
+**Resolution:** Three options in order of preference. Take the deployment down or restrict it
+once assessed; or replace the demo seed with real, verified practitioners who have consented;
+or mark demonstration profiles with a flag the interface renders as a visible notice, so no
+visitor can mistake one for a real lawyer. Do not leave it as it stands beyond assessment.
+**Target:** immediately after assessment · **Related:** FR-004, FR-011, CON-003,
+`server/prisma/seed.ts`
+
+### TD-033 — The integration suite fails a test occasionally, as if fresh data were missing
+
+**Cause:** Unknown. On 2026-08-15 the suite failed intermittently in a way that looks like
+recently written rows not being visible to the request that follows. Three occurrences, all
+in otherwise green runs of 220 tests:
+
+| Run | Test | Symptom |
+| --- | --- | --- |
+| 13:59 | `subscriptions.test.ts`, admin creates a package | `expected 401 to be 201` |
+| reproduction, run 1 of 3 | `lawyers.test.ts`, IT-025 | `expected 401 to be 200` |
+| after the fixture change, run 4 of 4 | `matching.test.ts` and `subscriptions.test.ts` IT-056 | `expected 404 to be 200` |
+| pre-submission `npm run verify` | `consultations.test.ts`, `seedIntake` | Prisma: `Argument 'client' is missing` |
+| the `verify` immediately after | `subscriptions.test.ts` IT-073 | `expected undefined to equal { … }` on `GET /lawyers/me` |
+| the `verify` after that | `consultations.test.ts` SEC-LG-023 | `expected 401 to be 404` |
+
+The first two shared a cause and are addressed: both fixtures minted their session by posting
+to `/auth/login`, so a sign-in that returned no token surfaced as a 401 against an unrelated
+endpoint. Fixtures now sign tokens directly (`tests/session.ts`) and no 401 of this kind has
+appeared since.
+
+The fourth occurrence, in the pre-submission `npm run verify`, exposed the same *shape* of
+mistake in a place CH-025 had not looked. `seedIntake` called `GET /users/me` to learn the id
+its token already carried, so one unsuccessful response left `clientId` undefined and Prisma
+reported a missing argument — again in a test of something else entirely. The three fixtures
+doing this (`consultations`, `matching`, `nalopay-http`, plus one inline case in
+`subscriptions`) now read the id from the token with `verifyToken`. Tests that genuinely
+exercise `/users/me`, in `auth.test.ts`, `admin.test.ts`, and `error-handling.test.ts`, still
+call it.
+
+A sixth run failed at `consultations.test.ts` SEC-LG-023 with `expected 401 to be 404` — a
+`requireAuth` rejection where the test was checking an ownership rule. The fixtures that build
+a citizen still register over HTTP and took `res.body.token` on trust, so a registration that
+did not return one handed `Bearer undefined` to the next request. Those six fixtures now go
+through `tokenFrom`, which throws naming the status and body of the registration response
+instead of passing a missing token forward.
+
+The fifth occurrence, on the run before, was an assertion rather than a fixture: a `GET
+/lawyers/me` whose body lacked `paymentAccount`. Because the test read `.body` without first
+checking `.status`, the failure was reported as `expected undefined to equal { … }` — which
+says nothing about whether the request was refused, empty, or answered with something else
+entirely. The three assertions of that shape now check the status first. That does not fix the
+intermittent; it makes the next occurrence say what actually happened, which is the diagnostic
+this entry has been missing every time.
+
+Three of the six are now explained and closed at source. The third occurrence (the `404`) and
+the fifth remain unexplained in cause, and the sixth is only *diagnosable* rather than fixed:
+if a registration fails again the suite will now say so, but nothing yet says why one would.
+The suite is **not** proven clean. The full gate ran green after these changes — 164 unit, 220
+integration, both typechecks, lint, and audit — which is one clean gate, not a demonstration
+of stability across runs.
+
+The pattern behind three of the four is worth naming, because it is the actual lesson: a
+fixture that reaches for a real endpoint to obtain setup data makes every test in the file
+depend on that endpoint, and reports the dependency's failure as a failure of whatever was
+being tested. Fixtures should construct state by the shortest reliable route — the database or
+a signing function — and leave endpoints to the tests that are about those endpoints.
+
+The usual explanations were checked and ruled out for all three: no rate limiter on login,
+integration files run serially on a single worker (`fileParallelism: false`, `maxWorkers: 1`),
+no other test run or dev server overlapped any of them, and the per-run schema isolation from
+TD-009 was in place throughout.
+**Impact:** Low for correctness, real for confidence. Roughly one full run in eight fails a
+test that passes on a rerun, which trains a reader to dismiss red as noise — the habit that
+lets a genuine regression through. No failure has ever pointed at faulty production code; each
+one has been a fixture reading state that should have been there.
+**Priority:** Low · **Category:** testing · **Status:** Open, two occurrences unexplained
+**Resolution:** Capture the failing response body and the server-side reason at the moment it
+happens, rather than reasoning backwards from the assertion — that is what was missing every
+time. Run the suite in a loop writing full output per run until it reproduces. Do not
+close this by adding retries, which would convert a visible intermittent into an invisible
+one.
+**Target:** v1.1 · **Related:** TD-009, `tests/session.ts`
+
+### TD-034 — Acceptance testing has no independent participants
+
+**Cause:** NFR-004 asks whether a first-time user can reach a recommendation without legal
+vocabulary. The only person who ran the UAT scripts is the person who built the system, which
+is the one participant who cannot answer that question. CON-001 left no window to recruit
+anyone, and the individual-work rule ruled out the obvious substitutes.
+**Impact:** The usability requirement is unevidenced rather than unmet. A developer walks the
+path he designed, so the walkthrough proves the flow works, not that it is discoverable. The
+wording that a stranger would stumble over is exactly the wording that reads as obvious to its
+author, so this is the failure mode most likely to survive to production undetected.
+**Priority:** Medium · **Category:** validation · **Status:** Accepted, requirement recorded
+as partially met
+**Resolution:** Run the existing UAT scripts with three to five people who have not seen the
+system, recording where they hesitate rather than only whether they finish. No code change is
+needed — the scripts and the evidence format already exist.
+**Target:** Before any real user is invited on · **Related:** NFR-004, UAT-001, UAT-003…006
+
+### TD-035 — The session token is held in `localStorage`
+
+**Cause:** ADR-003 chose stateless JWTs, and `localStorage` was the shortest path to keeping
+one across a page reload in a SPA. An `HttpOnly` cookie would have meant CSRF protection and
+a same-site story across the Vercel deployment, which was more than the schedule allowed.
+**Impact:** Any script that executes on the page can read the token, so a single XSS becomes a
+full session takeover for its two-hour lifetime, and TD-003 means it cannot be revoked once
+taken. React escapes rendered content by default and the app sets no `dangerouslySetInnerHTML`,
+so there is no known injection point today; the exposure is what a future one would cost.
+**Priority:** Medium · **Category:** security · **Status:** Accepted
+**Resolution:** Move the session to an `HttpOnly`, `Secure`, `SameSite=Strict` cookie issued by
+the API, add CSRF protection for state-changing routes, and keep only non-sensitive display
+state in the browser. Best done with TD-003, since a server-side session store answers both.
+**Target:** v1.1 · **Related:** TD-003, ADR-003, NFR-001
+
+### TD-036 — No rate limiting on authentication endpoints
+
+**Cause:** TD-023 recorded the missing limiter on the anonymous read endpoints and stopped
+there. The same omission applies to sign-in, password reset, and verification resend, which
+matter more: those three are the ones an attacker profits from repeating.
+**Impact:** Sign-in can be attempted without limit, so password strength is the only thing
+standing between a guessed credential and an account. bcrypt at cost 12 slows an online attack
+to roughly a few attempts per second per core, which is a brake rather than a stop. Reset and
+resend can be driven in a loop to flood a user's mailbox and burn the email quota.
+**Priority:** High · **Category:** security · **Status:** Open
+**Resolution:** Apply `express-rate-limit` per IP and per account to `/auth/login`,
+`/auth/forgot-password`, and `/auth/resend-verification`, with lockout after repeated
+failures and a log line per rejection. At two points this is the smallest of the open security
+items and the one to do first, even though TD-007 carries the wider impact.
+**Target:** Before any real user is invited on · **Related:** TD-023, TD-035, NFR-001, FR-002
+
+### TD-037 — Flagged intakes are counted but there is no queue to work them
+
+**Cause:** FR-010 requires that a failed or low-confidence triage leave a *reviewable*
+workflow. The flag, the holding category, and the preserved original text were built, and the
+admin dashboard counts how many intakes carry the flag. The screen that would let an
+administrator open those intakes and set a category by hand was not built, because the
+citizen-facing half of the fallback — never losing the text, never showing an error page,
+still being able to browse and contact lawyers — was the half that protects the user.
+**Impact:** The system fails safe but does not recover. An administrator can see that eleven
+enquiries need review and cannot act on any of them, so a flagged intake stays flagged and the
+citizen's only route forward is the directory. The requirement is met from the citizen's side
+and only partly from the administrator's, which is why FR-010 is recorded with that
+qualification rather than as fully delivered.
+**Priority:** Medium · **Category:** functionality · **Status:** Open, requirement partially
+delivered
+**Resolution:** An admin list filtered to `needsHumanReview`, showing the original text, with
+an action to assign a category and clear the flag. The data and the authorisation already
+exist; this is one query, one endpoint, and one screen.
+**Target:** v1.1 · **Related:** FR-010, FR-015, NFR-003
+
+### TD-038 — The triage model is a free tier whose latency the request path cannot absorb
+
+**Cause:** CON-004 fixed the budget at zero, so triage runs on a free OpenRouter model
+(`nvidia/nemotron-3-ultra-550b-a55b:free`). Free capacity is queued behind paid traffic, so its
+response time is not a property of this system and cannot be tuned from here. The call is
+synchronous on the request path (TD-002), so whatever the provider takes, the citizen waits.
+**Impact:** Measured on the deployment at 53.9 s for one enquiry (PERF-005) against a 60-second
+platform ceiling. Until DEF-014 was fixed the request could be killed mid-flight, losing the
+fallback that makes an AI failure survivable. The cap now converts a slow provider into an
+unclassified-but-usable enquiry, which is the designed degradation — but it means a slow day at
+the provider silently costs classification quality rather than failing loudly, and a citizen
+still waits up to 25 seconds on a screen that only says it is working.
+**Priority:** Medium · **Category:** dependency, performance · **Status:** Mitigated, not
+resolved — the wait is bounded and the failure path is safe; the latency itself remains
+**Resolution:** Two independent moves, either of which helps. Move triage off the request path
+so latency stops being user-visible (TD-002), and/or use a paid model with a latency
+commitment, which is a funding decision rather than an engineering one. Aggregating provider
+timings (TD-014) would show whether the cap is being hit often enough to matter.
+**Target:** v1.1 for the timing signal, v1.2 for moving triage off the request path
+**Related:** DEF-014, PERF-005, TD-002, TD-006, TD-012, TD-014, CON-004, NFR-003, NFR-006
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -400,7 +613,7 @@ Do not add another datastore. The exam deploy uses the Supabase direct URI as
 | TD-006 | Single AI provider | Low | dependency | Accepted |
 | TD-007 | Intake data leaves boundary | High | data | Accepted, needs disclosure |
 | TD-008 | Targeted test coverage | Medium | testing | Partially mitigated |
-| TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | Accepted |
+| TD-009 | Shared test schema; concurrent runs corrupt each other | Medium | testing | **Resolved** |
 | TD-010 | Password reset and email verification | Medium | security | **Resolved** |
 | TD-011 | Confidence threshold not calibrated | Medium | AI quality | Accepted |
 | TD-012 | No retry on transient AI failure | Low | reliability | Accepted |
@@ -422,10 +635,22 @@ Do not add another datastore. The exam deploy uses the Supabase direct URI as
 | TD-028 | NaloPay disbursement URL not confirmed | High (prod) | integration | Accepted |
 | TD-029 | File logs ephemeral on serverless hosts | Low | observability | Accepted |
 | TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
+| TD-031 | Live MoMo capture unverified at real fees (test merchant caps the amount) | High (prod) | integration | Accepted |
+| TD-032 | Fictional practitioners published on the public deployment | Medium | data | Accepted for the examination window |
+| TD-033 | Fixtures depending on live endpoints misreported failures; two occurrences still unexplained | Low | testing | Open, two occurrences unexplained |
+| TD-034 | Acceptance testing has no independent participants | Medium | validation | Accepted |
+| TD-035 | Session token held in `localStorage` | Medium | security | Accepted |
+| TD-036 | No rate limiting on authentication endpoints | High | security | Open |
+| TD-037 | Flagged intakes are counted but have no review queue | Medium | functionality | Open |
+| TD-038 | Free-tier triage model's latency nearly outran the function ceiling | Medium | dependency, performance | Mitigated (DEF-014 capped the wait) |
 
-No item is currently classified Critical. TD-007 is the highest-priority open item and its
-mitigation — clear user-facing disclosure — must ship with the MVP rather than being
-deferred. TD-010 and TD-020 are resolved via SMTP email (verification, reset, consultation
+No item is currently classified Critical. TD-007 is the highest-priority open item, on impact:
+it touches every citizen who submits an enquiry. An earlier version of this paragraph said its
+mitigation "must ship with the MVP rather than being deferred". It did not — the MVP shipped
+without the disclosure, and saying otherwise here would misdescribe what was delivered. It
+heads the v1.1 stage of the repayment plan instead — before the product is put in front of
+real citizens — with TD-036, the other High-priority security item, immediately after it.
+TD-010 and TD-020 are resolved via SMTP email (verification, reset, consultation
 alerts) plus optional SMS for consultation alerts when gateway credentials and a
 phone number are present. TD-016 remains partially open: welcome email delivers the temporary password, but
 forced rotation on first login is still outstanding.
@@ -435,17 +660,67 @@ fixed rather than accepted. See the defect log in `docs/04-testing.md`.
 
 ## Repayment plan
 
-**v1.1** — TD-003 refresh tokens and revocation; TD-007 privacy disclosure and data
-minimisation review; TD-001 labelled evaluation set; TD-008 extend coverage; TD-021
-server-supplied permitted transitions; TD-023 rate limiting on the
-anonymous read endpoints; TD-027 Calendar API Meet rooms.
+Every open item, with what repaying it involves, what has to be true first, when it is
+targeted, and what the project gets back. Effort is in the story points defined in
+`02-effort-estimation.md` — the same scale used to estimate the build, so these numbers can
+be compared with the ones that were tested against reality. They are estimates, not
+measurements. Resolved items (TD-009, TD-010, TD-017, TD-020) are not listed.
 
-**v1.2** — TD-002 asynchronous triage; TD-004 outcome-informed matching weights; TD-006
-second provider adapter; TD-018 keyset pagination; TD-019 full-text search; TD-022
-weight calibration.
+### Immediately after the examination window
 
-**Future major version** — TD-005 licence verification against a professional register and
-document upload; TD-007 self-hosted or in-region model.
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-032 | Delete the fictional practitioner rows and their accounts; return the hosted database to categories, packages, and an admin only | Medium | Marking complete, so the walkthrough data is no longer needed | 1 | No invented practitioners on a public URL, which is the reason the item was accepted only for the window |
+
+### v1.1 — before the product is used by real citizens or handles real money
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-007 | User-facing disclosure that intake text is sent to an external provider, shown before submission, plus a data-minimisation review of what is sent | High | Privacy wording agreed and reviewed | 3 | The citizen consents knowingly; the highest-priority open item stops being silent |
+| TD-036 | Per-IP and per-account rate limiting with lockout on `/auth/login`, `/auth/forgot-password`, and `/auth/resend-verification` | High | A counter store shared across serverless instances — same prerequisite as TD-023 | 2 | Online password guessing and mailbox flooding stop being unbounded |
+| TD-028 | Confirm the disbursement endpoint with NaloPay and cover it with a contract test like the collection path | High (prod) | Live merchant account and a NaloPay technical contact | 3 | Withdrawals provably reach a lawyer instead of being assumed to |
+| TD-031 | One approved end-to-end mobile-money capture at a real consultation fee | High (prod) | Live merchant credentials — the test merchant caps the amount | 2 | The payment path is proven at production amounts, not only below the cap |
+| TD-003 | Refresh tokens with a server-side revocation list | Medium | Session model decision (short access token plus refresh) | 5 | Sign-out and compromise become effective immediately rather than at expiry |
+| TD-035 | Move the session to an `HttpOnly`, `Secure`, `SameSite=Strict` cookie with CSRF protection on state-changing routes | Medium | Session model decision, shared with TD-003 | 3 | An XSS stops being a session takeover |
+| TD-034 | Run the existing UAT scripts with three to five people who have not seen the system, recording hesitation rather than only completion | Medium | Access to participants outside the project | 2 | NFR-004 becomes evidenced rather than partially met |
+| TD-037 | Admin list of intakes needing review, with an action to categorise and clear the flag | Medium | None — data and authorisation already exist | 2 | The fallback path recovers rather than only failing safe |
+| TD-023 | Rate limiting on the anonymous read endpoints | Medium | A counter store the serverless host can share across instances — related to TD-030 | 2 | The directory resists scraping and login brute force |
+| TD-016 | Force a password change on a lawyer's first login after an admin-set password | Medium | None — welcome email already delivers the temporary password | 2 | No account keeps a password a second person has seen |
+| TD-030 | Put a connection pooler in front of Prisma on the serverless host | Medium | Hosting plan decision | 2 | Concurrent traffic stops exhausting Postgres connections |
+| TD-008 | Extend coverage to the branches the targeted suite deliberately skipped | Medium | None | 3 | Regressions in less-exercised paths are caught by the suite, not by hand |
+| TD-001 | Build a labelled evaluation set of Ghanaian legal enquiries, then decide on evidence whether a trained classifier is warranted | Medium | Enough real intake text, ethically obtained | 3 | The classification approach becomes a measured choice rather than an assumption |
+| TD-011 | Calibrate the 0.5 confidence threshold against that set | Medium | TD-001 evaluation set | 2 | The review line is set by data instead of judgement |
+| TD-027 | Create Meet rooms through the Calendar API with lawyer OAuth consent | Medium (prod) | Google Cloud project, consent screen, verified scopes | 5 | The lawyer stops pasting a link by hand, and the slot appears in a real calendar |
+| TD-021 | Have the API return the permitted transitions with each consultation | Low | None | 2 | One definition of the lifecycle instead of a copy in the frontend |
+
+### v1.2 — scale, quality, and operability
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-025 | Automate settlement to lawyers, including whatever commission model is agreed | Medium (prod) | TD-028 disbursement confirmed; commercial terms decided | 5 | Money moves without a manual step; escrow becomes a complete cycle |
+| TD-002 | Move triage off the request path with a queued or deferred worker | Medium | A background execution mechanism the host supports | 5 | Intake stops waiting on the provider; slow responses stop being user-visible |
+| TD-006 | Second provider adapter behind the existing interface, with failover | Low | None — the adapter boundary already exists (NFR-005) | 3 | One provider outage stops degrading every intake |
+| TD-013 | Structural prompt-injection defence: isolate and screen the enquiry rather than instructing the model to ignore it | Low | None | 3 | The defence stops depending on the model's compliance |
+| TD-014 | Aggregate AI failures and confidence into a metric with a threshold | Low | TD-029 log destination | 2 | Provider degradation is noticed by the system, not by a user |
+| TD-038 | Record provider latency per call alongside the failure metric, then decide between a paid model and moving triage off the request path | Medium | TD-014 for the timing signal; TD-002 for the deferred path; a budget for a paid model | 2 | The cap stops being a blind guard — how often the provider runs long becomes visible before a citizen notices |
+| TD-029 | Ship logs to a hosted sink instead of files | Low | Choice of sink | 2 | Evidence survives a serverless invocation ending |
+| TD-018 | Keyset pagination on the directory | Low | Directory large enough for the drift to matter | 2 | Stable pages while lawyers are added or expire |
+| TD-019 | PostgreSQL full-text search with an index | Low | None | 3 | Search that ranks and handles stemming rather than substring matching |
+| TD-022 | Calibrate the matching weights against consultation outcomes | Low | TD-004 outcome data | 3 | Ranking justified by results while staying deterministic |
+| TD-004 | Feed accept, decline, and completion outcomes back into ranking inputs | Low | Enough consultation history to be meaningful | 5 | Recommendations improve with use, still explainably |
+| TD-024 | Route-level code splitting and a trimmed component surface | Low | None | 2 | Faster first load on a Ghanaian mobile connection |
+| TD-015 | Decouple a category's slug from its display name | Low | Migration for existing slugs | 1 | Renaming a category stops breaking anything that stored its slug |
+| TD-012 | Retry a transient AI failure once with backoff before falling back | Low | None | 1 | Fewer intakes flagged for review for a momentary network fault |
+
+### Future major version
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-026 | Genuine recurring billing with a stored mandate and automatic renewal | Medium (prod) | Gateway support for recurring debits — not confirmed for NaloPay | 8 | Lawyers stop losing visibility because they forgot to pay |
+| TD-005 | Verify practising certificates against a professional register, with document upload and review | Low (MVP) | A cooperating authority or an accepted manual review process | 8 | Approval means verified, not "an admin looked at it" |
+| TD-007 (second stage) | Self-hosted or in-region model so intake text never leaves the boundary | High | Model quality acceptable at affordable hosting | 8 | The privacy problem is removed rather than disclosed |
 
 Critical debt must not be deferred without explicit justification. None is currently
-outstanding.
+outstanding. The three High items — TD-007, TD-028, TD-031 — all sit in the first release
+after the examination for the same reason: each one is a promise the product would
+otherwise make without evidence.

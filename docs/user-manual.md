@@ -1,8 +1,11 @@
 # User manual
 
-Status: draft against the implemented web app. Screenshots: not yet completed.
+Status: written against the implemented web app. Illustrative screenshots are limited to the
+UAT evidence in `uat-evidence/`; a fully illustrated manual is not yet completed.
 
-**Application URL** — local development: http://localhost:5173 (API http://localhost:4000). Production URL: not yet deployed.
+**Application URL** — live: <https://legalconnect-beryl.vercel.app> (admin area at
+`/app/admin`). Local development: http://localhost:5173 with the API on
+http://localhost:4000.
 
 **Supported roles** — Citizen (`USER`), Lawyer, Admin
 
@@ -123,6 +126,28 @@ Consultation events above are also texted when the recipient has a phone number 
 - **Confirm your email before signing in** — use the link or resend from the login screen.
 - **AI organisation delayed / needs review** — your words were saved; you can still browse the directory. Matching waits until the enquiry has a confirmed category. This is not a rejection.
 - **Cannot reach the API** — ensure Docker/API is running on port 4000.
+- **You have already sent this enquiry to that lawyer** — an earlier request to the same
+  lawyer from the same enquiry still exists, even if you cancelled it. Choose another lawyer
+  or start a new enquiry (known defect DEF-007).
+- **This confirmation link is invalid or has expired** — verification links last 24 hours and
+  work once. Request a new one from the sign-in screen. Password reset links last one hour.
+- **The <plan name> plan allows N practice areas** — your plan caps how many areas you can
+  list. Remove areas, or move up to a larger plan from the profile page.
+
+## Troubleshooting
+
+| Symptom | Likely cause | What to do |
+| --- | --- | --- |
+| No confirmation email arrives | No SMTP provider is configured on the deployment, so the server logs the message instead of sending it, or the message is in spam | Check spam first, then use *Resend confirmation* on the sign-in screen |
+| The confirmation link opens but reports an expired link | The link was already used, or it is more than 24 hours old | Request a new link from the sign-in screen; each one can only be spent once |
+| Signed out unexpectedly | Sessions last two hours and are not refreshed | Sign in again. Long forms are best submitted rather than left open |
+| An enquiry sits at "needs review" | The AI provider was unavailable or returned something that failed validation | Your words are saved. Browse the directory and contact a lawyer directly; nothing is lost and nothing was rejected |
+| No lawyers are recommended | No approved lawyer with a live plan lists that practice area, or the enquiry has no confirmed category | Use the directory to browse all available lawyers; the recommendation screen links to it |
+| The mobile money prompt never arrives | Wrong number or network selected, or the number cannot receive a prompt | Cancel, check the number and network, and try again. Nothing is charged until you approve a prompt |
+| Payment approved but the booking still says awaiting payment | The confirmation had not arrived when the page last checked | Reopen the booking; the page re-checks the payment on load |
+| A paid plan does not show as active | The same delay on the profile page | Reload the profile page; if it persists, the payment reference on the plan record shows what the gateway reported |
+| A lawyer cannot be found in the directory | The lawyer is not approved yet, or their plan has expired | Both are expected. Approval is an administrator action; an expired plan is renewed by the lawyer |
+| Withdrawal stays pending | Payouts depend on the gateway, and the disbursement path is not fully verified (TD-028) | Check the wallet history for the recorded status; contact the administrator if it does not settle |
 
 ## Note on AI
 

@@ -18,6 +18,9 @@ export const API_PREFIX = '/api/v1';
 
 function corsOrigins(): string[] {
   const origins = [env.CLIENT_ORIGIN];
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
   if (process.env.VERCEL_URL) origins.push(`https://${process.env.VERCEL_URL}`);
   return [...new Set(origins)];
 }

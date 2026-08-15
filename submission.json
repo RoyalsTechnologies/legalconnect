@@ -1,0 +1,20 @@
+{
+  "studentName": "Alexander Adade",
+  "studentId": "22424693",
+  "projectTitle": "LegalConnect Ghana",
+  "projectSubtitle": "An AI-Powered Platform for Improving Access to Legal Services",
+  "course": "CSCD602 Advanced Software Engineering",
+  "assessment": "48-hour individual project examination",
+  "liveUrl": "https://legalconnect-beryl.vercel.app",
+  "adminUrl": "https://legalconnect-beryl.vercel.app/app/admin",
+  "repositoryUrl": "https://github.com/RoyalsTechnologies/legalconnect",
+  "credentials": {
+    "note": "These accounts exist on the live deployment and were verified by signing in on 2026-08-15. Passwords are never stored here: ${...} is resolved from server/.env when the package is built, so the value reaches only the generated file, which is gitignored.",
+    "citizenEmail": "ama.mensah@example.com",
+    "citizenPassword": "${SEED_DEMO_PASSWORD}",
+    "lawyerEmail": "akua.owusu@example.com",
+    "lawyerPassword": "${SEED_DEMO_PASSWORD}",
+    "adminEmail": "admin@legalconnect.com",
+    "adminPassword": "${SEED_ADMIN_PASSWORD}"
+  }
+}

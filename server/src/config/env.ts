@@ -37,6 +37,22 @@ if (resolvedDatabaseUrl) {
   process.env.DATABASE_URL = resolvedDatabaseUrl;
 }
 
+// An unset CLIENT_ORIGIN falls back to the localhost default below, which is right
+// locally and wrong on Vercel: every verification and reset link in a deployed email
+// would point at a machine the recipient does not have. Prefer the project's own
+// production host there, and the deployment host on a preview.
+export function resolveClientOrigin(from: NodeJS.ProcessEnv): string | undefined {
+  if (from.CLIENT_ORIGIN) return from.CLIENT_ORIGIN;
+  if (from.VERCEL !== '1') return undefined;
+  const host = from.VERCEL_PROJECT_PRODUCTION_URL ?? from.VERCEL_URL;
+  return host ? `https://${host}` : undefined;
+}
+
+const resolvedClientOrigin = resolveClientOrigin(process.env);
+if (resolvedClientOrigin) {
+  process.env.CLIENT_ORIGIN = resolvedClientOrigin;
+}
+
 // Validated once at startup so a misconfigured deployment fails immediately and
 // loudly rather than at the first request that happens to need a variable.
 const envSchema = z.object({

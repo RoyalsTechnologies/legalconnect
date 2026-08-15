@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unprocessable } from '../src/lib/errors.js';
+import { verifyToken } from '../src/lib/jwt.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan, packageId, seedPackages } from './subscription-fixtures.js';
 
@@ -35,17 +37,14 @@ async function adminToken(): Promise<string> {
       emailVerifiedAt: new Date(),
     },
   });
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-  return res.body.token as string;
+  return sessionFor('admin@example.com');
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: LAWYER_PASSWORD });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function createLawyer(admin: string): Promise<string> {
@@ -64,10 +63,7 @@ async function createLawyer(admin: string): Promise<string> {
       practiceAreaIds: [employmentId],
       approvalStatus: ApprovalStatus.APPROVED,
     });
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'akua.lawyer@example.com', password: LAWYER_PASSWORD });
-  return res.body.token as string;
+  return sessionFor('akua.lawyer@example.com');
 }
 
 function pendingStart(input: { reference: string }) {
@@ -190,10 +186,9 @@ describe('NaloPay HTTP collection (FR-017, FR-018)', () => {
     await grantPlan(lawyer.body.id);
 
     const client = await userToken();
-    const me = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${client}`);
     const intake = await prisma.legalIntake.create({
       data: {
-        clientId: me.body.id,
+        clientId: verifyToken(client).sub,
         originalDescription: 'My employer dismissed me without notice and has not paid me.',
         categoryId: employmentId,
         city: 'Accra',

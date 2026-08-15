@@ -15,7 +15,13 @@ vi.mock('../src/config/env.js', async (importOriginal) => {
   };
 });
 
-import { getAiClient, isAiConfigured, resetAiClientCache } from '../src/ai/ai-client.js';
+import {
+  getAiClient,
+  isAiConfigured,
+  MAX_PROVIDER_WAIT_MS,
+  providerWaitMs,
+  resetAiClientCache,
+} from '../src/ai/ai-client.js';
 
 describe('HTTP AI client (NFR-005)', () => {
   const fetchMock = vi.fn();
@@ -95,6 +101,12 @@ describe('HTTP AI client (NFR-005)', () => {
     await expect(getAiClient()!.complete({ system: 's', user: 'u' })).rejects.toThrow(
       /empty completion/,
     );
+  });
+
+  it('UT-020: caps the provider wait so the fallback runs inside the function budget (DEF-014)', () => {
+    expect(providerWaitMs(180_000)).toBe(MAX_PROVIDER_WAIT_MS);
+    expect(providerWaitMs(5_000)).toBe(5_000);
+    expect(MAX_PROVIDER_WAIT_MS).toBeLessThan(60_000);
   });
 
   it('rejects a missing choices array', async () => {

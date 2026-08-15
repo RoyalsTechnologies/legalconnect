@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { signToken, verifyToken } from '../src/lib/jwt.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan, packageId, seedPackages } from './subscription-fixtures.js';
 
@@ -12,7 +14,7 @@ let employmentId: string;
 let tenancyId: string;
 
 async function adminToken(): Promise<string> {
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
       email: 'admin@example.com',
       passwordHash: await bcrypt.hash('admin-password-123', 4),
@@ -22,17 +24,14 @@ async function adminToken(): Promise<string> {
     },
   });
 
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-  return res.body.token as string;
+  return signToken({ sub: admin.id, role: Role.ADMIN });
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function createLawyer(
@@ -55,10 +54,7 @@ async function createLawyer(
 }
 
 async function lawyerToken(email = 'akua.lawyer@example.com'): Promise<string> {
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return sessionFor(email);
 }
 
 beforeEach(async () => {
@@ -279,6 +275,47 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(directory.body.results).toHaveLength(1);
   });
 
+  it('IT-088: upgrading mid-period keeps the days already paid for', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+    await grantPlan(created.body.id, 'starter', 25);
+
+    const before = await prisma.lawyerProfile.findUniqueOrThrow({
+      where: { id: created.body.id },
+      select: { subscriptionPeriodEnd: true },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: await packageId('chambers') });
+
+    expect(res.status).toBe(201);
+    expect(res.body.subscription.package.slug).toBe('chambers');
+
+    const after = new Date(res.body.subscription.periodEnd as string).getTime();
+    const remainderKept = before.subscriptionPeriodEnd!.getTime() + 30 * 24 * 60 * 60 * 1000;
+    // The 25 unused days survive the upgrade, so this lands ~55 days out, not 30.
+    expect(Math.abs(after - remainderKept)).toBeLessThan(60_000);
+  });
+
+  it('IT-089: an admin grant sets the period outright so it can still be shortened', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin, [employmentId]);
+    await grantPlan(created.body.id, 'practice', 300);
+
+    const granted = await request(app)
+      .post(`/api/v1/admin/lawyers/${created.body.id}/subscription`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ packageId: await packageId('practice'), periodDays: 5 });
+
+    expect(granted.status).toBe(200);
+    const end = new Date(granted.body.periodEnd as string).getTime();
+    const fiveDaysOut = Date.now() + 5 * 24 * 60 * 60 * 1000;
+    expect(Math.abs(end - fiveDaysOut)).toBeLessThan(60_000);
+  });
+
   it('SEC-LG-037: a citizen cannot grant a subscription', async () => {
     const admin = await adminToken();
     const created = await createLawyer(admin, [employmentId]);
@@ -306,10 +343,9 @@ describe('Lawyer subscription packages (FR-018)', () => {
     const created = await createLawyer(admin, [employmentId]);
     const citizen = await userToken();
 
-    const me = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${citizen}`);
     const intake = await prisma.legalIntake.create({
       data: {
-        clientId: me.body.id,
+        clientId: verifyToken(citizen).sub,
         originalDescription: 'My employer dismissed me without notice and has not paid me.',
         categoryId: employmentId,
       },
@@ -407,6 +443,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.body.subscription.active).toBe(true);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244123456',
@@ -431,6 +468,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.status).toBe(201);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244987654',
@@ -454,6 +492,7 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(res.status).toBe(201);
 
     const me = await request(app).get('/api/v1/lawyers/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(200);
     expect(me.body.paymentAccount).toEqual({
       accountName: 'Akua Owusu',
       phone: '0244123456',

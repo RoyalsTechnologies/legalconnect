@@ -4,6 +4,8 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FALLBACK_CATEGORY_NAME } from '../src/ai/legal-triage.service.js';
 import { createApp } from '../src/app.js';
+import { signToken } from '../src/lib/jwt.js';
+import { sessionFor, tokenFrom } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -28,7 +30,7 @@ const LAWYER_PAYLOAD = {
 // Admins are created by the seed script, never through the API, so tests build one
 // directly. Everything else goes through HTTP.
 async function adminToken(): Promise<string> {
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
       email: 'admin@example.com',
       passwordHash: await bcrypt.hash('admin-password-123', 4),
@@ -38,17 +40,14 @@ async function adminToken(): Promise<string> {
     },
   });
 
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-  return res.body.token as string;
+  return signToken({ sub: admin.id, role: Role.ADMIN });
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/register')
     .send({ fullName: 'Kofi Boateng', email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return tokenFrom(res, `registering ${email}`);
 }
 
 async function createLawyer(token: string, overrides: Record<string, unknown> = {}) {
@@ -59,10 +58,7 @@ async function createLawyer(token: string, overrides: Record<string, unknown> = 
 }
 
 async function lawyerToken(email = LAWYER_PAYLOAD.email): Promise<string> {
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email, password: LAWYER_PAYLOAD.password });
-  return res.body.token as string;
+  return sessionFor(email);
 }
 
 beforeEach(async () => {

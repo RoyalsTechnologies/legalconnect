@@ -1,0 +1,100 @@
+# Conclusion
+
+## What was set out to do
+
+The starting position was a deliberate rejection of the obvious framing. Ghana does not lack
+lawyers, so building a directory of them solves nothing on its own. The problem worth
+solving is **access friction**: an ordinary person with a legal concern usually cannot name
+the speciality they need, cannot phrase the issue in terms a professional can act on, and
+does not know where to start. That framing set the aim — let someone describe a problem in
+everyday language, use AI to make that description structured and legible, and connect them
+to a suitable professional with a reason they can see.
+
+## What was delivered
+
+A functional, deployed web application covering the full flow: registration and
+authentication with three server-enforced roles, plain-language intake, AI classification
+and summary with schema validation, deterministic and explainable matching, a consultation
+request lifecycle the lawyer acts on, paid booking with mobile money, lawyer subscription
+plans, an escrow wallet with withdrawals, and administration of users, lawyers, and the
+category taxonomy.
+
+Twenty-one functional requirements were implemented — the fifteen Must items of the approved
+MVP, plus six Should items added during the build. Each of the six was recorded in the change
+log rather than absorbed silently, but none was re-estimated before it was accepted; that was
+done afterwards, on 2026-08-15, which is a departure from the project's own change rule and is
+reported as such in `02-effort-estimation.md`. Every requirement traces through the matrix in
+`01-requirements.md` to a design element, an implementation path, and named test cases.
+
+## What the engineering discipline produced
+
+The measurable output beyond the application: 165 unit tests and 220 integration tests all
+passing, six Playwright browser flows, 95.85% statement coverage of the server with
+thresholds enforced in CI, eleven architecture decision records, a debt register of 37 items
+with causes and repayment plans, twelve logged defects with fixes and retests, and a change
+log of every scope change with its consequence.
+
+Three habits mattered more than the rest. **Building the workflow before the AI** meant the
+intake and consultation paths were working and tested before a provider was introduced, so
+the AI became an enhancement to something functional rather than a dependency the project
+could not survive — which is exactly why the fallback path is genuine rather than
+theoretical. **Recording debt as it was taken on**, in the same commit as the trade-off,
+produced a register that reflects real decisions instead of a document assembled at the end.
+**Writing acceptance criteria as observable outcomes**, including expected status codes, made
+the test cases fall out of the requirements rather than being invented to match whatever the
+code happened to do.
+
+## What the AI boundary decision cost and bought
+
+Holding to "AI reduces access friction, it does not practise law" ruled out the features
+that would have looked most impressive: outcome prediction, advice, document analysis. It
+also produced the two design decisions the project is most confident defending. Matching is
+deterministic application logic, so every recommendation carries a reason traceable to
+configured criteria rather than to a model's assertion (NFR-007). And the model can request
+human review but can never waive it, so AI output cannot decide its own trustworthiness.
+
+## What is not finished
+
+Stated plainly, because the alternative is worse. Four defects remain open, all Low: three
+edge cases rather than broken Must paths, plus a cold-start latency finding that the
+performance sample produced (DEF-013). No independent participant has run a usability
+session, so NFR-004 rests on developer walkthroughs and is recorded as partially met (TD-034).
+The human-review flag is raised and counted but has no queue behind it, so the fallback path
+fails safe without recovering (TD-037). One High defect is fixed in code but not yet verified on
+the deployment: walking the live site found that an enquiry submitted through the form could hang,
+because a 180-second provider wait had been configured inside a 60-second function ceiling, so
+the platform killed the request before the fallback could answer (DEF-014, TD-038). Performance
+is sampled on the read paths but not load-tested, and AI latency rests on a single live
+observation.
+Classification accuracy is unmeasured — the tests prove the contract, not the answers. No
+end-to-end mobile money capture at a real consultation fee has been possible, because the
+test merchant refuses amounts at that scale. There is no monitoring, no rate limiting, and
+no token revocation. The full list is in the limitations section of
+`07-maintenance-and-evolution.md`, and nothing in this repository claims otherwise.
+
+## What would be done differently
+
+Four things. The shared-schema test isolation problem (TD-009) cost two separate debugging
+sessions because the symptoms — authorisation and validation failures — pointed convincingly
+at the wrong layer; a per-run schema took twenty minutes to implement and should have been
+the design from the first test. Relatedly, test fixtures were built on real endpoints —
+signing in to get a token, fetching `/users/me` to get an id — which meant a failure in one
+endpoint was reported as a failure of whatever else was under test; three of the four
+intermittent failures in TD-033 came from that single habit, and it was still producing them
+during the final pre-submission run. Re-estimation should have happened at the moment each
+Should item was accepted, which is what the change process says and is not what happened; doing
+it afterwards produces an accurate record of effort but gives up the thing estimation is
+actually for, which is deciding whether to take the work on. And deployment was treated as a
+late phase, which meant
+environment-specific faults such as the localhost confirmation links (DEF-010) surfaced at
+the point where time was scarcest; deploying a skeleton on day one would have found the
+whole class of configuration problems earlier and cheaply.
+
+## Closing
+
+The project demonstrates a complete software engineering lifecycle rather than rapid feature
+generation: requirements traced to tests, an estimate compared against what the work actually
+took, an architecture whose decisions are recorded with their alternatives, debt made visible
+instead of hidden, and a deployed system whose limitations are documented as carefully as its
+capabilities. The application works, and the record of how it was built is accurate, including
+where the process was not followed — which was the point.

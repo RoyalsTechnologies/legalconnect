@@ -151,7 +151,7 @@ function PlanSection({
             type="success"
             showIcon
             message={`${current.package.name} plan is active`}
-            description={`You may list up to ${current.package.maxPracticeAreas} practice area${current.package.maxPracticeAreas === 1 ? '' : 's'}. ${current.periodEnd ? `Renews or lapses on ${formatDate(current.periodEnd)}.` : ''} Pay one month or one year at a time — a year is twelve times the current monthly fee.`}
+            description={`You may list up to ${current.package.maxPracticeAreas} practice area${current.package.maxPracticeAreas === 1 ? '' : 's'}. ${current.periodEnd ? `Renews or lapses on ${formatDate(current.periodEnd)}.` : ''} Pay one month or one year at a time — a year is twelve times the current monthly fee. Moving to another plan keeps the days you have already paid for: the new term is added to the time you have left.`}
           />
         ) : (
           <Alert
@@ -181,6 +181,8 @@ function PlanSection({
                     <strong>{pkg.name}</strong>
                     {current.package?.id === pkg.id && current.active ? (
                       <Badge tone="success">Current</Badge>
+                    ) : maxAreas !== null && pkg.maxPracticeAreas > maxAreas ? (
+                      <Badge tone="info">Upgrade</Badge>
                     ) : null}
                   </Space>
                   <p style={{ marginTop: 8, marginBottom: 8 }}>{pkg.description}</p>
@@ -269,8 +271,9 @@ function PlanSection({
       </Space>
       {maxAreas ? (
         <p style={{ marginTop: 16, marginBottom: 0, color: '#5b6b82', fontSize: 13 }}>
-          Your current plan allows {maxAreas} practice area{maxAreas === 1 ? '' : 's'}. Drop extras
-          before switching to a smaller plan.
+          Your current plan allows {maxAreas} practice area{maxAreas === 1 ? '' : 's'}. Upgrading
+          takes effect as soon as the payment clears; drop extras before switching to a smaller
+          plan.
         </p>
       ) : null}
     </Card>
@@ -293,11 +296,17 @@ export function LawyerProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Keyed on the fetched record, not on the hook's return value: that is a fresh
+  // object every render, so the effect would re-run constantly and overwrite a
+  // locally updated snapshot (an activated plan, a just-saved edit) with the
+  // response from the original load.
+  const loaded = profile.status === 'ready' ? profile.data : null;
+
   useEffect(() => {
-    if (profile.status !== 'ready') return;
-    setSnapshot(profile.data);
-    form.setFieldsValue(valuesFromProfile(profile.data));
-  }, [profile, form]);
+    if (!loaded) return;
+    setSnapshot(loaded);
+    form.setFieldsValue(valuesFromProfile(loaded));
+  }, [loaded, form]);
 
   if (profile.status === 'error' && !snapshot) {
     return (

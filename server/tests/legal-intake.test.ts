@@ -2,6 +2,7 @@ import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { signToken } from '../src/lib/jwt.js';
 import { prisma } from './setup.js';
 
 // The provider adapter is replaced at the module boundary, so these tests exercise
@@ -225,7 +226,7 @@ describe('NFR-002 intake visibility', () => {
     const ownerToken = await registerUser('owner@example.com');
     const created = await submit(ownerToken);
 
-    await prisma.user.create({
+    const admin = await prisma.user.create({
       data: {
         email: 'admin@example.com',
         passwordHash: await bcrypt.hash('admin-password-123', 4),
@@ -234,13 +235,10 @@ describe('NFR-002 intake visibility', () => {
         emailVerifiedAt: new Date(),
       },
     });
-    const login = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: 'admin@example.com', password: 'admin-password-123' });
 
     const res = await request(app)
       .get(`/api/v1/intakes/${created.body.id}`)
-      .set('Authorization', `Bearer ${login.body.token}`);
+      .set('Authorization', `Bearer ${signToken({ sub: admin.id, role: Role.ADMIN })}`);
 
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(created.body.id);

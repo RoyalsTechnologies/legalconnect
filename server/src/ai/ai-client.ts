@@ -23,6 +23,16 @@ interface ChatCompletionResponse {
   choices?: Array<{ message?: { content?: string | null } }>;
 }
 
+// The provider wait has to end before the host kills the whole invocation, otherwise the
+// fallback in legal-triage.service.ts never runs and the citizen sees a gateway failure
+// instead of an unclassified intake. The Vercel function ceiling is 60s (vercel.json), so
+// a longer configured wait is capped here rather than trusted (DEF-014).
+export const MAX_PROVIDER_WAIT_MS = 25_000;
+
+export function providerWaitMs(configuredMs: number): number {
+  return Math.min(configuredMs, MAX_PROVIDER_WAIT_MS);
+}
+
 // Deliberately plain fetch rather than a provider SDK. The request is one POST and
 // the response is one string, so an SDK would add a dependency and a supply-chain
 // surface without removing any real work. Node 22 supplies fetch and AbortSignal.
@@ -51,7 +61,7 @@ function createHttpAiClient(apiKey: string): AiClient {
               { role: 'user', content: user },
             ],
           }),
-          signal: AbortSignal.timeout(env.AI_REQUEST_TIMEOUT_MS),
+          signal: AbortSignal.timeout(providerWaitMs(env.AI_REQUEST_TIMEOUT_MS)),
         });
       } catch (error) {
         // Timeout and network faults look identical to callers on purpose — both
