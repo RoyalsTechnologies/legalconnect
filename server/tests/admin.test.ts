@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { sessionFor } from './session.js';
 import { prisma } from './setup.js';
 
 const app = createApp();
@@ -21,10 +22,7 @@ async function adminToken(): Promise<string> {
     },
   });
 
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
-  return res.body.token as string;
+  return sessionFor(ADMIN_EMAIL);
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {

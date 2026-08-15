@@ -97,7 +97,7 @@ implementation at the product owner's request.
 | NFR-003 | Reliability | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005 |
 | NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13, extended 2026-08-15 through UAT-003/004/005; independent participants not yet completed) |
 | NFR-005 | Maintainability | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
-| NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | Measured, not yet recorded |
+| NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | PERF-001 to PERF-004 (2026-08-15). Met in steady state — live p50 ~0.49 s, local p95 under 30 ms. The first request after idle reached 2.25 s on the deployment, which is DEF-013. AI latency remains uncharacterised by design |
 | NFR-007 | Explainability | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
 | NFR-008 | Availability | The deployed application shall be reachable for grading, subject to host limitations. | Live verification |
 
@@ -262,3 +262,8 @@ Tested, Done.
 
 A requirement is Done only when it is implemented, acceptance criteria are satisfied, test
 evidence exists, debt is recorded, and it works in the deployed environment.
+
+Every row is therefore held at Tested rather than Done. The first four conditions are met
+across the board, and the Must-priority paths were walked against the live deployment on
+2026-08-15 (see `06-deployment.md`), but the deployed environment has not been exercised by
+anyone outside the project, so the last condition is claimed for no requirement.

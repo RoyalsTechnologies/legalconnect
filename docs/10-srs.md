@@ -146,7 +146,8 @@ low tier; third parties must be acknowledged.
 ## 3. Functional requirements
 
 Twenty-one numbered requirements. The full statement of each, with its acceptance criteria,
-is in `01-requirements.md` — the criteria are written as observable outcomes including
+is in `01-requirements.md`, which is the chapter immediately after this one in the submission
+PDF — the criteria are written as observable outcomes including
 expected HTTP status codes, and are the basis of the test cases in `04-testing.md`.
 
 | ID | Title | Priority |
@@ -190,8 +191,9 @@ operations within 2 seconds under demonstration load), explainability (every rec
 carries a traceable reason), and availability of the deployed application.
 
 Two are not fully evidenced and are recorded as such rather than asserted: NFR-004 has been
-verified by developer walkthrough but **not** by independent participants, and NFR-006 has
-not been measured and recorded.
+verified by developer walkthrough but **not** by independent participants, and NFR-006 is
+measured on the read paths only (PERF-001 to PERF-004) — within target in steady state, with a
+cold first request on the deployment above it (DEF-013), and no sustained-load test.
 
 ---
 
@@ -320,7 +322,8 @@ scope may expand without re-estimation and a change-log entry.
 ## 9. Traceability
 
 The full matrix — requirement to design element to implementation to test cases to status —
-is in `01-requirements.md` under "Traceability". Every one of the 21 functional
+is in `01-requirements.md` under "Traceability", the chapter immediately after this one in the
+submission PDF. Every one of the 21 functional
 requirements has a design element, an implementation path, and named test cases, and is
 marked Tested.
 

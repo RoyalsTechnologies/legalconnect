@@ -159,6 +159,7 @@ Send the returned `token` as `authorization: Bearer <token>`.
 | Unit tests | `server/` | `npm run test:unit` |
 | Integration tests | `server/` | `npm run test:integration` |
 | Frontend E2E | root or `client/` | `npm run test:e2e` |
+| Measure read-path latency | root | `npm run measure:latency -- <baseUrl> <samples>` |
 | Typecheck | either | `npm run typecheck` |
 | Build | either | `npm run build` |
 | CI | GitHub | `.github/workflows/ci.yml` |

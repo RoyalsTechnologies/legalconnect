@@ -12,7 +12,7 @@ Fix production defects reported by users or found in the logs. The route is the 
 used during the build and recorded in `09-process-playbook.md`: reproduce it, write the test
 that fails, apply the smallest safe fix, re-run the suite, then record cause, fix, and
 retest in the defect log in `04-testing.md`. Severity decides urgency — Critical and High
-before any enhancement. The three open defects (DEF-007, DEF-008, DEF-009) are the first
+before any enhancement. The four open defects (DEF-007, DEF-008, DEF-009, DEF-013) are the first
 queue this process would pick up.
 
 ### Adaptive maintenance
@@ -30,8 +30,9 @@ most exposed, and both are already flagged as debt (TD-027, TD-028).
 Improve what works based on real usage rather than on taste: the intake wording that
 citizens actually stumble on, directory search quality (TD-019), the first-load cost on a
 mobile connection (TD-024), and the matching weights once there are outcomes to learn from
-(TD-022). This is also where the performance measurement that NFR-006 leaves open belongs —
-measure first, then optimise the path the measurement indicts.
+(TD-022). The performance baseline now exists (PERF-001 to PERF-004), so this work can start
+from evidence: extend the sample to the write paths and to sustained load, then optimise what
+the numbers indict rather than what looks slow.
 
 ### Preventive maintenance
 
@@ -48,7 +49,7 @@ a defect that takes longer to find than a broken test.
 | Security updates | `npm audit` runs in CI and in `npm run verify`; both packages report zero vulnerabilities | Automated dependency alerts, and a fix in the release that follows an advisory |
 | Dependency updates | Manual, at the maintainer's discretion | Batched minor and patch updates on a fixed cadence, majors read and tested individually |
 | Backup and recovery | Whatever the hosted PostgreSQL plan provides; not configured or tested by this project | Documented point-in-time recovery, with a restore actually rehearsed rather than assumed |
-| Performance | Not measured (NFR-006, TD-002) | Baseline the non-AI endpoints and the AI path separately, then act on evidence |
+| Performance | Read paths sampled on 2026-08-15 (PERF-001 to PERF-004); cold start over target (DEF-013); AI path uncharacterised (TD-002) | Extend the sample to writes and sustained load, address the cold start, then act on evidence |
 | Scalability | Single Express function, no pooler (TD-030), offset paging (TD-018) | Pooler first, then the read paths that the baseline shows to be hot |
 | Monitoring | Structured logs with PII redaction; files do not survive a serverless invocation (TD-029) | Ship logs to a hosted sink, then alert on AI failure rate and payment errors (TD-014) |
 | User feedback | None collected — no participant outside the project has used the system | A route for citizens and lawyers to report a problem, feeding the corrective queue |
@@ -118,9 +119,10 @@ a generic caveat, and each names where it is tracked.
   library provides. Admin screens are plain tables — DEF-009 is what that costs at a narrow
   viewport. The trade-off bought working Must paths, and it means the product looks like a
   functional prototype rather than a finished consumer service.
-- **Three defects are open at submission** (DEF-007, DEF-008, DEF-009 in `04-testing.md`),
-  each with a diagnosed cause and a named fix. They are edge cases in the consultation
-  lifecycle and one admin-table layout fault, not broken Must paths.
+- **Four defects are open at submission** (DEF-007, DEF-008, DEF-009, DEF-013 in
+  `04-testing.md`), all Low, each with a diagnosed cause and a named fix. They are two edge
+  cases in the consultation lifecycle, one admin-table layout fault, and the deployment's cold
+  first request — not broken Must paths.
 
 ### Validation
 
@@ -128,9 +130,11 @@ a generic caveat, and each names where it is tracked.
   No participant outside the project has run a session, so the claim that a first-time user
   reaches recommendations without legal terminology is evidenced but not independently
   validated.
-- **Performance is unmeasured.** NFR-006 states a 2-second target for non-AI operations; it
-  has not been measured under load and is recorded as unmeasured rather than asserted. AI
-  latency likewise is not characterised.
+- **Performance is sampled, not load-tested.** The read paths were measured on 2026-08-15
+  (PERF-001 to PERF-004 in `04-testing.md`): comfortably inside the NFR-006 target in steady
+  state, with a cold first request on the deployment at 2.25 s, which is DEF-013. Nothing was
+  measured under sustained or higher concurrency, no write or payment path was timed, and AI
+  latency is deliberately not characterised because it depends on a free-tier provider.
 - **AI answer quality is unmeasured.** The tests prove the contract around the model is
   enforced and every failure mode degrades safely; they do not show the categories it
   returns are correct (TD-011). There is no labelled evaluation set.

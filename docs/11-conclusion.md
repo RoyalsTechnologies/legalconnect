@@ -54,9 +54,11 @@ human review but can never waive it, so AI output cannot decide its own trustwor
 
 ## What is not finished
 
-Stated plainly, because the alternative is worse. Three defects remain open, all edge cases
-rather than broken Must paths. No independent participant has run a usability session, so
-NFR-004 rests on developer walkthroughs. Performance is unmeasured against NFR-006.
+Stated plainly, because the alternative is worse. Four defects remain open, all Low: three
+edge cases rather than broken Must paths, plus a cold-start latency finding that the
+performance sample produced (DEF-013). No independent participant has run a usability
+session, so NFR-004 rests on developer walkthroughs. Performance is sampled on the read paths
+but not load-tested, and AI latency is deliberately uncharacterised.
 Classification accuracy is unmeasured — the tests prove the contract, not the answers. No
 end-to-end mobile money capture at a real consultation fee has been possible, because the
 test merchant refuses amounts at that scale. There is no monitoring, no rate limiting, and

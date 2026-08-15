@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { signToken } from '../src/lib/jwt.js';
+import { sessionFor } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan, packageId, seedPackages } from './subscription-fixtures.js';
 
@@ -12,7 +14,7 @@ let employmentId: string;
 let tenancyId: string;
 
 async function adminToken(): Promise<string> {
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
       email: 'admin@example.com',
       passwordHash: await bcrypt.hash('admin-password-123', 4),
@@ -22,18 +24,7 @@ async function adminToken(): Promise<string> {
     },
   });
 
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-
-  // Without this, a failed login returns undefined and the test reports a 401 on
-  // whatever it does next, pointing at the endpoint under test rather than at the
-  // sign-in that actually broke. Seen once on 2026-08-15 and not reproduced since.
-  if (res.status !== 200 || !res.body.token) {
-    throw new Error(`admin sign-in failed: ${res.status} ${JSON.stringify(res.body)}`);
-  }
-
-  return res.body.token as string;
+  return signToken({ sub: admin.id, role: Role.ADMIN });
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {
@@ -63,10 +54,7 @@ async function createLawyer(
 }
 
 async function lawyerToken(email = 'akua.lawyer@example.com'): Promise<string> {
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email, password: 'correct-horse-battery' });
-  return res.body.token as string;
+  return sessionFor(email);
 }
 
 beforeEach(async () => {

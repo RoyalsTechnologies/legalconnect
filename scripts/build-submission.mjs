@@ -283,12 +283,34 @@ const REQUIRED_TOPICS = [
   ['References', 'References and Acknowledgements', null],
 ];
 
+/**
+ * The four PDFs the brief names, each also emitted as its own file so the package matches the
+ * structure literally rather than relying on the permission to combine.
+ *
+ * `SRS.pdf` carries the requirements register with it: section 33 expects acceptance criteria
+ * and a traceability matrix inside the SRS, and they live in the register, so a standalone SRS
+ * without it would be incomplete.
+ */
 const REQUIRED_DOCUMENTS = [
-  ['SRS.pdf', 'Software Requirements Specification'],
-  ['Testing_Report.pdf', 'Testing Report'],
-  ['Technical_Debt_Plan.pdf', 'Technical Debt Identification and Management'],
-  ['User_Manual.pdf', 'User Manual'],
+  ['SRS.pdf', 'Software Requirements Specification', 'Software Requirements Specification'],
+  ['Testing_Report.pdf', 'Testing Report', 'Testing Report'],
+  [
+    'Technical_Debt_Plan.pdf',
+    'Technical Debt Identification and Management',
+    'Technical Debt Identification and Management',
+  ],
+  ['User_Manual.pdf', 'User Manual', 'User Manual'],
 ];
+
+const STANDALONE_CHAPTERS = {
+  'SRS.pdf': [
+    'Software Requirements Specification',
+    'Requirements Register, Acceptance Criteria, and Traceability',
+  ],
+  'Testing_Report.pdf': ['Testing Report'],
+  'Technical_Debt_Plan.pdf': ['Technical Debt Identification and Management'],
+  'User_Manual.pdf': ['User Manual'],
+};
 
 function chapterNumber(title) {
   const index = chapters.findIndex((chapter) => chapter.title === title);
@@ -313,10 +335,10 @@ const sectionMap = `
         `<tr><td>${escapeHtml(topic)}</td><td>${locate(title)}</td><td>${note ? escapeHtml(note) : '—'}</td></tr>`,
     ).join('')}</tbody>
   </table>
-  <p>The brief also names separate PDFs, which it permits combining into one document
-    provided each required section is clearly identified. They are identified here.</p>
+  <p>The brief also names separate PDFs. Each one is supplied as its own file in the package
+    <em>and</em> appears here as a chapter, so either route reaches the same content.</p>
   <table>
-    <thead><tr><th>Required document</th><th>Location in this document</th></tr></thead>
+    <thead><tr><th>Required document</th><th>Also in this document</th></tr></thead>
     <tbody>${REQUIRED_DOCUMENTS.map(
       ([name, title]) =>
         `<tr><td><code>${escapeHtml(name)}</code></td><td>${locate(title)}</td></tr>`,
@@ -324,24 +346,30 @@ const sectionMap = `
       file in the submission package, alongside <code>Supporting_Files/</code></td></tr></tbody>
   </table>`;
 
-const body = chapters
-  .map(
-    (chapter, index) =>
-      `<section class="chapter" id="${slug(chapter.title)}">
-        <h1><span class="number">${index + 1}</span>${escapeHtml(chapter.title)}</h1>
+/**
+ * Renders one document. The combined PDF numbers its chapters and carries the contents and
+ * section map; a standalone PDF is the same content under its own cover, so the two can never
+ * drift apart — there is one source per section, formatted twice.
+ */
+function documentHtml({ title, subtitle, footnote, entries, numbered = false, front = '' }) {
+  const body = entries
+    .map(
+      (chapter, index) =>
+        `<section class="chapter" id="${slug(chapter.title)}">
+        <h1>${numbered ? `<span class="number">${index + 1}</span>` : ''}${escapeHtml(chapter.title)}</h1>
         ${chapter.html}
       </section>`,
-  )
-  .join('');
+    )
+    .join('');
 
-const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(config.projectTitle)}</title>
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${styles}</style></head>
 <body>
   <section class="cover">
     <div class="eyebrow">${escapeHtml(config.course)}</div>
-    <h1>${escapeHtml(config.projectTitle)}</h1>
-    <div class="subtitle">${escapeHtml(config.projectSubtitle)}</div>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="subtitle">${escapeHtml(subtitle)}</div>
     <dl>
       <dt>Student</dt><dd>${escapeHtml(checked(config.studentName, 'studentName'))}</dd>
       <dt>Student ID</dt><dd>${escapeHtml(checked(config.studentId, 'studentId'))}</dd>
@@ -350,13 +378,53 @@ const html = `<!doctype html>
       <dt>Source repository</dt><dd><a href="${config.repositoryUrl}">${escapeHtml(config.repositoryUrl)}</a></dd>
       <dt>Compiled</dt><dd>${generated}</dd>
     </dl>
-    <p class="footnote">This document combines every required submission section. Chapter titles
-      follow the examination brief; the source file for each is shown in the contents.</p>
+    <p class="footnote">${footnote}</p>
   </section>
-  <section class="toc"><h1>Contents</h1><ol>${toc}</ol></section>
-  <section class="section-map">${sectionMap}</section>
+  ${front}
   ${body}
 </body></html>`;
+}
+
+const combinedHtml = documentHtml({
+  title: config.projectTitle,
+  subtitle: config.projectSubtitle,
+  footnote: `This document combines every required submission section. Chapter titles
+      follow the examination brief; the source file for each is shown in the contents. The four
+      separately named PDFs are also supplied as their own files in this package.`,
+  entries: chapters,
+  numbered: true,
+  front: `<section class="toc"><h1>Contents</h1><ol>${toc}</ol></section>
+  <section class="section-map">${sectionMap}</section>`,
+});
+
+const documents = [
+  { file: 'Project_Documentation.pdf', html: combinedHtml, note: `${chapters.length} chapters` },
+  ...REQUIRED_DOCUMENTS.map(([file, chapterTitle, documentTitle]) => {
+    const titles = STANDALONE_CHAPTERS[file];
+    const entries = titles.map((wanted) => {
+      const chapter = chapters.find((candidate) => candidate.title === wanted);
+      if (!chapter) throw new Error(`${file} refers to a missing chapter: ${wanted}`);
+      return chapter;
+    });
+    return {
+      file,
+      note: entries.map((entry) => entry.source).join(', '),
+      html: documentHtml({
+        title: documentTitle,
+        subtitle: `${config.projectTitle} — ${config.projectSubtitle}`,
+        footnote: `Required by the examination brief as <code>${escapeHtml(file)}</code>. The same
+            content is chapter ${chapterNumber(chapterTitle)} of
+            <code>Project_Documentation.pdf</code> in this package${
+              entries.length > 1
+                ? `, together with chapter ${chapterNumber(titles[1])}, included here because the
+                  acceptance criteria and traceability matrix belong with the specification`
+                : ''
+            }.`,
+        entries,
+      }),
+    };
+  }),
+];
 
 const submissionDir = join(root, 'submission');
 const packageName = `${config.studentId}_LegalConnect_Ghana`.replace(/[<>\s]/g, '');
@@ -364,22 +432,33 @@ const outputDir = join(submissionDir, packageName);
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 
+// Set SUBMISSION_DEBUG_HTML to a path to keep the combined document's source HTML: the PDF's
+// own text cannot be grepped, so this is how a layout or section-map change gets checked
+// without opening a viewer.
+if (process.env.SUBMISSION_DEBUG_HTML) {
+  await writeFile(resolve(root, process.env.SUBMISSION_DEBUG_HTML), combinedHtml, 'utf8');
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
-await page.setContent(html, { waitUntil: 'load' });
 await page.emulateMedia({ media: 'print' });
-await page.pdf({
-  path: join(outputDir, 'Project_Documentation.pdf'),
-  format: 'A4',
-  printBackground: true,
-  displayHeaderFooter: true,
-  headerTemplate: '<div></div>',
-  footerTemplate: `<div style="width:100%;font-size:8pt;color:#808795;padding:0 16mm;display:flex;justify-content:space-between">
+
+for (const document of documents) {
+  await page.setContent(document.html, { waitUntil: 'load' });
+  await page.pdf({
+    path: join(outputDir, document.file),
+    format: 'A4',
+    printBackground: true,
+    displayHeaderFooter: true,
+    headerTemplate: '<div></div>',
+    footerTemplate: `<div style="width:100%;font-size:8pt;color:#808795;padding:0 16mm;display:flex;justify-content:space-between">
       <span>${escapeHtml(config.projectTitle)} — ${escapeHtml(config.course)}</span>
       <span class="pageNumber"></span>
     </div>`,
-  margin: { top: '18mm', bottom: '16mm', left: '0', right: '0' },
-});
+    margin: { top: '18mm', bottom: '16mm', left: '0', right: '0' },
+  });
+}
+
 await browser.close();
 
 const links = `${config.projectTitle} — ${config.projectSubtitle}
@@ -426,7 +505,9 @@ await execFileAsync('zip', ['-qr', archivePath, packageName], { cwd: submissionD
 const archiveMb = ((await stat(archivePath)).size / 1024 / 1024).toFixed(1);
 
 console.log(`Submission package written to ${outputDir.replace(`${root}/`, '')}/`);
-console.log(`  Project_Documentation.pdf — ${chapters.length} chapters`);
+for (const document of documents) {
+  console.log(`  ${document.file} — ${document.note}`);
+}
 console.log('  Deployment_and_Source_Links.txt');
 console.log(
   `  Supporting_Files/ — diagrams (sources and renders)${evidence.length > 0 ? `, ${evidence.length} UAT screenshots` : ''}`,

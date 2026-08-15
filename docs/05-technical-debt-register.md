@@ -439,6 +439,41 @@ visitor can mistake one for a real lawyer. Do not leave it as it stands beyond a
 **Target:** immediately after assessment · **Related:** FR-004, FR-011, CON-003,
 `server/prisma/seed.ts`
 
+### TD-033 — The integration suite fails a test occasionally, as if fresh data were missing
+
+**Cause:** Unknown. On 2026-08-15 the suite failed intermittently in a way that looks like
+recently written rows not being visible to the request that follows. Three occurrences, all
+in otherwise green runs of 220 tests:
+
+| Run | Test | Symptom |
+| --- | --- | --- |
+| 13:59 | `subscriptions.test.ts`, admin creates a package | `expected 401 to be 201` |
+| reproduction, run 1 of 3 | `lawyers.test.ts`, IT-025 | `expected 401 to be 200` |
+| after the fixture change, run 4 of 4 | `matching.test.ts` and `subscriptions.test.ts` IT-056 | `expected 404 to be 200` |
+
+The first two shared a cause and are addressed: both fixtures minted their session by posting
+to `/auth/login`, so a sign-in that returned no token surfaced as a 401 against an unrelated
+endpoint. Fixtures now sign tokens directly (`tests/session.ts`) and no 401 of this kind has
+appeared in the eight full runs since. The third occurrence is different, was not captured in
+detail, and has not recurred, so the suite is **not** proven clean — seven of eight runs
+passed after the change, not eight of eight.
+
+The usual explanations were checked and ruled out for all three: no rate limiter on login,
+integration files run serially on a single worker (`fileParallelism: false`, `maxWorkers: 1`),
+no other test run or dev server overlapped any of them, and the per-run schema isolation from
+TD-009 was in place throughout.
+**Impact:** Low for correctness, real for confidence. Roughly one full run in eight fails a
+test that passes on a rerun, which trains a reader to dismiss red as noise — the habit that
+lets a genuine regression through. No failure has ever pointed at faulty production code; each
+one has been a fixture reading state that should have been there.
+**Priority:** Low · **Category:** testing · **Status:** Open, cause unknown
+**Resolution:** Capture the failing response body and the server-side reason at the moment it
+happens, rather than reasoning backwards from the assertion — that is what was missing all
+three times. Run the suite in a loop writing full output per run until it reproduces. Do not
+close this by adding retries, which would convert a visible intermittent into an invisible
+one.
+**Target:** v1.1 · **Related:** TD-009, `tests/session.ts`
+
 ## Summary
 
 | ID | Debt | Priority | Category | Status |
@@ -475,6 +510,7 @@ visitor can mistake one for a real lawyer. Do not leave it as it stands beyond a
 | TD-030 | Prisma on Vercel without a pooler | Medium | infrastructure | Accepted |
 | TD-031 | Live MoMo capture unverified at real fees (test merchant caps the amount) | High (prod) | integration | Accepted |
 | TD-032 | Fictional practitioners published on the public deployment | Medium | data | Accepted for the examination window |
+| TD-033 | Sign-in intermittently returns no token under full-suite load | Low | testing | Open, cause unknown |
 
 No item is currently classified Critical. TD-007 is the highest-priority open item and its
 mitigation — clear user-facing disclosure — must ship with the MVP rather than being

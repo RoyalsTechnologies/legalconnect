@@ -100,8 +100,9 @@ not run.
 | Build | `npm run build` |
 | Lint + format | `npm run check:fix` (repo root, Biome) |
 | Full quality gate | `npm run verify` (repo root) |
+| Measure read-path latency | `npm run measure:latency -- <baseUrl> <samples>` (NFR-006 evidence) |
 | Render diagrams | `npm run docs:diagrams` (Mermaid → `diagrams/exports/`) |
-| Build submission package | `npm run docs:submission` (combined PDF + links file in `submission/`) |
+| Build submission package | `npm run docs:submission` (five PDFs + links file + `Supporting_Files/` in `submission/`) |
 | CI | GitHub Actions `.github/workflows/ci.yml` (quality, unit, integration, coverage) |
 
 Run `npm run verify` from the root before considering a phase complete — it runs Biome,

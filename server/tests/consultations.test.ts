@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { signToken } from '../src/lib/jwt.js';
+import { sessionFor } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -30,10 +32,7 @@ async function adminToken(): Promise<string> {
     },
   });
 
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-  return res.body.token as string;
+  return sessionFor('admin@example.com');
 }
 
 async function seedLawyer(email = 'akua@example.com', displayName = 'Akua Owusu') {
@@ -61,11 +60,11 @@ async function seedLawyer(email = 'akua@example.com', displayName = 'Akua Owusu'
   });
   await grantPlan(profile.id);
 
-  const login = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email, password: LAWYER_PASSWORD });
-
-  return { profileId: profile.id, token: login.body.token as string, userId: user.id };
+  return {
+    profileId: profile.id,
+    token: signToken({ sub: user.id, role: Role.LAWYER }),
+    userId: user.id,
+  };
 }
 
 async function seedIntake(token: string): Promise<string> {

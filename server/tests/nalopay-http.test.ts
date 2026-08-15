@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unprocessable } from '../src/lib/errors.js';
+import { sessionFor } from './session.js';
 import { prisma } from './setup.js';
 import { grantPlan, packageId, seedPackages } from './subscription-fixtures.js';
 
@@ -35,10 +36,7 @@ async function adminToken(): Promise<string> {
       emailVerifiedAt: new Date(),
     },
   });
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'admin@example.com', password: 'admin-password-123' });
-  return res.body.token as string;
+  return sessionFor('admin@example.com');
 }
 
 async function userToken(email = 'kofi@example.com'): Promise<string> {
@@ -64,10 +62,7 @@ async function createLawyer(admin: string): Promise<string> {
       practiceAreaIds: [employmentId],
       approvalStatus: ApprovalStatus.APPROVED,
     });
-  const res = await request(app)
-    .post('/api/v1/auth/login')
-    .send({ email: 'akua.lawyer@example.com', password: LAWYER_PASSWORD });
-  return res.body.token as string;
+  return sessionFor('akua.lawyer@example.com');
 }
 
 function pendingStart(input: { reference: string }) {

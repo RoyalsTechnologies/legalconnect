@@ -51,15 +51,15 @@ report. Types the brief asks to *consider* are listed too, including the one not
 | AI behaviour | Yes — automated against a mocked provider | `AI-TC-` cases; the live provider is never called from a suite |
 | Matching | Yes — automated | `MT-` cases |
 | Usability | Partly — observed during the UAT walkthroughs, not a separate discipline | NFR-004 notes in UAT-001 and UAT-006; DEF-009 came out of this |
-| Performance | **Not yet completed** | NFR-006 is stated as measured-and-documented, not asserted. No `PERF-` case has been executed, so none is claimed |
+| Performance | Yes — a demonstration-load sample of the read paths, locally and against the deployment | `PERF-001` to `PERF-004`, Performance measurement. No sustained load test was run, and the AI path is excluded |
 
 ## ID scheme
 
 `UT-` unit · `IT-` integration · `FT-` functional · `ST-` system · `UAT-` acceptance ·
 `SEC-` security · `PERF-` performance · `AI-TC-` AI behaviour · `MT-` matching
 
-`ST-` and `PERF-` are reserved in the scheme but unused: system-level work is recorded as
-named verification runs, and no performance case has been executed.
+`ST-` is reserved but unused: system-level work is recorded as named verification runs rather
+than numbered cases.
 
 ## Test case format
 
@@ -78,6 +78,44 @@ named verification runs, and no performance case has been executed.
 | Defect ID if failed | |
 | Corrective Action | |
 | Retest Result | |
+
+The automated cases are recorded in the compact tables further down — ID, requirement, case,
+result — because the suite itself is the executable version of the steps, and transcribing
+twelve fields for 384 cases would add length without adding evidence. Two are written out in
+full below so the format is demonstrated rather than only declared: one automated case that
+has always passed, and one written to close a defect.
+
+| Field | |
+| --- | --- |
+| Test Case ID | UT-003 |
+| Requirement ID | FR-001 |
+| Test Type | Unit (API-level, no browser) |
+| Objective | A second registration with an address already in use is refused, so one email identifies one account |
+| Preconditions | Migrated test schema, truncated before the test; no user with that address exists |
+| Test Data | `{ fullName: 'Ama Mensah', email: 'ama@example.com', password: 'correct-horse-battery', phone: '0244123456' }`, then the same payload with `fullName: 'Someone Else'` |
+| Steps | 1. `POST /api/v1/auth/register` with the payload. 2. `POST /api/v1/auth/register` again with the same email and a different name |
+| Expected Result | Second call returns `409` with `error.code = CONFLICT`; no second user row |
+| Actual Result | `409`, `error.code = CONFLICT` |
+| Status | PASS |
+| Defect ID if failed | — |
+| Corrective Action | — |
+| Retest Result | Re-ran with the suite on 2026-08-15 — pass |
+
+| Field | |
+| --- | --- |
+| Test Case ID | FT-006 |
+| Requirement ID | FR-001 (defect DEF-011) |
+| Test Type | Functional, Playwright against a mocked API |
+| Objective | A confirmation link is spent exactly once and reports success, even though React's development double-mount runs the effect twice |
+| Preconditions | Client dev server running; `/api/v1/auth/verify-email` intercepted by the test |
+| Test Data | `/verify-email?token=e2e-verify-token`; the route returns `200` for the first POST and `400 BAD_REQUEST` for any later one, as the real single-use token would |
+| Steps | 1. Navigate to the verification URL. 2. Wait for the page to settle. 3. Count the POSTs the route received |
+| Expected Result | "Email confirmed. You can sign in now." is visible, no expiry message is shown, and exactly one POST was made |
+| Actual Result | Success message shown, no expiry message, POST count 1. The same test fails against the pre-fix component, which is why it is trusted |
+| Status | PASS |
+| Defect ID if failed | DEF-011 — the case exists because of it |
+| Corrective Action | Hold the in-flight request in a ref keyed by token (`client/src/pages/PasswordPages.tsx`) |
+| Retest Result | Pass on 2026-08-15, with the full E2E suite re-run afterwards |
 
 ## Authentication tests
 
@@ -276,6 +314,8 @@ Status: Pass for the public home page. Signed-in intake screen disclaimer was no
 | DEF-011 | A valid confirmation link reported "invalid or has expired" in local development | Medium | FR-001 | Tracing the DEF-010 report, 2026-08-15 | The verify page posted the token from an effect, and React's StrictMode double-mount in development ran it twice. The first call consumed the single-use token and the second was rejected, so the page rendered the retry's 400 | Hold the in-flight request in a ref keyed by token so the second mount re-reads the same promise instead of posting again | Fixed | Pass — FT-006, which fails against the previous code |
 | DEF-012 | A paid subscription did not appear as active until the lawyer reloaded the profile page | Medium | FR-018 | E2E re-run while checking DEF-011, 2026-08-15 (FT-003 had regressed to a failure) | The effect that seeds the local profile snapshot depended on the `useAsync` return value, which is a new object literal on every render. It therefore re-ran after every render and overwrote the snapshot — including one just replaced by the confirmed subscription — with the response from the first load | Depend on the fetched record instead of the hook's wrapper, so the effect only re-runs when a load actually resolves | Fixed | Pass — FT-003 |
 
+| DEF-013 | The first request to the deployed API after an idle period takes up to 2.25 s, over the 2-second target | Low | NFR-006 | Performance measurement, 2026-08-15 (PERF-002) | Serverless cold start — the platform starts the function and initialises the Prisma client before serving the first request. Steady-state p50 on the same endpoint is ~0.49 s, so application work is not the cost | Not yet implemented. Options are a keep-warm ping, trimming what the function initialises at import time, and the connection pooler already recorded as TD-030 | Open | not yet completed |
+
 Severity: **Critical** blocks core use, deployment, or security · **High** major
 requirement broken · **Medium** workaround exists · **Low** cosmetic. Fix Critical and High
 defects before any optional enhancement.
@@ -301,7 +341,7 @@ caught next time rather than found by hand again.
 | DEF-010 | Origin resolved from the Vercel host when `CLIENT_ORIGIN` is absent, production host added to the CORS list, and the Production variable corrected | Unit test on `resolveClientOrigin`; CORS probe recorded in Live deployment verification |
 | DEF-011 | The in-flight verification request held in a ref keyed by token, so a double mount cannot spend a single-use token twice | FT-006, which fails against the previous code |
 | DEF-012 | The effect depends on the resolved record rather than on the hook's wrapper object | FT-003 |
-| DEF-007, DEF-008, DEF-009 | No corrective action yet — all three are Low and open, with the diagnosis and intended fix recorded in the log | Deferred deliberately; none blocks a Must requirement |
+| DEF-007, DEF-008, DEF-009, DEF-013 | No corrective action yet — all four are Low and open, with the diagnosis and intended fix recorded in the log | Deferred deliberately; none blocks a Must requirement. DEF-013 is measured by PERF-002, so a fix would have a before-and-after number |
 | Test infrastructure (not a product defect) | Integration runs migrate a per-run `test_<pid>` schema after two runs corrupted a shared one | CH-023, closing TD-009 |
 
 No defect was closed by weakening or deleting a test.
@@ -323,7 +363,7 @@ was re-run afterwards to check for regressions. Dated outcomes:
 | DEF-011 | FT-006, written to fail against the previous code | 2026-08-15 | Pass |
 | DEF-012 | FT-003, which had regressed to a failure | 2026-08-15 | Pass |
 | Regression check after the 2026-08-15 fixes | Full server suite and the E2E suite | 2026-08-15 | Pass — see Server coverage and Frontend E2E |
-| DEF-007, DEF-008, DEF-009 | Not applicable — no fix has been applied | — | Open, retest not yet completed |
+| DEF-007, DEF-008, DEF-009, DEF-013 | Not applicable — no fix has been applied | — | Open, retest not yet completed |
 
 ## Results summary
 
@@ -831,6 +871,35 @@ Not covered by this run: a paid consultation end to end, because the test mercha
 amounts at real fee levels (TD-031), and a live registration confirming an emailed link
 resolves (DEF-010, still partial).
 
+## Performance measurement (2026-08-15)
+
+NFR-006 sets a 2-second target for non-AI operations under demonstration load and requires
+AI latency to be measured rather than asserted. This section is the measurement. It is a
+demonstration-load sample, not a load test, and it is reported with its limits.
+
+Method: `node scripts/measure-latency.mjs <baseUrl> <samples>` — sequential samples per
+endpoint, timed from request start to response body fully read, then one burst of 20
+concurrent requests to the directory. Both runs were executed on 2026-08-15 from the
+development machine (macOS, Node.js 22.22.2). The local run hits the Express server on port
+4000 against PostgreSQL 16 in Docker; the live run hits the Vercel deployment against the
+hosted database, so it includes TLS, internet round-trip from Ghana, and the platform's
+function invocation.
+
+| ID | Requirement | Case | Result |
+| --- | --- | --- | --- |
+| PERF-001 | NFR-006 | Local read endpoints, 30 samples each: health p50 3.3 ms / p95 7.4 ms; categories 3.8 / 27.3; directory 8.9 / 11.0; directory search 9.7 / 13.0; lawyer detail 6.5 / 9.9 | Pass — every p95 is under 30 ms, far inside the 2-second target |
+| PERF-002 | NFR-006 | Live deployment, same endpoints, 20 samples each: health p50 486.5 ms / p95 2121.8 ms / max 2254.8 ms; categories 477.7 / 546.8; directory 488.8 / 525.8; search 481.9 / 511.5; lawyer detail 466.7 / 503.0 | **Partial** — steady-state p50 is ~0.5 s, but the first request after idle reached 2.25 s, over the target (DEF-013) |
+| PERF-003 | NFR-006 | Local burst, 20 concurrent directory requests: wall 447 ms, p50 406.5 ms, p95 440.3 ms, 0 non-200 | Pass — concurrency serialises but stays well inside target |
+| PERF-004 | NFR-006 | Live burst, 20 concurrent directory requests: wall 1105 ms, p50 1018.4 ms, p95 1067 ms, 0 non-200 | Pass — no failures, no connection exhaustion at this level |
+
+What this does and does not show. It shows that the query and serialisation cost of the read
+paths is negligible, that the deployed steady-state latency is dominated by network and
+platform overhead rather than by application work, and that twenty simultaneous readers cause
+no errors. It does **not** show behaviour at sustained or higher concurrency, does not touch
+the write or payment paths, and was run from a single client, so the live figures include this
+machine's connection. The AI path is deliberately excluded: it is bounded by a third-party
+provider on a free tier (CON-004, TD-002) and any single figure would misrepresent it.
+
 ## Known issues and testing limitations
 
 Classification quality is unmeasured — see TD-011. The suite proves the AI contract is
@@ -852,17 +921,38 @@ resolved). Verified on 2026-08-15 by starting two suites in the same second —
 `subscriptions.test.ts` (23) and `lawyers.test.ts` (53) — both green. Runs are still serial
 *within* a run, so the suite's duration is unchanged.
 
-**One unexplained failure remains on record.** A `verify` run on 2026-08-15 at 13:59 failed a
-single integration case — `subscriptions.test.ts`, "an admin can create a package and cannot
-reuse its name" — with `expected 401 to be 201`. The helper creates the administrator and
-signs in immediately before the request, so the 401 means the sign-in returned no usable
-token, but the response was discarded and the cause was not captured. It has not been
-reproduced: the file passed three times in isolation and the full suite passed four times
-that day, including once immediately afterwards, and no other run overlapped it. It is
-recorded here rather than dismissed as noise, because a one-in-five intermittent on an
-authorisation path is exactly the kind of thing that is tempting to ignore. The helper now
-fails on the sign-in itself and prints the status and body, so a recurrence will name its own
-cause instead of surfacing as a 401 on the endpoint under test.
+**Fixtures no longer sign in over HTTP.** A `verify` run on 2026-08-15 at 13:59 failed one
+integration case — `subscriptions.test.ts`, "an admin can create a package and cannot reuse
+its name" — with `expected 401 to be 201`. It did not reproduce in isolation (the file passed
+three times) and no other run overlapped it, but a deliberate reproduction across three full
+suites hit the same symptom in a different file: `lawyers.test.ts`, "IT-025: a lawyer edits
+their own profile", with `expected 401 to be 200`.
+
+Two different files, two different endpoints, one shared cause: both minted their session by
+posting to `/auth/login` in a fixture. When that sign-in returned no token, the fixture passed
+`undefined` on, the request went out as `Bearer undefined`, and the failure was reported
+against whichever endpoint the test was actually exercising — neither of which was faulty.
+Roughly one full run in four failed somewhere for this reason.
+
+Fixtures now sign the session directly through `tests/session.ts`, which is the same
+`signToken` the login route uses. Tests of packages, profiles, matching, intakes, and
+consultations no longer depend on an endpoint they are not testing. Sign-in keeps its own
+coverage in `auth.test.ts` (12 cases), and the three places that genuinely exercise the login
+route — `auth.test.ts`, `IT-021`, and the malformed-JSON case `IT-008` — were left alone.
+
+**This removes the dependency, not the underlying transient.** No 401 of this kind has
+appeared in the eight full runs since the change, but one of those eight failed two tests with
+a different signature — `expected 404 to be 200` in `matching.test.ts` and `subscriptions.test.ts`
+— which has the same shape of cause: state that should have been there was not. That run's
+detail was not captured and it has not recurred in the four runs since, so the suite stands at
+**seven clean runs out of eight**, not eight out of eight. Claiming it fixed would be
+overstating it.
+
+Why it happens is still unknown. There is no rate limiter, files run serially on one worker,
+no other run or dev server overlapped any occurrence, and the per-run schema isolation from
+TD-009 was in place. It is recorded as TD-033 with the evidence and with the instruction to
+capture the response body at the moment of failure rather than reasoning backwards from the
+assertion, which is what was missing all three times.
 
 ## Server coverage (2026-08-15)
 
@@ -925,8 +1015,9 @@ What testing does **not** establish is equally important. It does not show that 
 returns the *right* category — only that the contract around it is enforced and every
 failure mode degrades safely (TD-011). It does not cover React components in isolation
 (TD-008). Usability rests on developer walkthroughs; no independent participant has run a
-session, so NFR-004 is evidenced but not independently validated. NFR-006 performance has
-not been measured. A live mobile money capture at a real consultation fee has not been
+session, so NFR-004 is evidenced but not independently validated. Performance is sampled on
+the read paths (PERF-001 to PERF-004) but not load-tested, and the AI path is deliberately
+uncharacterised. A live mobile money capture at a real consultation fee has not been
 performed, because the test merchant refuses amounts at that scale (TD-031).
 
 On balance the Must-priority paths — authentication, authorisation and ownership, intake

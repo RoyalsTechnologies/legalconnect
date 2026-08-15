@@ -4,6 +4,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FALLBACK_CATEGORY_NAME } from '../src/ai/legal-triage.service.js';
 import { createApp } from '../src/app.js';
+import { signToken } from '../src/lib/jwt.js';
 import { prisma } from './setup.js';
 import { grantPlan } from './subscription-fixtures.js';
 
@@ -398,7 +399,7 @@ describe('Lawyer matching (FR-011)', () => {
       displayName: 'Akua Owusu',
       categoryIds: [employmentId],
     });
-    await prisma.user.create({
+    const admin = await prisma.user.create({
       data: {
         email: 'admin@example.com',
         passwordHash: await bcrypt.hash('admin-password-123', 4),
@@ -407,11 +408,11 @@ describe('Lawyer matching (FR-011)', () => {
         emailVerifiedAt: new Date(),
       },
     });
-    const login = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: 'admin@example.com', password: 'admin-password-123' });
 
-    const res = await recommendations(login.body.token as string, await seedIntake(owner));
+    const res = await recommendations(
+      signToken({ sub: admin.id, role: Role.ADMIN }),
+      await seedIntake(owner),
+    );
 
     expect(res.status).toBe(200);
     expect(res.body.recommendations.length).toBeGreaterThan(0);
