@@ -1,6 +1,8 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import { Marked } from 'marked';
 import { chromium } from 'playwright-core';
 
@@ -239,11 +241,9 @@ const html = `<!doctype html>
   ${body}
 </body></html>`;
 
-const outputDir = join(
-  root,
-  'submission',
-  `${config.studentId}_LegalConnect_Ghana`.replace(/[<>\s]/g, ''),
-);
+const submissionDir = join(root, 'submission');
+const packageName = `${config.studentId}_LegalConnect_Ghana`.replace(/[<>\s]/g, '');
+const outputDir = join(submissionDir, packageName);
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 
@@ -291,9 +291,30 @@ Compiled ${generated}.
 
 await writeFile(join(outputDir, 'Deployment_and_Source_Links.txt'), links, 'utf8');
 
+/**
+ * The diagrams and the UAT screenshots are already appendices in the PDF. They are copied
+ * out as files too so a marker can open an original at full resolution, and so the Mermaid
+ * sources travel with the renders.
+ */
+const supportingDir = join(outputDir, 'Supporting_Files');
+await cp(join(root, 'diagrams'), join(supportingDir, 'diagrams'), { recursive: true });
+if (evidence.length > 0) {
+  await cp(evidenceDir, join(supportingDir, 'uat-evidence'), { recursive: true });
+}
+
+const execFileAsync = promisify(execFile);
+const archivePath = join(submissionDir, `${packageName}.zip`);
+await rm(archivePath, { force: true });
+await execFileAsync('zip', ['-qr', archivePath, packageName], { cwd: submissionDir });
+const archiveMb = ((await stat(archivePath)).size / 1024 / 1024).toFixed(1);
+
 console.log(`Submission package written to ${outputDir.replace(`${root}/`, '')}/`);
 console.log(`  Project_Documentation.pdf — ${chapters.length} chapters`);
 console.log('  Deployment_and_Source_Links.txt');
+console.log(
+  `  Supporting_Files/ — diagrams (sources and renders)${evidence.length > 0 ? `, ${evidence.length} UAT screenshots` : ''}`,
+);
+console.log(`  ${archivePath.replace(`${root}/`, '')} — ${archiveMb} MB`);
 
 if (placeholders.length > 0) {
   console.log(
