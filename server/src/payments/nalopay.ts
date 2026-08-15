@@ -43,6 +43,21 @@ function gatewayDetail(body: NaloPayEnvelope<unknown> | null): string | undefine
   return body?.error?.description || body?.message;
 }
 
+/**
+ * NaloPay answers a refused amount with "Invalid value for amount", which the payer can
+ * do nothing about — the figure is the plan or consultation price, not something they
+ * typed. Every other cause names a field they do control, so that wording is kept.
+ */
+function rejectionMessage(body: NaloPayEnvelope<unknown> | null, amount: string): string {
+  if (body?.error?.cause === 'amount') {
+    return `The payment service would not accept a charge of GHS ${amount}. Nothing has been charged.`;
+  }
+  return (
+    gatewayDetail(body) ||
+    'The payment service rejected those details. Check the mobile money number and network.'
+  );
+}
+
 /** Amount string used in both the request body and trans_hash (two decimal places). */
 export function amountForHash(amountPesewas: number): string {
   return pesewasToGhs(amountPesewas).toFixed(2);
@@ -373,17 +388,15 @@ async function startMomoTransfer(
     log.payment.error(`${kind} ${path} failed`, {
       status: response.status,
       code: body?.code,
-      message: body?.message,
+      cause: body?.error?.cause,
+      message: gatewayDetail(body),
       accountLength: accountNumber.length,
       network: payload.network,
       amount,
       callbackHost: new URL(callback).hostname,
     });
     if (typeof body?.code === 'string' && body.code.startsWith('PAY-INVAL')) {
-      throw unprocessable(
-        gatewayDetail(body) ||
-          'The payment service rejected those details. Check the mobile money number and network.',
-      );
+      throw unprocessable(rejectionMessage(body, amount));
     }
     throw serviceUnavailable(
       kind === 'payout'

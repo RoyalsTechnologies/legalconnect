@@ -390,6 +390,27 @@ describe('NaloPay live collection and payout', () => {
     ).rejects.toThrow(/Invalid reference/);
   });
 
+  it('replaces the gateway wording when the refused field is the amount', async () => {
+    fetchMock.mockResolvedValueOnce(jsonOk({ token: 'tok' })).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        success: false,
+        code: 'PAY-INVAL-0058',
+        error: { cause: 'amount', description: 'Invalid value for amount' },
+      }),
+    });
+    await expect(
+      startPayment({
+        accountName: 'Ama',
+        phone: '0244123456',
+        amountPesewas: 15000,
+        reference: 'r',
+        description: 'x',
+      }),
+    ).rejects.toThrow(/would not accept a charge of GHS 150\.00\. Nothing has been charged\./);
+  });
+
   it('sends Basic auth when the stored token has no prefix', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonOk({ token: 'tok' }))
