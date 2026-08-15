@@ -256,7 +256,7 @@ async function main() {
 }
 
 async function seedAdmin() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@legalconnect.local';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@legalconnect.com';
   const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
 
   if (existing) {

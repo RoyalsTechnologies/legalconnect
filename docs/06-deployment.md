@@ -171,7 +171,7 @@ Live Application:        https://legalconnect-beryl.vercel.app
 Admin URL:               https://legalconnect-beryl.vercel.app/app/admin
 Citizen Username:        ama.mensah@example.com
 Lawyer Username:         akua.owusu@example.com
-Admin Username:          admin@legalconnect.local
+Admin Username:          admin@legalconnect.com
 Passwords:               resolved from server/.env at build time — see the generated file
 Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 ```

@@ -14,7 +14,7 @@
     "citizenPassword": "${SEED_DEMO_PASSWORD}",
     "lawyerEmail": "akua.owusu@example.com",
     "lawyerPassword": "${SEED_DEMO_PASSWORD}",
-    "adminEmail": "admin@legalconnect.local",
+    "adminEmail": "admin@legalconnect.com",
     "adminPassword": "${SEED_ADMIN_PASSWORD}"
   }
 }
