@@ -15,7 +15,11 @@ the final submission documents, so keep them current as the project develops.
 | [07-maintenance-and-evolution.md](07-maintenance-and-evolution.md) | Maintenance strategy, future evolution, limitations |
 | [08-viva-prep.md](08-viva-prep.md) | Questions to be able to answer |
 | [09-process-playbook.md](09-process-playbook.md) | Quality gates, feature/bug/refactor workflow, change log, status formats |
-| [user-manual.md](user-manual.md) | End-user guide (written once the app works) |
+| [10-srs.md](10-srs.md) | Software Requirements Specification in the brief's nine-section structure |
+| [11-conclusion.md](11-conclusion.md) | Project conclusion — what was delivered, what the discipline produced, what is unfinished |
+| [12-references.md](12-references.md) | References and acknowledgements for every third-party component |
+| [user-manual.md](user-manual.md) | End-user guide |
+| [uat-evidence/](uat-evidence/) | Screenshots captured during UAT runs |
 | [diagrams/](../diagrams/) | Use-case, architecture, ER, intake sequence, consultation lifecycle (Mermaid) |
 | [archive/](archive/) | Original combined `.cursorrules` file, kept as source |
 
