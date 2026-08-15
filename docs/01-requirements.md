@@ -95,7 +95,7 @@ implementation at the product owner's request.
 | NFR-001 | Security | Passwords shall be stored only as bcrypt hashes and every role- or ownership-restricted operation shall be enforced server-side. | SEC-LG-003, SEC-LG-005 |
 | NFR-002 | Privacy | The system shall collect only data the MVP requires, shall not log full intake text, and shall not expose one user's intake to any unauthorised user. | SEC-LG-001, SEC-LG-002, SEC-LG-008 |
 | NFR-003 | Reliability | Failure of the AI provider shall not cause loss of a submitted legal concern, and shall not return a 5xx on the intake workflow. | AI-TC-005 |
-| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13; independent participants not yet completed) |
+| NFR-004 | Usability | A first-time user shall be able to describe a concern and reach lawyer recommendations without using or understanding legal terminology. | UAT-001, UAT-006 (developer walkthrough 2026-08-13, extended 2026-08-15 through UAT-003/004/005; independent participants not yet completed) |
 | NFR-005 | Maintainability | All provider-specific AI logic shall sit behind a single service adapter, with no provider SDK imported outside `server/src/ai/`. | Code review |
 | NFR-006 | Performance | Non-AI API operations shall respond within 2 seconds under demonstration load. AI-dependent latency shall be measured and documented separately, not asserted. | Measured, not yet recorded |
 | NFR-007 | Explainability | Every lawyer recommendation shall carry a human-readable reason traceable to configured matching criteria, not to an AI claim. | AI-TC-010 |
@@ -164,9 +164,11 @@ Monthly fees are stored in pesewas and are editable by an administrator; a chang
 to the next payment only. A lawyer may pay one month (30 days) or a yearly equivalent
 (365 days at 12 × the current monthly fee). The collected amount and duration are stored
 on `SubscriptionPayment`. A lawyer without `subscriptionPeriodEnd` in the future is absent
-from the public directory, matching, and new bookings, even if approved. Paying or an
-admin grant activates the paid or granted number of days. Listing more areas than
-the live plan allows returns `422`.
+from the public directory, matching, and new bookings, even if approved. A payment adds the
+paid days to any time still remaining, so moving to a larger plan mid-period keeps the days
+already bought and takes effect once the payment clears; the unused *value* is not prorated
+(TD-026). An admin grant sets the period outright, so a grant can also shorten one. Listing
+more areas than the live plan allows returns `422`.
 
 **FR-019** — Creating a consultation requires a future `scheduledAt`. The API returns a
 Google Calendar template URL for that 30-minute slot. Accepting requires a

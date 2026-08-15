@@ -167,16 +167,36 @@ async function assertFitsCurrentAreas(lawyerProfileId: string, pkg: PackageView)
   assertAreaCount(count, pkg.maxPracticeAreas, pkg.name);
 }
 
+/**
+ * `extend` keeps days the lawyer has already paid for: an upgrade or an early renewal
+ * adds the purchased term to whatever is left, so changing plan mid-period no longer
+ * discards the remainder (FR-018). An admin grant sets the period outright instead,
+ * because a grant also has to be able to shorten one.
+ */
 async function activatePlan(
   lawyerProfileId: string,
   pkg: PackageView,
   days: number,
+  { extend }: { extend: boolean },
 ): Promise<SubscriptionView> {
+  const now = new Date();
+  let start = now;
+
+  if (extend) {
+    const existing = await prisma.lawyerProfile.findUniqueOrThrow({
+      where: { id: lawyerProfileId },
+      select: { subscriptionPeriodEnd: true },
+    });
+    if (existing.subscriptionPeriodEnd && existing.subscriptionPeriodEnd > now) {
+      start = existing.subscriptionPeriodEnd;
+    }
+  }
+
   const updated = await prisma.lawyerProfile.update({
     where: { id: lawyerProfileId },
     data: {
       subscriptionPackageId: pkg.id,
-      subscriptionPeriodEnd: periodEndFrom(new Date(), days),
+      subscriptionPeriodEnd: periodEndFrom(start, days),
     },
     select: {
       subscriptionPeriodEnd: true,
@@ -202,7 +222,7 @@ export async function grantSubscription(
 
   const pkg = await loadPackage(input.packageId, false);
   await assertFitsCurrentAreas(lawyerProfileId, pkg);
-  return activatePlan(lawyerProfileId, pkg, input.periodDays);
+  return activatePlan(lawyerProfileId, pkg, input.periodDays, { extend: false });
 }
 
 export async function startSubscription(
@@ -408,5 +428,7 @@ async function markSubscriptionPaid(paymentId: string): Promise<SubscriptionView
     return toSubscriptionView(current);
   }
 
-  return activatePlan(payment.lawyerProfileId, payment.package, payment.periodDays);
+  return activatePlan(payment.lawyerProfileId, payment.package, payment.periodDays, {
+    extend: true,
+  });
 }

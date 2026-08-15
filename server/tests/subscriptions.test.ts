@@ -279,6 +279,47 @@ describe('Lawyer subscription packages (FR-018)', () => {
     expect(directory.body.results).toHaveLength(1);
   });
 
+  it('IT-088: upgrading mid-period keeps the days already paid for', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin, [employmentId]);
+    const token = await lawyerToken();
+    await grantPlan(created.body.id, 'starter', 25);
+
+    const before = await prisma.lawyerProfile.findUniqueOrThrow({
+      where: { id: created.body.id },
+      select: { subscriptionPeriodEnd: true },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/lawyers/me/subscription')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ packageId: await packageId('chambers') });
+
+    expect(res.status).toBe(201);
+    expect(res.body.subscription.package.slug).toBe('chambers');
+
+    const after = new Date(res.body.subscription.periodEnd as string).getTime();
+    const remainderKept = before.subscriptionPeriodEnd!.getTime() + 30 * 24 * 60 * 60 * 1000;
+    // The 25 unused days survive the upgrade, so this lands ~55 days out, not 30.
+    expect(Math.abs(after - remainderKept)).toBeLessThan(60_000);
+  });
+
+  it('IT-089: an admin grant sets the period outright so it can still be shortened', async () => {
+    const admin = await adminToken();
+    const created = await createLawyer(admin, [employmentId]);
+    await grantPlan(created.body.id, 'practice', 300);
+
+    const granted = await request(app)
+      .post(`/api/v1/admin/lawyers/${created.body.id}/subscription`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ packageId: await packageId('practice'), periodDays: 5 });
+
+    expect(granted.status).toBe(200);
+    const end = new Date(granted.body.periodEnd as string).getTime();
+    const fiveDaysOut = Date.now() + 5 * 24 * 60 * 60 * 1000;
+    expect(Math.abs(end - fiveDaysOut)).toBeLessThan(60_000);
+  });
+
   it('SEC-LG-037: a citizen cannot grant a subscription', async () => {
     const admin = await adminToken();
     const created = await createLawyer(admin, [employmentId]);
