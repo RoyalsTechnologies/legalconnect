@@ -57,6 +57,7 @@ const CHAPTERS = [
   ['01-requirements.md', 'Requirements Register, Acceptance Criteria, and Traceability'],
   ['02-effort-estimation.md', 'Software Effort Estimation'],
   ['03-architecture.md', 'System Analysis and Design'],
+  ['13-implementation.md', 'Implementation'],
   ['04-testing.md', 'Testing Report'],
   ['05-technical-debt-register.md', 'Technical Debt Identification and Management'],
   ['06-deployment.md', 'Deployment and Accessibility'],
@@ -196,6 +197,8 @@ const styles = `
   .toc li::before { content: counter(chapter) ". "; color: #565c68; }
   .toc .source { float: right; font-size: 8.5pt; color: #808795; font-family: "SF Mono", Menlo, monospace; }
 
+  .section-map { page-break-after: always; }
+
   .chapter { page-break-before: always; }
   .chapter > h1 { border-bottom: 2px solid #16181d; padding-bottom: 3mm; margin-bottom: 6mm; }
   .chapter > h1 .number { color: #808795; margin-right: 3mm; }
@@ -207,6 +210,119 @@ const toc = chapters
       `<li><a href="#${slug(chapter.title)}">${escapeHtml(chapter.title)}</a><span class="source">${escapeHtml(chapter.source)}</span></li>`,
   )
   .join('');
+
+/**
+ * The brief names nineteen documentation topics and five separate PDFs, and allows one
+ * combined PDF only if every required section is clearly identified. A marker should not
+ * have to infer which chapter answers which requirement, so the mapping is stated. Chapter
+ * numbers are resolved from the chapter list rather than written down, so they cannot drift.
+ */
+const REQUIRED_TOPICS = [
+  ['Project Title', null, 'Cover page'],
+  [
+    'Problem Statement',
+    'Requirements Register, Acceptance Criteria, and Traceability',
+    'Problem statement',
+  ],
+  [
+    'Aim and Objectives',
+    'Requirements Register, Acceptance Criteria, and Traceability',
+    'Aim; Objectives',
+  ],
+  [
+    'Stakeholders',
+    'Requirements Register, Acceptance Criteria, and Traceability',
+    'Stakeholders; Actors and roles',
+  ],
+  [
+    'Requirements Analysis',
+    'Requirements Register, Acceptance Criteria, and Traceability',
+    'Functional and non-functional requirements, MoSCoW priorities, acceptance criteria, traceability',
+  ],
+  [
+    'Software Requirements Specification',
+    'Software Requirements Specification',
+    'Nine-section SRS',
+  ],
+  [
+    'Software Effort Estimation',
+    'Software Effort Estimation',
+    'Technique, baseline, re-estimation, actuals, variance',
+  ],
+  ['System Analysis', 'System Analysis and Design', 'Analysis — core workflow'],
+  [
+    'System Design',
+    'System Analysis and Design',
+    'Architecture, data model, API surface, matching design, ADRs',
+  ],
+  [
+    'Implementation',
+    'Implementation',
+    'Modules, workflows, algorithms, database, API, auth, validation, error handling, security, deviations',
+  ],
+  [
+    'Testing',
+    'Testing Report',
+    'Strategy, environment, test types, cases, results, defects, corrective actions, retesting, limitations',
+  ],
+  ['Technical Debt', 'Technical Debt Identification and Management', 'Register and repayment plan'],
+  [
+    'Deployment',
+    'Deployment and Accessibility',
+    'Configuration, deployment steps, live verification',
+  ],
+  ['User Manual', 'User Manual', 'Roles, tasks, common errors, troubleshooting'],
+  [
+    'Maintenance Strategy',
+    'Maintenance, Future Evolution, and Limitations',
+    'Corrective, adaptive, perfective, preventive',
+  ],
+  ['Future Evolution', 'Maintenance, Future Evolution, and Limitations', 'Future evolution'],
+  ['Limitations', 'Maintenance, Future Evolution, and Limitations', 'Limitations'],
+  ['Conclusion', 'Conclusion', null],
+  ['References', 'References and Acknowledgements', null],
+];
+
+const REQUIRED_DOCUMENTS = [
+  ['SRS.pdf', 'Software Requirements Specification'],
+  ['Testing_Report.pdf', 'Testing Report'],
+  ['Technical_Debt_Plan.pdf', 'Technical Debt Identification and Management'],
+  ['User_Manual.pdf', 'User Manual'],
+];
+
+function chapterNumber(title) {
+  const index = chapters.findIndex((chapter) => chapter.title === title);
+  if (index === -1) throw new Error(`section map refers to a missing chapter: ${title}`);
+  return index + 1;
+}
+
+function locate(title) {
+  return title === null
+    ? 'Cover'
+    : `<a href="#${slug(title)}">Chapter ${chapterNumber(title)} — ${escapeHtml(title)}</a>`;
+}
+
+const sectionMap = `
+  <h1>Required sections</h1>
+  <p>Every documentation topic required by the examination brief, and where it is answered
+    in this document.</p>
+  <table>
+    <thead><tr><th>Required topic</th><th>Location</th><th>Within that chapter</th></tr></thead>
+    <tbody>${REQUIRED_TOPICS.map(
+      ([topic, title, note]) =>
+        `<tr><td>${escapeHtml(topic)}</td><td>${locate(title)}</td><td>${note ? escapeHtml(note) : '—'}</td></tr>`,
+    ).join('')}</tbody>
+  </table>
+  <p>The brief also names separate PDFs, which it permits combining into one document
+    provided each required section is clearly identified. They are identified here.</p>
+  <table>
+    <thead><tr><th>Required document</th><th>Location in this document</th></tr></thead>
+    <tbody>${REQUIRED_DOCUMENTS.map(
+      ([name, title]) =>
+        `<tr><td><code>${escapeHtml(name)}</code></td><td>${locate(title)}</td></tr>`,
+    ).join('')}<tr><td><code>Deployment_and_Source_Links.txt</code></td><td>Supplied as a separate
+      file in the submission package, alongside <code>Supporting_Files/</code></td></tr></tbody>
+  </table>`;
 
 const body = chapters
   .map(
@@ -238,6 +354,7 @@ const html = `<!doctype html>
       follow the examination brief; the source file for each is shown in the contents.</p>
   </section>
   <section class="toc"><h1>Contents</h1><ol>${toc}</ol></section>
+  <section class="section-map">${sectionMap}</section>
   ${body}
 </body></html>`;
 

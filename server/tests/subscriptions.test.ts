@@ -25,6 +25,14 @@ async function adminToken(): Promise<string> {
   const res = await request(app)
     .post('/api/v1/auth/login')
     .send({ email: 'admin@example.com', password: 'admin-password-123' });
+
+  // Without this, a failed login returns undefined and the test reports a 401 on
+  // whatever it does next, pointing at the endpoint under test rather than at the
+  // sign-in that actually broke. Seen once on 2026-08-15 and not reproduced since.
+  if (res.status !== 200 || !res.body.token) {
+    throw new Error(`admin sign-in failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+
   return res.body.token as string;
 }
 

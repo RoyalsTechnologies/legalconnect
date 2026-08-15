@@ -229,9 +229,25 @@ diagrams/  design diagrams
 | [docs/03-architecture.md](docs/03-architecture.md) | Architecture, data model, ADRs, phase plan |
 | [docs/04-testing.md](docs/04-testing.md) | Test strategy, cases, results, defects |
 | [docs/05-technical-debt-register.md](docs/05-technical-debt-register.md) | Debt register and repayment plan |
+| [docs/06-deployment.md](docs/06-deployment.md) | Deployment configuration, steps, and live verification |
+| [docs/07-maintenance-and-evolution.md](docs/07-maintenance-and-evolution.md) | Maintenance strategy, future evolution, limitations |
 | [docs/10-srs.md](docs/10-srs.md) | Software Requirements Specification |
 | [docs/11-conclusion.md](docs/11-conclusion.md) | Project conclusion |
 | [docs/12-references.md](docs/12-references.md) | References and acknowledgements |
+| [docs/13-implementation.md](docs/13-implementation.md) | Implementation — modules, workflows, algorithms, security, deviations |
+| [docs/user-manual.md](docs/user-manual.md) | End-user guide, common errors, troubleshooting |
+
+The full index, including the process playbook and the estimation and testing detail, is in
+[docs/README.md](docs/README.md).
+
+## Contributing
+
+Commit continuously, one logical change at a time, using a Conventional Commits prefix and a
+scope: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:` — for example
+`feat(auth): add lawyer role guard` or `test(matching): cover the tie-break order`. Run
+`npm run verify` from the repository root before a change is considered complete; it runs
+Biome, both typechecks, the test suites, and the dependency audit. Never rewrite history to
+make the work look more extensive than it was.
 
 ## Acknowledgements
 

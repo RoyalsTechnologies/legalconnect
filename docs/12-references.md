@@ -73,6 +73,27 @@ Citation style throughout: **Publisher. *Name*, version. URL**
   conventions (`meet.google.com`, the Calendar event-template URL). No Google SDK,
   API key, or OAuth integration is present. <https://meet.google.com>
 
+## Documentation sources consulted
+
+The official documentation for the components listed above is the reference material for
+this project. The entries below name the specific areas behind non-obvious implementation
+choices, so a reader can check the decision against its source.
+
+| Source | Used for |
+| --- | --- |
+| Prisma documentation, *Schema reference* and *Deployment to serverless environments*. <https://www.prisma.io/docs> | Relation and index syntax, migration workflow, and the connection-limit warning that became TD-030 |
+| Express 4 documentation, *Error handling* and *Using middleware*. <https://expressjs.com/en/guide/error-handling.html> | The four-argument error handler contract and body-parser error shapes behind DEF-002 |
+| Zod documentation. <https://zod.dev> | Schema composition, `safeParse`, and the issue format flattened into the API's `details` array |
+| Vercel documentation, *Functions* and *Environment variables*. <https://vercel.com/docs> | Routing a single Express function, and the `VERCEL_PROJECT_PRODUCTION_URL` variable used to fix DEF-010 |
+| Vitest documentation, *Test context*, *globalSetup*, and *Coverage*. <https://vitest.dev> | Per-run global setup, the serial configuration, and coverage thresholds |
+| Playwright documentation, *Network mocking* and *Assertions*. <https://playwright.dev/docs/network> | Route interception used to run the E2E flows without a live API or gateway |
+| Ant Design 6 component documentation. <https://ant.design/components/overview> | Form, Table, and Result component APIs |
+| NaloPay merchant API documentation | Collection request and callback fields; the disbursement endpoint remains unconfirmed against it (TD-028) |
+| PostgreSQL 16 documentation, *Data types* and *Indexes*. <https://www.postgresql.org/docs/16/> | Index choices and the reasoning for integer pesewas over a floating-point money column |
+
+No tutorial, course, blog post, or sample repository was used as a project template, and no
+dataset was licensed or copied — see the attribution note below.
+
 ## Notes on attribution
 
 No external source code was copied into this repository. All application code under

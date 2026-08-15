@@ -488,18 +488,62 @@ fixed rather than accepted. See the defect log in `docs/04-testing.md`.
 
 ## Repayment plan
 
-**v1.1** — TD-003 refresh tokens and revocation; TD-007 privacy disclosure and data
-minimisation review; TD-001 labelled evaluation set; TD-008 extend coverage; TD-021
-server-supplied permitted transitions; TD-023 rate limiting on the
-anonymous read endpoints; TD-027 Calendar API Meet rooms; TD-031 a live merchant account
-and one approved end-to-end mobile-money capture.
+Every open item, with what repaying it involves, what has to be true first, when it is
+targeted, and what the project gets back. Effort is in the story points defined in
+`02-effort-estimation.md` — the same scale used to estimate the build, so these numbers can
+be compared with the ones that were tested against reality. They are estimates, not
+measurements. Resolved items (TD-009, TD-010, TD-017, TD-020) are not listed.
 
-**v1.2** — TD-002 asynchronous triage; TD-004 outcome-informed matching weights; TD-006
-second provider adapter; TD-018 keyset pagination; TD-019 full-text search; TD-022
-weight calibration.
+### Immediately after the examination window
 
-**Future major version** — TD-005 licence verification against a professional register and
-document upload; TD-007 self-hosted or in-region model.
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-032 | Delete the fictional practitioner rows and their accounts; return the hosted database to categories, packages, and an admin only | Medium | Marking complete, so the walkthrough data is no longer needed | 1 | No invented practitioners on a public URL, which is the reason the item was accepted only for the window |
+
+### v1.1 — before the product is used by real citizens or handles real money
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-007 | User-facing disclosure that intake text is sent to an external provider, shown before submission, plus a data-minimisation review of what is sent | High | Privacy wording agreed and reviewed | 3 | The citizen consents knowingly; the highest-priority open item stops being silent |
+| TD-028 | Confirm the disbursement endpoint with NaloPay and cover it with a contract test like the collection path | High (prod) | Live merchant account and a NaloPay technical contact | 3 | Withdrawals provably reach a lawyer instead of being assumed to |
+| TD-031 | One approved end-to-end mobile-money capture at a real consultation fee | High (prod) | Live merchant credentials — the test merchant caps the amount | 2 | The payment path is proven at production amounts, not only below the cap |
+| TD-003 | Refresh tokens with a server-side revocation list | Medium | Session model decision (short access token plus refresh) | 5 | Sign-out and compromise become effective immediately rather than at expiry |
+| TD-023 | Rate limiting on the anonymous read endpoints | Medium | A counter store the serverless host can share across instances — related to TD-030 | 2 | The directory resists scraping and login brute force |
+| TD-016 | Force a password change on a lawyer's first login after an admin-set password | Medium | None — welcome email already delivers the temporary password | 2 | No account keeps a password a second person has seen |
+| TD-030 | Put a connection pooler in front of Prisma on the serverless host | Medium | Hosting plan decision | 2 | Concurrent traffic stops exhausting Postgres connections |
+| TD-008 | Extend coverage to the branches the targeted suite deliberately skipped | Medium | None | 3 | Regressions in less-exercised paths are caught by the suite, not by hand |
+| TD-001 | Build a labelled evaluation set of Ghanaian legal enquiries, then decide on evidence whether a trained classifier is warranted | Medium | Enough real intake text, ethically obtained | 3 | The classification approach becomes a measured choice rather than an assumption |
+| TD-011 | Calibrate the 0.5 confidence threshold against that set | Medium | TD-001 evaluation set | 2 | The review line is set by data instead of judgement |
+| TD-027 | Create Meet rooms through the Calendar API with lawyer OAuth consent | Medium (prod) | Google Cloud project, consent screen, verified scopes | 5 | The lawyer stops pasting a link by hand, and the slot appears in a real calendar |
+| TD-021 | Have the API return the permitted transitions with each consultation | Low | None | 2 | One definition of the lifecycle instead of a copy in the frontend |
+
+### v1.2 — scale, quality, and operability
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-025 | Automate settlement to lawyers, including whatever commission model is agreed | Medium (prod) | TD-028 disbursement confirmed; commercial terms decided | 5 | Money moves without a manual step; escrow becomes a complete cycle |
+| TD-002 | Move triage off the request path with a queued or deferred worker | Medium | A background execution mechanism the host supports | 5 | Intake stops waiting on the provider; slow responses stop being user-visible |
+| TD-006 | Second provider adapter behind the existing interface, with failover | Low | None — the adapter boundary already exists (NFR-005) | 3 | One provider outage stops degrading every intake |
+| TD-013 | Structural prompt-injection defence: isolate and screen the enquiry rather than instructing the model to ignore it | Low | None | 3 | The defence stops depending on the model's compliance |
+| TD-014 | Aggregate AI failures and confidence into a metric with a threshold | Low | TD-029 log destination | 2 | Provider degradation is noticed by the system, not by a user |
+| TD-029 | Ship logs to a hosted sink instead of files | Low | Choice of sink | 2 | Evidence survives a serverless invocation ending |
+| TD-018 | Keyset pagination on the directory | Low | Directory large enough for the drift to matter | 2 | Stable pages while lawyers are added or expire |
+| TD-019 | PostgreSQL full-text search with an index | Low | None | 3 | Search that ranks and handles stemming rather than substring matching |
+| TD-022 | Calibrate the matching weights against consultation outcomes | Low | TD-004 outcome data | 3 | Ranking justified by results while staying deterministic |
+| TD-004 | Feed accept, decline, and completion outcomes back into ranking inputs | Low | Enough consultation history to be meaningful | 5 | Recommendations improve with use, still explainably |
+| TD-024 | Route-level code splitting and a trimmed component surface | Low | None | 2 | Faster first load on a Ghanaian mobile connection |
+| TD-015 | Decouple a category's slug from its display name | Low | Migration for existing slugs | 1 | Renaming a category stops breaking anything that stored its slug |
+| TD-012 | Retry a transient AI failure once with backoff before falling back | Low | None | 1 | Fewer intakes flagged for review for a momentary network fault |
+
+### Future major version
+
+| Debt | Repayment action | Priority | Prerequisite | Estimated effort | Expected benefit |
+| --- | --- | --- | --- | --- | --- |
+| TD-026 | Genuine recurring billing with a stored mandate and automatic renewal | Medium (prod) | Gateway support for recurring debits — not confirmed for NaloPay | 8 | Lawyers stop losing visibility because they forgot to pay |
+| TD-005 | Verify practising certificates against a professional register, with document upload and review | Low (MVP) | A cooperating authority or an accepted manual review process | 8 | Approval means verified, not "an admin looked at it" |
+| TD-007 (second stage) | Self-hosted or in-region model so intake text never leaves the boundary | High | Model quality acceptable at affordable hosting | 8 | The privacy problem is removed rather than disclosed |
 
 Critical debt must not be deferred without explicit justification. None is currently
-outstanding.
+outstanding. The three High items — TD-007, TD-028, TD-031 — all sit in the first release
+after the examination for the same reason: each one is a promise the product would
+otherwise make without evidence.

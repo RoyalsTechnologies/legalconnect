@@ -21,8 +21,9 @@ integration evidence. The AI provider is mocked in automated tests — never cal
 provider from a test suite.
 
 Local: Node.js 22 and PostgreSQL 16 (`docker compose up -d postgres`). `npm test` in
-`server/` applies committed migrations to a dedicated `test` schema
-(`tests/global-setup.ts`) so development data is not truncated.
+`server/` applies committed migrations to a per-run `test_<pid>` schema
+(`tests/global-setup.ts`), dropped on teardown, so development data is not truncated and
+two runs cannot corrupt each other (CH-023, closing TD-009).
 
 CI: GitHub Actions workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 runs three jobs on every push and pull request:
@@ -34,10 +35,31 @@ runs three jobs on every push and pull request:
 
 First Actions run: not yet completed.
 
+## Test types
+
+Which kinds of testing were performed, and where the evidence for each one sits in this
+report. Types the brief asks to *consider* are listed too, including the one not done.
+
+| Type | Performed | Evidence |
+| --- | --- | --- |
+| Unit | Yes — automated, no database | `UT-` cases in the phase run sections; 22 files in `vitest.unit.config.ts` |
+| Integration | Yes — automated, Supertest against a migrated schema | `IT-` cases in the phase run sections |
+| Functional | Yes — automated browser tests against a mocked API | `FT-001` to `FT-006`, Frontend E2E |
+| System | Yes — manual, whole stack rather than a module | Container verification, Public access without an account, NaloPay collection contract, Live deployment verification. Recorded as named runs, not as `ST-` numbered cases |
+| Acceptance | Yes — developer walkthrough | `UAT-001` to `UAT-006`; independent participants not yet completed |
+| Security | Yes — automated, plus manual probes | `SEC-LG-` catalogue and the phase runs that execute those cases |
+| AI behaviour | Yes — automated against a mocked provider | `AI-TC-` cases; the live provider is never called from a suite |
+| Matching | Yes — automated | `MT-` cases |
+| Usability | Partly — observed during the UAT walkthroughs, not a separate discipline | NFR-004 notes in UAT-001 and UAT-006; DEF-009 came out of this |
+| Performance | **Not yet completed** | NFR-006 is stated as measured-and-documented, not asserted. No `PERF-` case has been executed, so none is claimed |
+
 ## ID scheme
 
 `UT-` unit · `IT-` integration · `FT-` functional · `ST-` system · `UAT-` acceptance ·
 `SEC-` security · `PERF-` performance · `AI-TC-` AI behaviour · `MT-` matching
+
+`ST-` and `PERF-` are reserved in the scheme but unused: system-level work is recorded as
+named verification runs, and no performance case has been executed.
 
 ## Test case format
 
@@ -261,6 +283,47 @@ defects before any optional enhancement.
 When fixing a defect: reproduce it, add or update a test, apply the smallest safe fix,
 rerun related tests, check for regressions, and record it here if it matters to the
 report. Never mask an error to make a test pass.
+
+## Corrective actions
+
+The fix for each defect is in the log above. What follows is the corrective action in the
+process sense: what changed beyond the immediate repair, so the same class of defect is
+caught next time rather than found by hand again.
+
+| Defect | Corrective action taken | Guard against recurrence |
+| --- | --- | --- |
+| DEF-001 | Blank environment values treated as absent, in the seed and in `config/env.ts`, so `""` can never read as a configured secret | Structural — the filter sits in one place before Zod parsing, and the seed generates a password when none is supplied. No automated test covers the filter itself; that gap is real |
+| DEF-002 | Body-parser failure types mapped before the generic branch of the error handler | IT-008, IT-009 |
+| DEF-003 | Signature verification separated from claim-shape validation | SEC-LG-012 |
+| DEF-004 | Duplicate test ID reassigned and the security catalogue completed | IDs checked for uniqueness across the suite when cases are added |
+| DEF-005 | The AI holding category recognised by name wherever a null category is handled | MT-009 |
+| DEF-006 | One shared `selectable()` helper filters the holding category, server-side rule plus all three client pickers | IT-051 |
+| DEF-010 | Origin resolved from the Vercel host when `CLIENT_ORIGIN` is absent, production host added to the CORS list, and the Production variable corrected | Unit test on `resolveClientOrigin`; CORS probe recorded in Live deployment verification |
+| DEF-011 | The in-flight verification request held in a ref keyed by token, so a double mount cannot spend a single-use token twice | FT-006, which fails against the previous code |
+| DEF-012 | The effect depends on the resolved record rather than on the hook's wrapper object | FT-003 |
+| DEF-007, DEF-008, DEF-009 | No corrective action yet — all three are Low and open, with the diagnosis and intended fix recorded in the log | Deferred deliberately; none blocks a Must requirement |
+| Test infrastructure (not a product defect) | Integration runs migrate a per-run `test_<pid>` schema after two runs corrupted a shared one | CH-023, closing TD-009 |
+
+No defect was closed by weakening or deleting a test.
+
+## Retesting
+
+Every fix above was retested by re-running the case that reproduces it, and the full suite
+was re-run afterwards to check for regressions. Dated outcomes:
+
+| Defect | Retest | Date | Outcome |
+| --- | --- | --- | --- |
+| DEF-001 | Re-seed and inspect the stored hash | 2026-08-12 | Pass — real generated password; the affected row was deleted |
+| DEF-002 | IT-008, IT-009 | 2026-08-12 | Pass |
+| DEF-003 | SEC-LG-012 | 2026-08-12 | Pass |
+| DEF-004 | Suite-wide ID uniqueness check | 2026-08-12 | Pass |
+| DEF-005 | MT-009 | 2026-08-12 | Pass |
+| DEF-006 | IT-051 | 2026-08-12 | Pass |
+| DEF-010 | CORS probe of the live API; live sign-in for all three roles | 2026-08-15 | Partial — the live host is now allowed and localhost refused. A registration on the live URL with a real inbox, following the emailed link, is **not yet completed** |
+| DEF-011 | FT-006, written to fail against the previous code | 2026-08-15 | Pass |
+| DEF-012 | FT-003, which had regressed to a failure | 2026-08-15 | Pass |
+| Regression check after the 2026-08-15 fixes | Full server suite and the E2E suite | 2026-08-15 | Pass — see Server coverage and Frontend E2E |
+| DEF-007, DEF-008, DEF-009 | Not applicable — no fix has been applied | — | Open, retest not yet completed |
 
 ## Results summary
 
@@ -788,6 +851,18 @@ Each run now migrates its own `test_<pid>` schema and drops it on teardown (TD-0
 resolved). Verified on 2026-08-15 by starting two suites in the same second —
 `subscriptions.test.ts` (23) and `lawyers.test.ts` (53) — both green. Runs are still serial
 *within* a run, so the suite's duration is unchanged.
+
+**One unexplained failure remains on record.** A `verify` run on 2026-08-15 at 13:59 failed a
+single integration case — `subscriptions.test.ts`, "an admin can create a package and cannot
+reuse its name" — with `expected 401 to be 201`. The helper creates the administrator and
+signs in immediately before the request, so the 401 means the sign-in returned no usable
+token, but the response was discarded and the cause was not captured. It has not been
+reproduced: the file passed three times in isolation and the full suite passed four times
+that day, including once immediately afterwards, and no other run overlapped it. It is
+recorded here rather than dismissed as noise, because a one-in-five intermittent on an
+authorisation path is exactly the kind of thing that is tempting to ignore. The helper now
+fails on the sign-in itself and prints the status and body, so a recurrence will name its own
+cause instead of surfacing as a 401 on the endpoint under test.
 
 ## Server coverage (2026-08-15)
 

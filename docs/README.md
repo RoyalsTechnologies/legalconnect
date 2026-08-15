@@ -18,6 +18,7 @@ the final submission documents, so keep them current as the project develops.
 | [10-srs.md](10-srs.md) | Software Requirements Specification in the brief's nine-section structure |
 | [11-conclusion.md](11-conclusion.md) | Project conclusion — what was delivered, what the discipline produced, what is unfinished |
 | [12-references.md](12-references.md) | References and acknowledgements for every third-party component |
+| [13-implementation.md](13-implementation.md) | Implemented modules, workflows, algorithms, database, API, auth, validation, error handling, security, deviations from design |
 | [user-manual.md](user-manual.md) | End-user guide |
 | [uat-evidence/](uat-evidence/) | Screenshots captured during UAT runs |
 | [diagrams/](../diagrams/) | Use-case, architecture, ER, intake sequence, consultation lifecycle (Mermaid) |

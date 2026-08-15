@@ -150,6 +150,15 @@ link (`POST /auth/forgot-password`, `POST /auth/reset-password`).
 **FR-004** — A lawyer can edit only their own profile. An admin can edit any. A lawyer
 cannot set their own `approvalStatus`. Attempting either returns `403`.
 
+**FR-005** — The category list is readable without an account, because the directory filter
+needs it. Only an admin can create, update, or retire a category; a USER or LAWYER attempt
+returns `403`. A created category derives its slug from its name, and a duplicate name
+returns `409`. Delete retires the category rather than removing the row, so past intakes and
+practice areas keep their reference (ADR-008); a retired category stays hidden from ordinary
+callers and remains visible to an admin, and `includeInactive=true` is ignored for anyone
+else. The AI holding category `Other / Needs Review` is active by necessity but cannot be
+selected as a lawyer's practice area (DEF-006).
+
 **FR-016** — Public registration with `accountType=lawyer` creates a `LAWYER` user and a
 `PENDING` profile. The profile is absent from the directory and from matching until an
 admin sets `APPROVED`. A payload that tries to self-approve is ignored. `role` still
