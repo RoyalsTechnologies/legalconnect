@@ -1,6 +1,42 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const LOCAL_DB_HOSTS = new Set(['localhost', '127.0.0.1', 'postgres']);
+
+function parseDatabaseUrl(raw: string): URL | undefined {
+  try {
+    return new URL(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+// On Vercel, a leftover Docker DATABASE_URL wins over the Supabase integration
+// vars unless we skip localhost and prefer POSTGRES_URL_NON_POOLING (direct).
+function resolveDatabaseUrl(from: NodeJS.ProcessEnv): string | undefined {
+  const onVercel = from.VERCEL === '1';
+  const candidates = [
+    from.DATABASE_URL,
+    from.POSTGRES_URL_NON_POOLING,
+    from.POSTGRES_PRISMA_URL,
+    from.POSTGRES_URL,
+  ];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const parsed = parseDatabaseUrl(raw);
+    if (!parsed) continue;
+    if (onVercel && LOCAL_DB_HOSTS.has(parsed.hostname)) continue;
+    if (onVercel && parsed.port === '6543') continue;
+    return raw;
+  }
+  return from.DATABASE_URL;
+}
+
+const resolvedDatabaseUrl = resolveDatabaseUrl(process.env);
+if (resolvedDatabaseUrl) {
+  process.env.DATABASE_URL = resolvedDatabaseUrl;
+}
+
 // Validated once at startup so a misconfigured deployment fails immediately and
 // loudly rather than at the first request that happens to need a variable.
 const envSchema = z.object({

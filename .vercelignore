@@ -1,5 +1,11 @@
 .cursor
 .github
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 client/e2e
 client/test-results
 client/playwright-report

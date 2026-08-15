@@ -383,7 +383,9 @@ connection. Prisma was kept (stack rule) rather than introducing Redis or a seco
 **Impact:** A burst of traffic can exhaust the database `max_connections`. Cold starts are
 slower than a long-lived Node process.
 **Priority:** Medium for the live exam URL · **Category:** infrastructure · **Status:** Accepted
-**Resolution:** Use a pooled URL (Neon `-pooler` or PgBouncer). Do not add another datastore.
+**Resolution:** Use a pooled URL (Supabase pooler + Prisma `directUrl`, or Neon `-pooler`).
+Do not add another datastore. The exam deploy uses the Supabase direct URI as
+`DATABASE_URL` so migrate and the Function share one connection string.
 **Target:** v1.1 · **Related:** NFR-008, CON-002
 
 ## Summary

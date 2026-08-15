@@ -4,13 +4,19 @@ Status: Vercel configuration is in the repository. A live URL is **not yet deplo
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
 host, so Vercel serves the Vite build from `public/` (CDN) and runs Express as one Function
-(`index.ts` → `createApp()`). `express.static()` is ignored on Vercel; do not rely on it.
+(`index.js` imports `express` and `createApp` from `server/dist`, which `vercel-build`
+compiles with the server tsconfig). Vercel must not typecheck `server/src` — its
+Express preset treats helmet/cors default exports as non-callable. Local Docker still
+starts from `server/src/server.ts`. `express.static()` is ignored on Vercel; do not
+rely on it.
 `outputDirectory` is intentionally unset so Vercel does not treat the project as a
 static site.
 
-Companion database: a hosted Postgres (Neon, Vercel Postgres, or similar). The Function
-must use a **pooled** connection string (Neon’s `-pooler` host) or it will exhaust
-connections (TD-030).
+Companion database: **Supabase Postgres**. The Function should use a connection string
+Vercel can reach (not `localhost:5433`). For this exam, set `DATABASE_URL` to the
+Supabase **direct** URI (host `db.<project>.supabase.co`, port `5432`, `sslmode=require`)
+so `prisma migrate deploy` and the API share one URL. Do not use the Transaction pooler
+(port `6543`) unless `directUrl` is added to the Prisma schema (TD-030).
 
 ## What to set on Vercel before the first deploy
 
@@ -21,15 +27,18 @@ time and the build will fail if `DATABASE_URL` or `JWT_SECRET` is missing.
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `NODE_ENV` | Yes | `production` |
-| `DATABASE_URL` | Yes | Pooled `postgresql://…` URL, `sslmode=require` |
+| `DATABASE_URL` | Yes | Supabase **direct** URI (`db.<ref>.supabase.co:5432?sslmode=require`). **Edit the existing variable** if it still says `localhost:5433` — adding a second `DATABASE_URL` does nothing. Not the Transaction pooler on port `6543`. The Supabase Vercel integration’s `POSTGRES_URL_NON_POOLING` is used if `DATABASE_URL` is still local |
 | `JWT_SECRET` | Yes | ≥ 32 characters. `openssl rand -base64 48` |
 | `CLIENT_ORIGIN` | Yes | `https://<project>.vercel.app` (update after the first URL is known) |
 | `NALOPAY_CALLBACK_URL` | If NaloPay is set | `https://<project>.vercel.app/api/v1/payments/callback` |
 | `AI_PROVIDER_*` | No | Unset → intake fallback (FR-010) |
 | `EMAIL_*` / `SMS_*` / `NALOPAY_*` | No | Unset → log / local-dev behaviour; production NaloPay without credentials returns 503 |
 
-Never put secrets in git. `CLIENT_ORIGIN` and the callback URL can be filled on the second
-deploy once Vercel prints the hostname.
+Never put secrets in git. Never paste `server/.env` into Vercel — that file is for
+`docker compose` on your machine. In Supabase: **Project Settings → Database →
+Connect → URI → Direct**. Paste that value only into the Vercel project environment.
+`CLIENT_ORIGIN` and the callback URL can be filled on the second deploy once Vercel
+prints the hostname.
 
 ## Commands Vercel runs
 
@@ -37,8 +46,11 @@ Defined in `vercel.json` and the root `vercel-build` script:
 
 1. `npm ci` at the root, then in `server/` and `client/` with devDependencies (Vite and
    `prisma` are devDependencies; a production-only install would fail the build)
-2. `prisma generate` and `prisma migrate deploy`
-3. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
+2. `prisma generate` and `prisma migrate deploy` via the server npm scripts (so the
+   working directory is `server/`, where `prisma/schema.prisma` lives)
+3. `tsc` compiles `server/src` to `server/dist` (the Function loads that JS, not the
+   TypeScript sources)
+4. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
    `outputDirectory` or the project is treated as static-only and `/api` disappears)
 
 SPA routes (`/login`, `/app`, …) rewrite to `/index.html`. `/api/*` and `/assets/*` are
