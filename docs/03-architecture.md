@@ -313,8 +313,8 @@ including the fallback branch, and the optional consultation lifecycle activity.
 | 6 | Lawyer matching and discovery | FR-011, FR-012 | Complete |
 | 7 | Consultation requests | FR-013, FR-014 | Complete |
 | 8 | Admin functionality | FR-015 | Complete |
-| 9 | Testing pass | All | Automated suite complete; developer UAT 2026-08-13 (independent participants not yet completed) |
-| 10 | Deployment and documentation | CON-002, NFR-008 | Not yet completed |
+| 9 | Testing pass | All | Automated suite complete; developer UAT 2026-08-13, extended 2026-08-15 to cover UAT-003/004/005 (independent participants not yet completed) |
+| 10 | Deployment and documentation | CON-002, NFR-008 | Deployed and verified live 2026-08-15 — hosted database seeded, all three roles sign in, `/api/health` reports the database connected. Documentation is packaged by `npm run docs:submission` |
 
 The frontend was built alongside phases 6–8 rather than as a separate phase, because
 each backend slice was only demonstrably finished once a screen exercised it.

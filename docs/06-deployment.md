@@ -116,8 +116,14 @@ tick one without running it.
       cities, and an admin token reads `/api/v1/admin/stats` (5 approved, 5 subscribed,
       9 active categories). A paid consultation cannot be completed on the live URL because
       the test merchant refuses amounts at real fee levels (TD-031)
-- [ ] No secrets exposed in the bundle or in API responses — not yet audited on the
-      deployed bundle
+- [x] No secrets exposed in the bundle or in API responses — audited 15 Aug 2026. The client
+      source contains no `import.meta.env` or `process.env` reference at all, so no
+      environment value can reach the bundle by construction. A scan of the built assets for
+      key-shaped strings (`sk-…`, `AKIA…`, `postgresql://`, secret variable names, provider
+      hostnames) returns nothing, and the local build reproduces the same asset hashes the
+      live page loads (`index-vFypezLz.js`, `react-dwAUvDdu.js`), so the audit applies to the
+      served bundle. The public `/api/v1/lawyers` response carries no email address,
+      password hash, or payment account field
 - [ ] URLs are stable — the project has not been renamed since deployment, but no alias is
       pinned, so a rename would move the URL
 - [x] Test credentials work — verified by signing in as each role on 15 Aug 2026. The
@@ -178,3 +184,55 @@ Source Code Repository:  https://github.com/RoyalsTechnologies/legalconnect
 
 All three accounts were verified against the live API on 15 Aug 2026 and returned their
 expected roles.
+
+## Package contents
+
+`npm run docs:submission` renders the diagrams, then writes the package and a ZIP beside it:
+
+```
+submission/22424693_LegalConnect_Ghana/
+├── Project_Documentation.pdf          14 numbered chapters, every required section
+├── Deployment_and_Source_Links.txt    links and working credentials
+└── Supporting_Files/
+    ├── diagrams/                      Mermaid sources plus PNG and SVG renders
+    └── uat-evidence/                  5 UAT screenshots
+submission/22424693_LegalConnect_Ghana.zip   2.0 MB
+```
+
+The brief allows one combined PDF provided each required section is clearly identified, so
+the SRS, testing report, technical debt plan and user manual are numbered chapters rather
+than separate files, named as the brief names them and listed in the contents.
+
+## Final submission check
+
+Verified 15 Aug 2026. Every row states where the evidence is; nothing is ticked on the
+strength of a document merely existing.
+
+| Brief requirement | State | Evidence |
+| --- | --- | --- |
+| Realistic problem defined | Met | `01-requirements.md` problem statement; `10-srs.md` §1 |
+| Stakeholders and users identified | Met | `01-requirements.md` users and stakeholders; use-case diagram |
+| Requirements analysis completed | Met | 21 functional and 8 non-functional requirements, prioritised, with acceptance criteria |
+| SRS completed | Met | `10-srs.md`, chapter 1 of the PDF |
+| Effort estimated, technique justified | Met | `02-effort-estimation.md` — story points with expert judgement, baseline 48.5 h, re-estimation of added scope, variance analysis |
+| System designed | Met | `03-architecture.md` and five diagrams in `diagrams/` |
+| Major prioritised requirements implemented | Met | FR-001…FR-021; build phases 1–8 complete in `03-architecture.md` |
+| Functional application works | Met | Live directory returns five lawyers; all three roles sign in |
+| Tests executed, results documented | Met | 164 unit, 220 integration, 6 Playwright E2E, all passing 15 Aug 2026; recorded in `04-testing.md` |
+| Technical debt identified with resolution strategies | Met | 31 items in `05-technical-debt-register.md`, each with cause, impact, resolution and target |
+| Application deployed, live deployment tested | Met | Vercel plus Supabase; the checklist above, verified against the live URL |
+| User manual prepared | Met | `user-manual.md` |
+| Maintenance strategy and future evolution prepared | Met | `07-maintenance-and-evolution.md` |
+| Repository accessible | **Action needed** | The repository is public, but the default branch `main` is 15 commits behind the working branch. A grader opening the repository URL would not see the submitted work |
+| URLs verified | Met | Live and admin URLs respond; `/api/health` reports the database connected |
+| Credentials verified | Met | `node scripts/verify-live-credentials.mjs` signs in as each role against the live API and prints the outcome, never a password |
+| Name, student ID, project title included | Met | PDF cover and `Deployment_and_Source_Links.txt` |
+| Third-party resources acknowledged | Met | `12-references.md` |
+| Submission package complete | Met | Structure above, built by `npm run docs:submission` |
+
+Known gaps carried into the submission, all recorded rather than hidden: no independent UAT
+participant session (developer walkthroughs only), NFR-006 performance still unmeasured, a
+live mobile-money capture at a real consultation fee blocked by the test merchant (TD-031),
+the emailed confirmation link on the live site not yet retested end to end since
+`CLIENT_ORIGIN` was corrected (DEF-010), and three open Low defects (DEF-007, DEF-008,
+DEF-009).

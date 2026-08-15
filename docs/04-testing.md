@@ -1,6 +1,6 @@
 # Testing
 
-Status: automated suite in place; coverage measured 2026-08-13.
+Status: automated suite in place; coverage measured 2026-08-15.
 
 **Do not record a test as executed or passing unless it actually ran.** Paste real output.
 
@@ -789,22 +789,22 @@ resolved). Verified on 2026-08-15 by starting two suites in the same second —
 `subscriptions.test.ts` (23) and `lawyers.test.ts` (53) — both green. Runs are still serial
 *within* a run, so the suite's duration is unchanged.
 
-## Server coverage (2026-08-13)
+## Server coverage (2026-08-15)
 
-`npm run test:coverage` in `server/` — **31 files, 358 tests, all passing**, then v8
+`npm run test:coverage` in `server/` — **33 files, 384 tests, all passing**, then v8
 report for `server/src` (excludes `src/server.ts`, the process entrypoint). Coverage
 runs unit files that mock `env.js` in a separate Vitest project from the integration
 suite so `isTest` cannot leak.
 
 ```
- Test Files  31 passed (31)
-      Tests  358 passed (358)
- Duration  129.50s
+ Test Files  33 passed (33)
+      Tests  384 passed (384)
+ Duration  220.56s
 
-Statements   : 96.3% ( 1224/1271 )
-Branches     : 89.42% ( 837/936 )
-Functions    : 99.61% ( 256/257 )
-Lines        : 97.48% ( 1123/1152 )
+Statements   : 95.85% ( 1388/1448 )
+Branches     : 89.16% ( 963/1080 )
+Functions    : 99.64% ( 281/282 )
+Lines        : 97.38% ( 1267/1301 )
 ```
 
 Thresholds enforced in `server/vitest.coverage.config.ts` and the CI **coverage** job:
@@ -813,13 +813,22 @@ several remaining paths are environment-gated (email send outside `NODE_ENV=test
 `env.ts` parse failure at process start) or defensive catches (non-P2002 rethrows,
 concurrent update races). Frontend component tests still do not exist (TD-008).
 
+Measured against the 2026-08-13 run (31 files, 358 tests, 96.3% statements, 89.42%
+branches), the suite grew by 26 tests while statement coverage fell 0.45 points and
+branch coverage 0.26. Both still clear their thresholds, but statements now sit 0.85
+points above the 95% gate rather than 1.3, so the code added in the final phases
+carried slightly less coverage than the code already there. The least covered file is
+`src/config/env.ts` at 80.43% of statements and 72.5% of branches, which is the
+process-start parse and the Vercel host fallback — paths that by their nature do not run
+under test.
+
 ## Conclusion
 
 Testing gives good confidence in the server and limited confidence in the browser layer.
 
 As at 2026-08-15 the automated suites stand at **164 unit tests and 220 integration tests,
 all passing**, plus six Playwright flows exercising the browser against a mocked API. The
-coverage run of 2026-08-13 measured 96.3% of statements and 89.42% of branches in
+coverage run of 2026-08-15 measured 95.85% of statements and 89.16% of branches in
 `server/src`, with thresholds enforced in CI rather than merely reported, so a regression in
 coverage fails the build instead of being noticed later.
 
