@@ -37,6 +37,10 @@ pnpm-debug.log*
 prisma/*.db
 prisma/*.db-journal
 
+# Generated submission package. Never tracked: the links file carries live credentials
+# once they are filled in, and the PDF is rebuilt from docs/ by `npm run docs:submission`.
+submission/
+
 # Vercel
 .vercel
 /public

@@ -3,11 +3,16 @@
 Source for the four required artefacts in `docs/03-architecture.md`, plus the optional
 consultation lifecycle. They describe the system **as built** (including FR-016…021).
 
-Render the `.mmd` files in GitHub, VS Code (Mermaid preview), or:
+Read them in GitHub or a Mermaid preview. To regenerate the SVG and PNG in `exports/`, which
+are what the submission PDF embeds:
 
 ```bash
-npx --yes @mermaid-js/mermaid-cli -i diagrams/01-use-cases.mmd -o diagrams/01-use-cases.svg
+npm run docs:diagrams
 ```
+
+That renders every `.mmd` here through the Chromium the E2E suite already installs, so no
+second browser or global CLI is needed. `exports/` is generated — edit the `.mmd` source,
+never the output.
 
 | File | Type | Purpose |
 | --- | --- | --- |

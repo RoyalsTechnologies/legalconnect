@@ -13,6 +13,8 @@
       "!**/prisma/migrations",
       "!**/*.tsbuildinfo",
       "!docs/archive",
+      "!diagrams/exports",
+      "!submission",
       "!**/test-results",
       "!**/playwright-report",
       "!**/blob-report",
