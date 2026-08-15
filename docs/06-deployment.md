@@ -3,14 +3,18 @@
 Status: Vercel configuration is in the repository. A live URL is **not yet deployed**.
 
 The exam needs one public origin plus PostgreSQL. The client calls `/api/v1` on the same
-host, so Vercel serves the Vite build from `public/` (CDN) and runs Express as one Function
-(`index.js` imports `express` and `createApp` from `server/dist`, which `vercel-build`
-compiles with the server tsconfig). Vercel must not typecheck `server/src` — its
-Express preset treats helmet/cors default exports as non-callable. Local Docker still
-starts from `server/src/server.ts`. `express.static()` is ignored on Vercel; do not
-rely on it.
-`outputDirectory` is intentionally unset so Vercel does not treat the project as a
-static site.
+host, so Vercel serves the Vite build (`outputDirectory: client/dist`) from its CDN and
+runs the whole API as one Function at `api/index.js`, which exports the app returned by
+`createApp()` from `server/dist`. `vercel-build` compiles that JavaScript with the server
+tsconfig; Vercel must not typecheck `server/src`, because its Express framework preset
+treats the helmet/cors default exports as non-callable. Local Docker still starts from
+`server/src/server.ts`.
+
+The Express preset is deliberately **off** (`framework: null`). Under that preset every
+request is routed to the Function and a `public/` folder created during the build is not
+picked up as static output, so the SPA 404s while `/api/health` works. Serving
+`client/dist` as the output directory and routing `/api/*` to the Function avoids that.
+`express.static()` is ignored on Vercel; do not rely on it.
 
 Companion database: **Supabase Postgres**. The Function should use a connection string
 Vercel can reach (not `localhost:5433`). For this exam, set `DATABASE_URL` to the
@@ -50,11 +54,12 @@ Defined in `vercel.json` and the root `vercel-build` script:
    working directory is `server/`, where `prisma/schema.prisma` lives)
 3. `tsc` compiles `server/src` to `server/dist` (the Function loads that JS, not the
    TypeScript sources)
-4. `vite build` → copy `client/dist` to `public/` (Vercel’s CDN directory; do not set
-   `outputDirectory` or the project is treated as static-only and `/api` disappears)
+4. `vite build` → `client/dist`, which `outputDirectory` publishes to the CDN
 
-SPA routes (`/login`, `/app`, …) rewrite to `/index.html`. `/api/*` and `/assets/*` are
-left alone so Express and hashed JS/CSS are not replaced by the HTML shell.
+`/api/*` rewrites to the `api/index` Function, so every `/api/v1/...` path reaches Express
+rather than being resolved as a file. Everything else falls back to `/index.html` for SPA
+routes (`/login`, `/app`, …). Static files win before rewrites, so hashed JS and CSS under
+`/assets/` are still served as themselves.
 
 One-off seed against the hosted database (from your machine, not on every deploy):
 
