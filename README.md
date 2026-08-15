@@ -187,9 +187,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs lint/typecheck/audit/builds, th
 Integration starts its own Postgres 16 service. Frontend E2E is local-only
 (`npm run test:e2e`).
 
-Hosting is Vercel (`vercel.json`): the Vite build is served from `public/`, Express
-handles `/api/*`. Create a hosted Postgres (Neon pooled URL recommended), set the
-variables in `docs/06-deployment.md`, then deploy. The live URL is not yet deployed.
+Hosting is Vercel (`vercel.json`): the Vite build in `client/dist` is served from the CDN
+and `/api/*` is rewritten to the Express Function at `api/index.js`. Create a hosted
+Postgres, set the variables in `docs/06-deployment.md`, then deploy. The live URL is not
+yet deployed.
 
 Frontend E2E: `npm run test:e2e` (first time: `npx --prefix client playwright install chromium`).
 
