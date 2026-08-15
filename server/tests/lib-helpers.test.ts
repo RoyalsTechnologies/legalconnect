@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { env } from '../src/config/env.js';
+import { env, resolveClientOrigin } from '../src/config/env.js';
 import {
   AppError,
   badRequest,
@@ -50,6 +50,35 @@ describe('errors', () => {
       code: 'UNPROCESSABLE_ENTITY',
       details: { field: 'x' },
     });
+  });
+});
+
+describe('resolveClientOrigin', () => {
+  it('keeps an explicit origin whatever the platform', () => {
+    expect(resolveClientOrigin({ CLIENT_ORIGIN: 'https://legalconnect.gh' })).toBe(
+      'https://legalconnect.gh',
+    );
+    expect(
+      resolveClientOrigin({
+        CLIENT_ORIGIN: 'https://legalconnect.gh',
+        VERCEL: '1',
+        VERCEL_PROJECT_PRODUCTION_URL: 'other.vercel.app',
+      }),
+    ).toBe('https://legalconnect.gh');
+  });
+
+  it('falls back to the deployment host on Vercel so emailed links are reachable', () => {
+    expect(
+      resolveClientOrigin({ VERCEL: '1', VERCEL_PROJECT_PRODUCTION_URL: 'app.vercel.app' }),
+    ).toBe('https://app.vercel.app');
+    expect(resolveClientOrigin({ VERCEL: '1', VERCEL_URL: 'preview-abc.vercel.app' })).toBe(
+      'https://preview-abc.vercel.app',
+    );
+  });
+
+  it('leaves the localhost default alone off Vercel', () => {
+    expect(resolveClientOrigin({})).toBeUndefined();
+    expect(resolveClientOrigin({ VERCEL_URL: 'app.vercel.app' })).toBeUndefined();
   });
 });
 
